@@ -1,0 +1,282 @@
+# RuneScape Classic-Inspired HTML5 Game — Development Roadmap
+
+**Status:** Planning
+**Scope:** Single-player, browser-based, static bundle
+**Targets:** itch.io (primary), blog link-out (secondary)
+**Starter skills:** Woodcutting → Firemaking → Cooking
+
+---
+
+## 0. Locked decisions
+
+These are settled. Changing any of them later is expensive.
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Multiplayer | No, single-player only | No netcode seams, no server, no accounts |
+| Simulation model | Fixed-tick, deterministic, seeded RNG | Testability, replay, save integrity |
+| Sim purity | Zero browser APIs in sim module | Must run headless in Node |
+| Content | JSON/TS data registries, not code | Adding a tree type is a data edit |
+| Logical resolution | Fixed, integer-scaled | Pixel-art integrity |
+| Distribution | Static bundle, relative paths | itch.io serves from a subpath |
+| Persistence | Storage with in-memory fallback + manual export | Sandboxed iframes eat saves |
+
+### Still open
+
+- Final title and package name — pick a codename this week regardless.
+- Renderer: Canvas2D top-down vs. Canvas2D isometric vs. WebGL RSC-style camera.
+- Authenticity contract: clone Open-RSC formulas, or RSC-*shaped* with original numbers.
+- Mobile/touch support: yes or no. Decide before the input adapter is written.
+
+---
+
+## 1. Architecture
+
+```
+content/          Pure data. Items, objects, skills, actions, map.
+  ├─ items.ts
+  ├─ objects.ts
+  ├─ skills.ts
+  ├─ actions.ts
+  └─ map/
+
+sim/              Pure. No DOM, no window, no Date, no Math.random.
+  ├─ state.ts         Full serializable world state
+  ├─ tick.ts          step(state, commands) -> state
+  ├─ rng.ts           Seeded PRNG, seed + call count in state
+  ├─ pathing.ts       A* over tile grid + blocking mask
+  ├─ inventory.ts
+  ├─ actions/         woodcutting.ts, firemaking.ts, cooking.ts
+  └─ objects.ts       Spawn, despawn, respawn timers
+
+render/           Reads sim state. Never mutates it.
+  ├─ canvas.ts
+  ├─ atlas.ts
+  └─ interpolate.ts   Smooths between ticks at 60fps
+
+ui/               Inventory panel, skills panel, chat log, menus
+input/            DOM events -> sim commands
+persist/          Serialize, storage adapter, export/import
+main.ts           Wires it together, owns the loop
+```
+
+**The enforcing rule:** if `sim/` cannot run under `node` with no browser globals, the boundary has been violated. Add a CI check that imports `sim/` in a bare Node context and fails on `ReferenceError`.
+
+**Dependency direction:** `content → sim → {render, ui}`, and `input → sim`. Nothing flows backwards.
+
+---
+
+## 2. Tick model
+
+- Fixed tick length. 600ms is the RS2 value and a reasonable target; RSC was in the same neighbourhood.
+- Accumulator loop:
+  ```
+  accumulator += deltaTime
+  while (accumulator >= TICK_MS) { step(); accumulator -= TICK_MS }
+  render(interpolationAlpha)
+  ```
+- Rendering interpolates position between the last two tick states. Gameplay never reads frame time.
+- Player input is enqueued as commands and consumed at tick boundaries. A click does not mutate state directly.
+- Seeded PRNG only. Store `{seed, callCount}` in state, never the output stream.
+
+**Command shape:**
+```ts
+type Command =
+  | { type: 'walk_to'; x: number; y: number }
+  | { type: 'interact_object'; x: number; y: number; action: string }
+  | { type: 'use_item_on_item'; slotA: number; slotB: number }
+  | { type: 'use_item_on_object'; slot: number; x: number; y: number }
+  | { type: 'drop_item'; slot: number }
+```
+
+---
+
+## 3. Data schemas
+
+Rough shapes. Refine on contact with the first skill.
+
+**Item**
+```ts
+{ id, name, examine, stackable, value,
+  equipSlot?, tags: string[],       // 'axe', 'tinderbox', 'raw_food'
+  actions: string[] }
+```
+
+**Object** (world scenery)
+```ts
+{ id, name, examine, footprint: [w, h],
+  blocking: boolean,
+  actions: string[],               // 'chop', 'cook_on'
+  depletesTo?: objectId,           // tree -> stump
+  respawnTicks?: number,
+  lifetimeTicks?: number }         // fire -> ash -> gone
+```
+
+**Skill action** (the generalization test)
+```ts
+{ id, skill, levelReq, xp,
+  requires: { toolTag?, itemTag?, targetObject? },
+  consumes?, produces?,
+  successCurve: { lowChance, highChance },
+  failureBehaviour: 'retry' | 'consume' | 'abort' }
+```
+
+Cooking's burn mechanic is `failureBehaviour: 'consume'` with a `burnedProduces` field. If that fits without a special case, the schema is generalizing correctly.
+
+---
+
+## 4. Milestones
+
+Each milestone has a concrete acceptance test. Do not advance until it passes.
+
+### M0 — Skeleton
+- Vite project, TypeScript, `base: './'` set from day one.
+- Tick loop running, logging tick count.
+- Empty tile grid, player entity, fixed-resolution canvas with integer scaling.
+- **Accept:** tick counter advances at a stable rate; canvas scales 1x/2x/3x cleanly on window resize.
+
+### M1 — Movement
+- Tile grid with a blocking mask.
+- A* pathfinding.
+- Click-to-walk. Player traverses one tile per tick along the path.
+- Camera follows player.
+- **Accept:** clicking across the map produces a sensible path; clicking a blocked tile walks to the nearest reachable neighbour.
+
+### M2 — Action state machine
+- States: `idle → walking → arrived → performing → interrupted`.
+- Actions only fire when the player is adjacent to the target tile.
+- Clicking elsewhere mid-action cancels cleanly.
+- **Accept:** no orphaned actions. Interrupt mid-action, verify no further ticks of that action execute.
+
+*This is the milestone people skip. Every skill reuses it.*
+
+### M3 — Inventory
+- Fixed 30 slots, RSC-style.
+- Item registry loaded, items renderable in a panel.
+- Drop, examine, and item-on-item plumbing (no behaviours bound yet).
+- Inventory-full is a defined, testable condition.
+- **Accept:** fill inventory, attempt to add an item, correct rejection message.
+
+### M4 — Woodcutting
+- Tree objects on the map with `depletesTo: stump` and respawn timers.
+- Axe detection by item tag.
+- Level-gated success roll per tick.
+- XP award, logs to inventory, tree depletes on success.
+- Stops cleanly on inventory-full.
+- **Accept:** deterministic test — seed N, level 1, chop 100 trees, assert exact XP and log count. Rerun, identical result.
+
+### M5 — Skills panel + XP curve
+- Level curve implemented and matching whichever reference you chose.
+- Skills panel showing level, XP, XP to next.
+- Level-up message in the chat log.
+- **Accept:** XP-to-level table matches reference at levels 1, 50, 92, 99.
+
+### M6 — Firemaking
+- Item-on-item: tinderbox + logs.
+- Spawns a **dynamic** fire object on the player's tile.
+- Fire blocks the tile and invalidates pathing.
+- Lifetime timer: fire → ashes → despawn.
+- **Accept:** light a fire, confirm pathfinding routes around it, confirm the fire is still interactable from an adjacent tile, confirm it decays on schedule.
+
+*This milestone forces the object system to become dynamic. Expect it to break assumptions from M4.*
+
+### M7 — Cooking
+- Item-on-object: raw food + fire.
+- Level-scaled burn chance; failure consumes the input and produces burnt food.
+- Same action bound to a second target type (range) with different burn rates.
+- **Accept:** cooking works on both fire and range through the same `actions.ts` entry, with zero special-casing in the sim.
+
+### M8 — Persistence
+- Full state serialization, versioned: `{version: 1, state: {...}}`.
+- IndexedDB primary, localStorage fallback, in-memory fallback if both throw.
+- **Manual export/import**: base64 save string in a copyable textarea.
+- **Accept:** save, hard-refresh, load, state identical. Then disable storage in devtools and confirm export/import still works.
+
+*Not polish. On itch.io this is the failure mode for a real fraction of players.*
+
+### M9 — Presentation
+- Sprite atlas (one PNG, not many files).
+- Chat log / message box.
+- Click-to-start overlay (doubles as canvas focus and audio unlock).
+- `preventDefault` on keys that would scroll the parent page.
+- Audio: ambient loop, action SFX.
+- **Accept:** loads and plays correctly inside a cross-origin iframe locally.
+
+### M10 — Ship
+- Build to static bundle, verify all paths relative.
+- Zip with `index.html` at root.
+- Upload to itch.io, set embed dimensions to a whole multiple of logical resolution.
+- Test in Chrome, Firefox, Safari — including private browsing.
+- Blog post with screenshots, a short GIF, and a "Play on itch.io" link.
+- **Accept:** a stranger on a phone or laptop can load it and chop a tree without instructions.
+
+---
+
+## 5. Deployment constraints
+
+### itch.io
+- Static zip, `index.html` at root, sandboxed cross-origin iframe.
+- **Relative paths mandatory.** `base: './'` in Vite config. Absolute paths are the #1 cause of a blank screen on upload that worked locally.
+- No cross-origin fetch. Ship content as ES module imports so the bundler inlines it — avoids an entire class of load-order bug.
+- `file://` testing fails on fetch due to CORS even when the itch build is fine. Always test through a local static server.
+- Keep the bundle small. One atlas, compressed audio.
+- Set the itch embed dimensions to match your logical resolution × integer scale.
+
+### WordPress.com
+WordPress.com strips iframe, script, form, and input tags on standard plans. Options:
+
+1. **Link out** (recommended for now) — screenshot + GIF + link. Zero cost, works on every plan.
+2. **Business tier** — unlocks plugins and custom code. Verify current tier names before paying; they change.
+3. **Self-host or move to a static site** — full CSP control.
+
+Note this is independent of hosting. Even from your own domain, the iframe gets stripped. The gate is the plan tier.
+
+---
+
+## 6. Known traps
+
+| Trap | Mitigation |
+|---|---|
+| Sim imports `document` via a "quick" render hack | Node import check in CI |
+| Content baked into `switch` statements | Review every PR for hardcoded IDs |
+| `Math.random()` sneaks into an action | Lint rule banning it outside `rng.ts` |
+| Orphaned actions after interruption | M2 state machine, tested |
+| Tile occupancy vs. pathing mask vs. interaction target conflated | Three separate fields on the object; never derive one from another |
+| XP stored as float, changed later | Decide integer-tenths vs. float at M5; it's baked into saves |
+| Save schema unversioned | `version` field from save #1 |
+| Non-integer canvas scaling | Integer factors only, `image-rendering: pixelated` |
+| Absolute asset paths | `base: './'` at M0, verified at M10 |
+| Package name baked into imports | Pick a codename before M1 |
+
+### Agentic codegen note
+
+Claude Code will default to putting `ctx.fillRect` next to `player.woodcutting += 1` unless told not to. Put the architecture rules in a `CLAUDE.md` at repo root — specifically the sim-purity rule, the no-`Math.random` rule, and the content-as-data rule — before generating more code. Every session re-reads it; your memory of the constraint does not survive a context reset, but the file does.
+
+---
+
+## 7. Deferred
+
+Explicitly out of scope for v1. Listed so they don't creep in.
+
+- Combat, NPCs, aggression, respawn
+- Quests and dialogue trees
+- Banking
+- Additional skills (Mining, Smithing, Fishing)
+- Trading, multiplayer, any server component
+- Mobile touch controls *(unless decided in §0)*
+- World map beyond a single starting area
+- Sound settings, keybinds, accessibility options
+
+The three starter skills plus movement, inventory, and persistence constitute a complete, shippable vertical slice. Ship that before adding a fourth skill.
+
+---
+
+## 8. Suggested sequencing
+
+| Phase | Milestones | Focus |
+|---|---|---|
+| Foundation | M0–M3 | Engine. No skills. Hardest to retrofit. |
+| Vertical slice | M4–M7 | The three skills. Content system proves itself. |
+| Shippable | M8–M10 | Persistence, presentation, release. |
+
+Resist starting M4 before M2 passes. Woodcutting built on a broken action state machine will need rewriting, and by then Firemaking will be built on it too.

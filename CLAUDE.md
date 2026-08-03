@@ -3,6 +3,12 @@
 An RSC-inspired, single-player, browser game. TypeScript + Vite, static bundle,
 no runtime dependencies, no server.
 
+The full plan lives in `docs/`: `roadmap-technical.md` for the engine
+(architecture, tick model, milestones M0-M10, itch.io constraints) and
+`roadmap-content.md` for the game (skills, 24 quests, regions, release phases).
+This file is the settled conclusions only -- go to the roadmaps for the
+reasoning behind them, and for everything not built yet.
+
 Read this before writing code. These rules exist because they are the ones an
 assistant will otherwise break by default, and because each is expensive to
 retrofit once violated.
