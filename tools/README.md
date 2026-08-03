@@ -17,6 +17,22 @@ Do not substitute `Compress-Archive`: it writes backslash separators, which the
 ZIP spec forbids, and some extractors then create a file literally named
 `assets\index.js`. Everything 404s and the page renders blank.
 
+### The build is a single file
+
+`tools/inline.mjs` runs at the end of `npm run build` and folds the CSS and JS
+into `index.html`. The archive is that one file plus a sourcemap.
+
+This is not just tidiness. A stock Vite build **cannot be opened by
+double-clicking it**, which is the first thing anyone does with a downloaded
+zip. Vite marks its tags `crossorigin`, and over `file://` the page's origin is
+opaque, so the stylesheet is refused — the game renders as unstyled HTML.
+Stripping the attribute is not enough either, because `type="module"` is
+CORS-fetched regardless and the bundle still will not execute. An inline module
+is never fetched, so there is nothing to refuse.
+
+The side benefit is that there are no asset paths left to get wrong, which
+removes the most common cause of a blank page after upload.
+
 ## Cross-origin embed harness
 
 Reproduces the itch.io arrangement locally: a page on one origin embedding the

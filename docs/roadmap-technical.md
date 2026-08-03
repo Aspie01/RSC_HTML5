@@ -277,6 +277,13 @@ that actually break — a stage too small to read and a side panel too short to
 hold the inventory — 960×600 gives a 716×600 stage and a 288px panel. 800×500
 is the practical floor. Below roughly 640×420 the panel stops being usable.
 
+**The build is one self-contained `index.html`.** `tools/inline.mjs` folds the
+CSS and JS in at the end of `npm run build`. A stock Vite build cannot be
+opened by double-clicking — `crossorigin` tags plus a CORS-fetched module mean
+a `file://` page loads neither — and unzipping and double-clicking is the first
+thing anyone does with a downloaded archive. Inlining also leaves no asset path
+to get wrong, so the blank-page-after-upload failure has nothing left to fail on.
+
 **Packing is a script, not a documented command,** because of one trap:
 PowerShell's `Compress-Archive` writes entry names with backslashes, which the
 ZIP spec forbids. Extractors that take it literally produce a file named
@@ -298,7 +305,14 @@ ones that matter most, since they are where the storage tiers earn their keep.*
 - Static zip, `index.html` at root, sandboxed cross-origin iframe.
 - **Relative paths mandatory.** `base: './'` in Vite config. Absolute paths are the #1 cause of a blank screen on upload that worked locally.
 - No cross-origin fetch. Ship content as ES module imports so the bundler inlines it — avoids an entire class of load-order bug.
-- `file://` testing fails on fetch due to CORS even when the itch build is fine. Always test through a local static server.
+- ~~`file://` testing fails on fetch due to CORS even when the itch build is fine.~~
+  It did, and for a subtler reason than fetch: Vite marks its script and
+  stylesheet tags `crossorigin`, and a `file://` page has an opaque origin, so
+  both are refused — the game renders as unstyled HTML with no code running.
+  `tools/inline.mjs` folds both into `index.html`, and an inline module is
+  never fetched, so the built game now opens by double-clicking. Test both
+  ways: `file://` catches nothing that HTTP does not, but it is how a player
+  who downloads the zip will open it.
 - Keep the bundle small. One atlas, compressed audio.
 - Set the itch embed dimensions to match your logical resolution × integer scale.
 
