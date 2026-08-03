@@ -205,7 +205,10 @@ const QUEST_GIVERS: ReadonlyArray<{ npcId: string; x: number; y: number }> = [
   // pathfinder walks through NPCs while movement refuses to enter their tile,
   // so anyone standing on a one-tile chokepoint seals it permanently. (44,24)
   // is that chokepoint here -- it is the only way onto the boards.
-  { npcId: 'iselle', x: 44, y: 23 }
+  { npcId: 'iselle', x: 44, y: 23 },
+  // On the crossroads verge, beside the path but never on it -- see the note
+  // above about stationary NPCs and chokepoints.
+  { npcId: 'corbin', x: 27, y: 25 }
 ];
 
 function spawnCluster(

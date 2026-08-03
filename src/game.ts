@@ -32,6 +32,10 @@ import type { BarDef, SmithDef } from './data/resources';
 import { rollGather, rollBurn } from './systems/skilling';
 import { SKILL_LIST } from './systems/skills';
 import { Quests } from './systems/quests';
+import { Shops } from './systems/shop';
+import type { TradeResult } from './systems/shop';
+import { shopForNpc } from './data/shops';
+import type { ShopDef } from './data/shops';
 import { getQuest, questsForNpc } from './data/quests';
 import type { QuestDef, QuestItem, QuestStage } from './data/quests';
 import { Dialogue } from './ui/dialogue';
@@ -101,6 +105,7 @@ export class Game implements World {
   readonly player: Player;
   readonly npcs: Npc[] = [];
   readonly quests = new Quests();
+  readonly shops = new Shops();
 
   private readonly renderer: Renderer;
   private readonly ui: UI;
@@ -235,6 +240,7 @@ export class Game implements World {
     for (const npc of this.npcs) npc.inCombatTicks++;
     this.ground.tick();
     this.objects.tick();
+    this.shops.tick();
     this.player.regenTick();
 
     if (++this.autosaveCounter >= AUTOSAVE_TICKS) {
@@ -623,11 +629,60 @@ export class Game implements World {
       return;
     }
 
+    // A shopkeeper with nothing left to say opens the shop instead. Checked
+    // after quests so a merchant can still be a quest giver, and the errand
+    // always comes before the counter.
+    const shop = shopForNpc(id);
+    if (shop) {
+      const finished = questsForNpc(id).find((d) => this.quests.isComplete(d));
+      this.dialogue.open(npc.name, finished?.afterwards ?? [
+        { who: 'npc', text: 'Have a look. Everything on the cart is for sale.' }
+      ], () => this.openShop(shop));
+      return;
+    }
+
     // Nothing outstanding: say the after-the-fact line, or shrug.
     const finished = questsForNpc(id).find((d) => this.quests.isComplete(d));
     this.dialogue.open(npc.name, finished?.afterwards ?? [
       { who: 'npc', text: 'Good day to you.' }
     ]);
+  }
+
+  // ----------------------------------------------------------------------
+  // Shops
+  // ----------------------------------------------------------------------
+
+  /**
+   * Set by the shop window at boot. The game announces that a shop should be
+   * shown; it does not know what showing one involves, which is what keeps the
+   * trading rules testable without a DOM.
+   */
+  onShopOpen: ((shop: ShopDef) => void) | null = null;
+
+  private openShop(shop: ShopDef): void {
+    this.onShopOpen?.(shop);
+  }
+
+  buyFromShop(shop: ShopDef, itemId: string): TradeResult {
+    const result = this.shops.buy(shop, itemId, this.player.inventory);
+    if (result.ok) {
+      audio.play('pickup');
+      this.ui.dirty = true;
+    } else {
+      audio.play('deny');
+    }
+    return result;
+  }
+
+  sellToShop(shop: ShopDef, itemId: string): TradeResult {
+    const result = this.shops.sell(shop, itemId, this.player.inventory);
+    if (result.ok) {
+      audio.play('drop');
+      this.ui.dirty = true;
+    } else {
+      audio.play('deny');
+    }
+    return result;
   }
 
   /**
@@ -1410,7 +1465,8 @@ export class Game implements World {
       running: p.running,
       slots: p.inventory.slots,
       equipment: p.inventory.equipment,
-      quests: this.quests.stages
+      quests: this.quests.stages,
+      shops: this.shops.snapshot()
     };
     return JSON.stringify(data);
   }
@@ -1461,6 +1517,7 @@ export class Game implements World {
 
       this.quests.restore(data.quests);
       this.restoreQuestUnlocks();
+      this.shops.restore(data.shops);
 
       if (data.slots) p.inventory.slots = this.migrateSlots(data.slots);
       if (data.equipment) p.inventory.equipment = data.equipment as typeof p.inventory.equipment;

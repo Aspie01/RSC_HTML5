@@ -62,6 +62,14 @@ export interface ItemDef {
    * `rod`, `raw_food`.
    */
   readonly tags: readonly string[];
+  /**
+   * Base worth in coins. Shops price against this: they sell above it and buy
+   * below it, so the spread is what makes trading a cost rather than a loop.
+   *
+   * 0 means the item has no market -- quest rewards and burnt food, which
+   * should never be a source of coins.
+   */
+  readonly value: number;
 }
 
 /** A quantity of an item, as held in an inventory or equipment slot. */

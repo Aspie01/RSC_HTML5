@@ -172,6 +172,51 @@ export const quests: readonly QuestDef[] = [
     ]
   },
 
+  // Quest 6. Teaches what a thing is WORTH, which is the one lesson a shop
+  // cannot teach by itself -- a price list means nothing until you have sold
+  // something and watched the number move. No gate: coins are useful from the
+  // first minute, and the merchant is also the safety net for a player who
+  // has lost a tool, so nothing should stand between them and the cart.
+  {
+    id: 'a_weight_off',
+    name: 'A Weight Off',
+    reward: {
+      points: 1,
+      items: [{ id: 'coins', qty: 60 }],
+      unlock: "Corbin's cart is open for business. He buys as well as sells."
+    },
+    stages: [
+      {
+        journal: 'Corbin Vayle is overloaded and looking for a way to lighten his cart.',
+        npc: 'corbin',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Do not help me push. The last one who offered put a wheel through a ditch and then wanted paying for it.' },
+          { who: 'npc', text: 'The trouble is weight. I am carrying stock nobody out here wants, and every pound of it is a pound I am dragging uphill.' },
+          { who: 'player', text: 'What would you rather be carrying?' },
+          { who: 'npc', text: 'Coins. Coins weigh nothing and everyone wants them. That is the entire trade, and it took me thirty years to learn it.' },
+          { who: 'npc', text: 'Bring me eight logs. I will pay you properly for them, and you will see what I mean about weight.' }
+        ]
+      },
+      {
+        journal: 'Bring Corbin Vayle 8 logs. He pays for what he takes.',
+        npc: 'corbin',
+        goal: { type: 'give', items: [{ id: 'logs', qty: 8 }] },
+        waiting: [
+          { who: 'npc', text: 'Eight. And do not go buying them off me and selling them back -- I price them so that loses you money, which is rather the point.' }
+        ],
+        done: [
+          { who: 'npc', text: 'There. You are lighter, I am heavier, and we both think we got the better of it. That is commerce.' },
+          { who: 'npc', text: 'Here is what they are worth, and a little over for the walk.' },
+          { who: 'npc', text: 'Come to me when you need a tool. Losing an axe out here is not the disaster people make of it -- it is thirty coins.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Buying or selling? Either suits me.' }
+    ]
+  },
+
   // Quest 3 of the tutorial tier. No gate and no prerequisite: it has to be
   // completable by someone who walked east before they walked anywhere else.
   // The rod comes first and the catch second, so the reward is what makes the

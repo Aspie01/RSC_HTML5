@@ -127,6 +127,11 @@ export const npcs = {
   iselle: npc('iselle', 'Iselle Marrow', {
     talkable: true, attackable: false, wanderRadius: 0,
     colour: '#3c5a63', accent: '#e0c9a6', size: 1.0
+  }),
+
+  corbin: npc('corbin', 'Corbin Vayle', {
+    talkable: true, attackable: false, wanderRadius: 0,
+    colour: '#6b4a2f', accent: '#d8c08a', size: 1.05
   })
 } as const satisfies Record<string, NpcDef>;
 
