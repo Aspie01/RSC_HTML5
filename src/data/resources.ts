@@ -382,6 +382,14 @@ export const bars: readonly BarDef[] = [
     id: 'glass_vial', name: 'Glass vial', skill: 'crafting',
     level: 5, xp: 20, successChance: 1,
     ingredients: [{ id: 'molten_glass', qty: 1 }]
+  },
+  // Crafting's outbound arrow into Magic. A leaf sealed in glass while the
+  // glass is still soft -- which is why it takes both skills and why the
+  // focus cannot be bought.
+  {
+    id: 'emberglass_focus', name: 'Emberglass focus', skill: 'crafting',
+    level: 15, xp: 90, successChance: 1,
+    ingredients: [{ id: 'molten_glass', qty: 2 }, { id: 'emberleaf', qty: 1 }]
   }
 ];
 

@@ -123,7 +123,8 @@ export class Inventory {
   /** Summed equipment bonuses, fed straight into the combat formulas. */
   bonuses(): Bonuses {
     const total: Bonuses = {
-      attack: 0, strength: 0, defence: 0, ranged: 0, rangedStrength: 0
+      attack: 0, strength: 0, defence: 0,
+      ranged: 0, rangedStrength: 0, magic: 0, magicStrength: 0
     };
 
     for (const slotName of EQUIP_SLOTS) {
@@ -136,6 +137,8 @@ export class Inventory {
       total.defence += def.bonuses.defence;
       total.ranged += def.bonuses.ranged;
       total.rangedStrength += def.bonuses.rangedStrength;
+      total.magic += def.bonuses.magic;
+      total.magicStrength += def.bonuses.magicStrength;
     }
 
     return total;

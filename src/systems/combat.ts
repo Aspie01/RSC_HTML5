@@ -97,11 +97,12 @@ export function awardXp(player: Player, damage: number): SkillId[] {
 
   const gained: SkillId[] = [];
 
-  // A shot trains Archery and nothing else. The melee styles are a melee
-  // concept, and splitting a bow's experience across Attack and Strength would
-  // let a player level the wrong skills by shooting things.
-  if (player.usingBow()) {
-    if (player.skills.addXp('archery', 4 * damage) > 0) gained.push('archery');
+  // A shot or a cast trains its own skill and nothing else. The melee styles
+  // are a melee concept, and splitting a bow's experience across Attack and
+  // Strength would let a player level the wrong skills by shooting things.
+  const mode = player.combatSkill();
+  if (mode) {
+    if (player.skills.addXp(mode, 4 * damage) > 0) gained.push(mode);
   } else {
     const style = STYLES[player.attackStyle];
     const share = (4 * damage) / style.xp.length;

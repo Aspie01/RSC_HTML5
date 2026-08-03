@@ -1038,14 +1038,18 @@ export class Game implements World {
    * fiddly in a game with no ground-item ownership, and it would turn every
    * fight into a tidying exercise -- the cost is meant to be felt, not undone.
    */
-  private spendArrow(p: Player): boolean {
+  private spendAmmo(p: Player, tag: string): boolean {
     const ammo = p.inventory.equipment.ammo;
     if (!ammo || ammo.qty <= 0) return false;
 
+    // The quiver has to hold the right kind: arrows will not fire a focus.
+    if (!getItem(ammo.id)?.tags.includes(tag)) return false;
+
     ammo.qty--;
     if (ammo.qty <= 0) {
+      const name = getItem(ammo.id)?.name.toLowerCase() ?? 'ammunition';
       p.inventory.equipment.ammo = null;
-      this.ui.message('That was your last arrow.');
+      this.ui.message(`That was your last ${name}.`);
     }
     this.ui.dirty = true;
     return true;
@@ -1202,12 +1206,16 @@ export class Game implements World {
     if (mob.distanceTo(target) > reach) return;
     if (mob.attackCooldown > 0) return;
 
-    // A shot costs an arrow. Spent before the roll, so a miss costs the same as
-    // a hit -- ammunition is the price of ranged combat, not a fee for success.
-    if (mob instanceof Player && mob.usingBow() && !this.spendArrow(mob)) {
-      this.ui.message('You have no arrows left.', 'bad');
-      mob.clearAction();
-      return;
+    // A shot costs an arrow, a cast costs a reagent. Spent before the roll, so
+    // a miss costs the same as a hit -- ammunition is the price of fighting at
+    // range, not a fee for succeeding at it.
+    if (mob instanceof Player) {
+      const tag = mob.ammoTag();
+      if (tag && !this.spendAmmo(mob, tag)) {
+        this.ui.message(`You have nothing left to ${tag === 'arrow' ? 'shoot' : 'cast'}.`, 'bad');
+        mob.clearAction();
+        return;
+      }
     }
 
     mob.faceTowards(target.x, target.y);

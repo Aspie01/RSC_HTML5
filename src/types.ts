@@ -50,6 +50,8 @@ export interface Bonuses {
    */
   ranged: number;
   rangedStrength: number;
+  magic: number;
+  magicStrength: number;
 }
 
 export interface ItemDef {
@@ -65,6 +67,17 @@ export interface ItemDef {
    * weapon that does not say otherwise behaves exactly as it always has.
    */
   readonly range: number;
+  /**
+   * Which skill this weapon fights with, and what it spends doing it.
+   *
+   * Absent means melee: Attack and Strength, no ammunition, one tile. A bow
+   * says `archery` and eats arrows; a focus says `magic` and burns reagents.
+   * Keeping it on the item means the engine never asks "is this a bow" -- it
+   * asks the weapon what it is, and a new kind of armament is a data row.
+   */
+  readonly combatSkill?: SkillId;
+  /** Tag the ammo slot must carry for this weapon to fire. */
+  readonly ammoTag?: string;
   readonly colour: string;
   readonly shape: ItemShape;
   readonly bonuses: Bonuses;

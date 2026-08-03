@@ -13,6 +13,8 @@ interface ItemOpts {
   colour?: string;
   shape?: ItemShape;
   bonuses?: Partial<Bonuses>;
+  combatSkill?: import('../types').SkillId;
+  ammoTag?: string;
   heals?: number;
   tags?: readonly string[];
   value?: number;
@@ -30,10 +32,13 @@ function item(id: string, name: string, opts: ItemOpts = {}): ItemDef {
     colour: opts.colour ?? '#b9a06a',
     shape: opts.shape ?? 'blob',
     bonuses: {
-      attack: 0, strength: 0, defence: 0, ranged: 0, rangedStrength: 0,
+      attack: 0, strength: 0, defence: 0,
+      ranged: 0, rangedStrength: 0, magic: 0, magicStrength: 0,
       ...opts.bonuses
     },
     range: opts.range ?? 1,
+    ...(opts.combatSkill ? { combatSkill: opts.combatSkill } : {}),
+    ...(opts.ammoTag ? { ammoTag: opts.ammoTag } : {}),
     heals: opts.heals ?? 0,
     tags: opts.tags ?? [],
     value: opts.value ?? 0
@@ -157,13 +162,13 @@ export const items = {
   // ------------------------------------------------------------------------
   shortbow: item('shortbow', 'Shortbow', { value: 40,
     slot: 'weapon', speed: 4, range: 7, colour: '#7a5230', shape: 'bow',
-    tags: ['bow'], bonuses: { ranged: 8 },
+    tags: ['bow'], combatSkill: 'archery', ammoTag: 'arrow', bonuses: { ranged: 8 },
     examine: 'A short bow of green wood. Needs arrows.'
   }),
 
   oak_shortbow: item('oak_shortbow', 'Oak shortbow', { value: 110,
     slot: 'weapon', speed: 4, range: 7, colour: '#6b4a24', shape: 'bow',
-    tags: ['bow'], bonuses: { ranged: 16 },
+    tags: ['bow'], combatSkill: 'archery', ammoTag: 'arrow', bonuses: { ranged: 16 },
     examine: 'Heavier draw, and it tells at a distance.'
   }),
 
@@ -182,6 +187,25 @@ export const items = {
     stackable: true, slot: 'ammo', colour: '#8f8f96', shape: 'arrow',
     tags: ['arrow'], bonuses: { rangedStrength: 14 },
     examine: 'Iron-tipped, and noticeably heavier.'
+  }),
+
+  // ------------------------------------------------------------------------
+  // Magic
+  //
+  // Cast through a focus rather than from a spellbook. The focus IS the spell
+  // for now -- a better one throws harder -- which keeps Magic to the shape
+  // Archery already proved: the weapon decides the skill, and every cast
+  // spends something. Choosing between spells arrives with the Wardens, when
+  // there is a reason to have more than one.
+  //
+  // No runes. §8 defers Inscription until Magic is deep enough to need a rune
+  // economy, and a second consumable before then would be bookkeeping.
+  // ------------------------------------------------------------------------
+  emberglass_focus: item('emberglass_focus', 'Emberglass focus', { value: 240,
+    slot: 'weapon', speed: 5, range: 6, colour: '#c9704a', shape: 'vial',
+    tags: ['focus'], combatSkill: 'magic', ammoTag: 'reagent',
+    bonuses: { magic: 12, defence: 2 },
+    examine: 'The leaf is still in there, and still warm.'
   }),
 
   // ------------------------------------------------------------------------
@@ -208,7 +232,8 @@ export const items = {
   }),
 
   emberleaf: item('emberleaf', 'Emberleaf', { value: 26,
-    stackable: true, colour: '#c25a2c', shape: 'feather', tags: ['reagent'],
+    stackable: true, slot: 'ammo', colour: '#c25a2c', shape: 'feather',
+    tags: ['reagent'], bonuses: { magicStrength: 9 },
     examine: 'Warm to hold, and it has not been anywhere near a fire.'
   }),
 
