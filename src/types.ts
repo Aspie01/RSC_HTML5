@@ -111,10 +111,20 @@ export interface CombatStats {
 
 export type AttackStyleId = 'accurate' | 'aggressive' | 'defensive' | 'controlled';
 
+/**
+ * The 14 skills of v1. Note the naming: Vitality rather than Hitpoints and
+ * Archery rather than Ranged, both to stay clear of RuneScape's distinctive
+ * vocabulary. There is deliberately no Prayer skill.
+ *
+ * These ids are written into save files. Renaming one needs a migration.
+ */
 export type SkillId =
-  | 'attack' | 'strength' | 'defence' | 'hitpoints'
-  | 'ranged' | 'prayer' | 'magic' | 'cooking'
-  | 'woodcutting' | 'firemaking' | 'fishing' | 'mining' | 'smithing';
+  // Combat
+  | 'attack' | 'strength' | 'defence' | 'vitality' | 'archery' | 'magic'
+  // Gathering
+  | 'woodcutting' | 'mining' | 'fishing' | 'foraging'
+  // Production
+  | 'firemaking' | 'cooking' | 'smithing' | 'crafting';
 
 export interface AttackStyle {
   readonly name: string;

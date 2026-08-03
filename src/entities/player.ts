@@ -37,7 +37,7 @@ export class Player extends Mob {
   constructor(x: number, y: number) {
     super(x, y);
 
-    this.maxHp = this.skills.level('hitpoints');
+    this.maxHp = this.skills.level('vitality');
     this.hp = this.maxHp;
     this.running = true;
     this.respawnPoint = { x, y };
@@ -88,7 +88,7 @@ export class Player extends Mob {
 
   respawn(): void {
     this.dead = false;
-    this.maxHp = this.skills.level('hitpoints');
+    this.maxHp = this.skills.level('vitality');
     this.hp = this.maxHp;
     this.x = this.prevX = this.respawnPoint.x;
     this.y = this.prevY = this.respawnPoint.y;

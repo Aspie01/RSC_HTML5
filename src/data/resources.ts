@@ -16,7 +16,7 @@ export interface TreeDef {
   readonly level: number;
   readonly xp: number;
   readonly logId: string;
-  /** Roll weights at level 1 and level 99, on the engine's 0..255 scale. */
+  /** Roll weights at level 1 and at the level cap, on the engine's 0..255 scale. */
   readonly low: number;
   readonly high: number;
   /**
@@ -42,7 +42,7 @@ export const trees = {
   },
   oak: {
     id: 'oak', name: 'Oak tree',
-    level: 15, xp: 37.5, logId: 'oak_logs',
+    level: 10, xp: 37.5, logId: 'oak_logs',
     low: 32, high: 120,
     depleteChance: 0.35,
     respawnTicks: 25,
@@ -69,7 +69,7 @@ export interface BurnableDef {
 
 export const burnables: Record<string, BurnableDef> = {
   logs: { logId: 'logs', level: 1, xp: 40, burnTicks: 120 },
-  oak_logs: { logId: 'oak_logs', level: 15, xp: 60, burnTicks: 200 }
+  oak_logs: { logId: 'oak_logs', level: 10, xp: 60, burnTicks: 200 }
 };
 
 // --------------------------------------------------------------------------
@@ -88,7 +88,7 @@ export interface RecipeDef {
 export const recipes: Record<string, RecipeDef> = {
   raw_chicken: {
     rawId: 'raw_chicken', cookedId: 'cooked_chicken', burntId: 'burnt_chicken',
-    level: 1, xp: 30, stopBurnLevel: 30
+    level: 1, xp: 30, stopBurnLevel: 15
   }
 };
 
@@ -106,7 +106,7 @@ export interface RockDef {
   readonly level: number;
   readonly xp: number;
   readonly oreId: string;
-  /** Roll weights at level 1 and level 99, on the engine's 0..255 scale. */
+  /** Roll weights at level 1 and at the level cap, on the engine's 0..255 scale. */
   readonly low: number;
   readonly high: number;
   /** Ticks before the vein refills. Coal is slow on purpose. */
@@ -132,13 +132,13 @@ export const rocks = {
   },
   iron: {
     id: 'iron', name: 'Iron rock',
-    level: 15, xp: 35, oreId: 'iron_ore',
+    level: 10, xp: 35, oreId: 'iron_ore',
     low: 40, high: 165,
     respawnTicks: 16, colour: '#8a5030'
   },
   coal: {
     id: 'coal', name: 'Coal rock',
-    level: 30, xp: 50, oreId: 'coal',
+    level: 20, xp: 50, oreId: 'coal',
     low: 18, high: 110,
     respawnTicks: 50, colour: '#2c2c31'
   }
@@ -186,12 +186,12 @@ export const bars: readonly BarDef[] = [
   },
   {
     id: 'iron_bar', name: 'Iron bar',
-    level: 15, xp: 12.5, successChance: 0.5,
+    level: 10, xp: 12.5, successChance: 0.5,
     ingredients: [{ id: 'iron_ore', qty: 1 }]
   },
   {
     id: 'steel_bar', name: 'Steel bar',
-    level: 30, xp: 17.5, successChance: 1,
+    level: 20, xp: 17.5, successChance: 1,
     ingredients: [{ id: 'iron_ore', qty: 1 }, { id: 'coal', qty: 2 }]
   }
 ];
@@ -218,29 +218,34 @@ export interface SmithDef {
  */
 export const SMITH_XP_PER_BAR = 12.5;
 
-// Level offsets follow RuneScape's ladder: each metal tier is the bronze
-// requirement plus 15 (iron) or plus 30 (steel).
+// Each tier occupies a nine-level band starting at its unlock level (1, 10,
+// 20), with the same shape inside every band: dagger first, platebody last.
+// Compressing the bands this way is what keeps 30, 40 and 50 free for the
+// three tiers still to come, under a cap of 50 rather than 99.
+const SMITH_OFFSETS = {
+  dagger: 0, med_helm: 1, scimitar: 2, kiteshield: 4, platelegs: 6, platebody: 8
+} as const;
+
+function tier(metal: string, base: number): SmithDef[] {
+  const barId = `${metal}_bar`;
+  const barsFor: Record<keyof typeof SMITH_OFFSETS, number> = {
+    dagger: 1, med_helm: 1, scimitar: 2, kiteshield: 3, platelegs: 3, platebody: 5
+  };
+
+  return (Object.keys(SMITH_OFFSETS) as (keyof typeof SMITH_OFFSETS)[]).map(
+    (piece) => ({
+      id: `${metal}_${piece}`,
+      barId,
+      bars: barsFor[piece],
+      level: base + SMITH_OFFSETS[piece]
+    })
+  );
+}
+
 export const smithables: readonly SmithDef[] = [
-  { id: 'bronze_dagger', barId: 'bronze_bar', bars: 1, level: 1 },
-  { id: 'bronze_med_helm', barId: 'bronze_bar', bars: 1, level: 3 },
-  { id: 'bronze_scimitar', barId: 'bronze_bar', bars: 2, level: 5 },
-  { id: 'bronze_kiteshield', barId: 'bronze_bar', bars: 3, level: 12 },
-  { id: 'bronze_platelegs', barId: 'bronze_bar', bars: 3, level: 16 },
-  { id: 'bronze_platebody', barId: 'bronze_bar', bars: 5, level: 18 },
-
-  { id: 'iron_dagger', barId: 'iron_bar', bars: 1, level: 15 },
-  { id: 'iron_med_helm', barId: 'iron_bar', bars: 1, level: 18 },
-  { id: 'iron_scimitar', barId: 'iron_bar', bars: 2, level: 20 },
-  { id: 'iron_kiteshield', barId: 'iron_bar', bars: 3, level: 27 },
-  { id: 'iron_platelegs', barId: 'iron_bar', bars: 3, level: 31 },
-  { id: 'iron_platebody', barId: 'iron_bar', bars: 5, level: 33 },
-
-  { id: 'steel_dagger', barId: 'steel_bar', bars: 1, level: 30 },
-  { id: 'steel_med_helm', barId: 'steel_bar', bars: 1, level: 33 },
-  { id: 'steel_scimitar', barId: 'steel_bar', bars: 2, level: 35 },
-  { id: 'steel_kiteshield', barId: 'steel_bar', bars: 3, level: 42 },
-  { id: 'steel_platelegs', barId: 'steel_bar', bars: 3, level: 46 },
-  { id: 'steel_platebody', barId: 'steel_bar', bars: 5, level: 48 }
+  ...tier('bronze', 1),
+  ...tier('iron', 10),
+  ...tier('steel', 20)
 ];
 
 export function smithablesFor(barId: string): readonly SmithDef[] {

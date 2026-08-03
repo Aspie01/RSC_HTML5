@@ -276,9 +276,11 @@ html, body {
 }
 
 /* Inventory -------------------------------------------------------- */
+/* 5 across, 6 down -- RuneScape Classic's 30-slot layout. A 4-column grid
+   would leave 30 slots as seven rows plus a ragged pair. */
 .inv-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 3px;
 }
 

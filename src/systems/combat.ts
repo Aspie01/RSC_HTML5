@@ -88,7 +88,8 @@ export function resolve(attacker: Mob, defender: Mob): HitResult {
 }
 
 /**
- * RuneScape awards 4 xp per damage to the style skill, plus 1.33 to Hitpoints.
+ * RuneScape awards 4 xp per damage to the style skill, plus 1.33 to the health
+ * skill -- which is why Vitality rises without ever being trained directly.
  * Returns the skills that gained a level, so the caller can announce them.
  */
 export function awardXp(player: Player, damage: number): SkillId[] {
@@ -102,12 +103,12 @@ export function awardXp(player: Player, damage: number): SkillId[] {
     if (player.skills.addXp(skill, share) > 0) gained.push(skill);
   }
 
-  if (player.skills.addXp('hitpoints', 1.33 * damage) > 0) {
-    gained.push('hitpoints');
+  if (player.skills.addXp('vitality', 1.33 * damage) > 0) {
+    gained.push('vitality');
   }
 
-  // Hitpoints level-ups raise max HP immediately.
-  player.maxHp = player.skills.level('hitpoints');
+  // Vitality level-ups raise max health immediately.
+  player.maxHp = player.skills.level('vitality');
 
   return gained;
 }

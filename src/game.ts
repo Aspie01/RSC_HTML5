@@ -10,7 +10,9 @@
 // away from. Resolve intent after movement and targeting lags a tick behind,
 // which makes combat feel sticky.
 
-import type { EquipSlot, PlayerAction, Point, SkillId, StationKind, World } from './types';
+import type {
+  EquipSlot, ItemStack, PlayerAction, Point, SkillId, StationKind, World
+} from './types';
 import type { GroundItem } from './systems/ground';
 import { GameMap, generateMap } from './world/map';
 import { GroundItems } from './systems/ground';
@@ -29,6 +31,8 @@ import {
 import type { BarDef, SmithDef } from './data/resources';
 import { rollGather, rollBurn } from './systems/skilling';
 import { SKILL_LIST } from './systems/skills';
+import { INVENTORY_CAPACITY } from './systems/inventory';
+import * as XP from './data/xp';
 import * as pathfind from './world/pathfind';
 import * as combat from './systems/combat';
 import * as iso from './world/iso';
@@ -37,6 +41,21 @@ import { loop } from './core/loop';
 
 const SAVE_KEY = 'rs_html5_save_v1';
 const AUTOSAVE_TICKS = 50; // every 30 seconds
+
+/**
+ * Bump when the save format changes in a way old data cannot survive
+ * unaltered, and add a step to migrate(). Never silently discard progress.
+ *
+ * 1 -> 2: skills renamed (hitpoints -> vitality, ranged -> archery), Prayer
+ *         removed, and the experience curve recapped from 99 to 50.
+ */
+const SAVE_VERSION = 2;
+
+/** Skills that changed id in version 2. */
+const RENAMED_SKILLS: Readonly<Record<string, SkillId>> = {
+  hitpoints: 'vitality',
+  ranged: 'archery'
+};
 
 /** Ticks between bars at a furnace, and between items at an anvil. */
 const SMELT_TICKS = 3;
@@ -1005,7 +1024,7 @@ export class Game implements World {
           const acc = combat.previewAccuracy(p, mob);
           this.ui.message(
             `It's a ${mob.name.toLowerCase()}. Combat level ${mob.def.level}, ` +
-            `${mob.maxHp} hitpoints. Your accuracy: ${Math.round(acc * 100)}%.`
+            `${mob.maxHp} health. Your accuracy: ${Math.round(acc * 100)}%.`
           );
         }
       });
@@ -1132,7 +1151,7 @@ export class Game implements World {
     try {
       const p = this.player;
       const data: SaveData = {
-        v: 1,
+        v: SAVE_VERSION,
         x: p.x, y: p.y,
         hp: p.hp,
         xp: p.skills.xp,
@@ -1161,24 +1180,25 @@ export class Game implements World {
       const data = JSON.parse(raw) as Partial<SaveData>;
       const p = this.player;
 
+      const xp = this.migrateXp(data.xp ?? {}, data.v ?? 1);
+
       // Merge rather than replace. A save written before a skill existed has
       // no key for it, and assigning the object wholesale would leave that
       // skill permanently unable to gain experience (addXp ignores unknown
       // ids). Merging keeps old saves working every time a skill is added.
-      if (data.xp) {
-        for (const s of SKILL_LIST) {
-          const value = data.xp[s.id];
-          if (typeof value === 'number' && Number.isFinite(value)) {
-            p.skills.xp[s.id] = value;
-          }
+      for (const s of SKILL_LIST) {
+        const value = xp[s.id];
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          p.skills.xp[s.id] = value;
         }
       }
-      if (data.slots) p.inventory.slots = data.slots as typeof p.inventory.slots;
+
+      if (data.slots) p.inventory.slots = this.migrateSlots(data.slots);
       if (data.equipment) p.inventory.equipment = data.equipment as typeof p.inventory.equipment;
       if (data.style) p.attackStyle = data.style as typeof p.attackStyle;
       if (typeof data.running === 'boolean') p.running = data.running;
 
-      p.maxHp = p.skills.level('hitpoints');
+      p.maxHp = p.skills.level('vitality');
       p.hp = Math.min(data.hp ?? p.maxHp, p.maxHp);
 
       if (typeof data.x === 'number' && typeof data.y === 'number' &&
@@ -1188,9 +1208,60 @@ export class Game implements World {
       }
 
       this.ui.message('Welcome back. Your progress was restored.', 'sys');
+
+      if ((data.v ?? 1) < SAVE_VERSION) {
+        this.ui.message(
+          'Your save was made in an older version and has been converted.', 'sys'
+        );
+        this.save();
+      }
     } catch (err) {
       console.warn('Save file was corrupt, starting fresh:', err);
     }
+  }
+
+  /**
+   * Bring a saved experience table up to the current version.
+   *
+   * The hard part is the curve change. A stored total is meaningless without
+   * the curve it was earned on -- 13,363 experience was level 30 under the old
+   * 99-cap table and would silently become something else under the new one.
+   * So the conversion goes through LEVELS, which are what the player actually
+   * earned, and re-derives the total from the current table.
+   */
+  private migrateXp(
+    saved: Record<string, number>, version: number
+  ): Record<string, number> {
+    if (version >= SAVE_VERSION) return saved;
+
+    const out: Record<string, number> = {};
+
+    for (const [oldId, value] of Object.entries(saved)) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) continue;
+
+      // Prayer has no successor skill; its experience is dropped.
+      const id = RENAMED_SKILLS[oldId] ?? oldId;
+      if (!SKILL_LIST.some((s) => s.id === id)) continue;
+
+      const level = Math.min(XP.legacyLevelFor(value), XP.MAX_LEVEL);
+      out[id] = XP.forLevel(level);
+    }
+
+    return out;
+  }
+
+  /**
+   * Fit a saved inventory to the current capacity. Without this, a save made
+   * when the inventory was smaller leaves trailing holes that read as
+   * `undefined` rather than `null` -- and `firstFree()` looks for `null`, so
+   * every one of those slots would be invisible and unusable.
+   */
+  private migrateSlots(saved: unknown): (ItemStack | null)[] {
+    const list = Array.isArray(saved) ? (saved as (ItemStack | null)[]) : [];
+    return Array.from(
+      { length: INVENTORY_CAPACITY },
+      (_, i) => list[i] ?? null
+    );
   }
 
   reset(): void {

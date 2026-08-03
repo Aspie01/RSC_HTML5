@@ -5,7 +5,7 @@
 // browser already lays out and styles for free. Canvas is for the world, DOM is
 // for the UI -- mixing the two is a common and painful mistake.
 //
-// Redraws are gated on a dirty flag; there is no reason to rebuild 28 inventory
+// Redraws are gated on a dirty flag; there is no reason to rebuild 30 inventory
 // icons at 144fps.
 
 import type { Game } from '../game';
@@ -355,13 +355,13 @@ export class UI {
       cell.className = 'skill-cell';
       cell.title =
         `${s.name}\nXP: ${Math.floor(exp).toLocaleString()}\n` +
-        (lvl < 99
+        (lvl < XP.MAX_LEVEL
           ? `Next level: ${Math.ceil(XP.forLevel(lvl + 1) - exp).toLocaleString()} xp`
           : 'Maxed');
 
       cell.innerHTML =
         `<span class="skill-dot" style="background:${s.colour}"></span>` +
-        `<span class="skill-name">${s.name.slice(0, 5)}</span>` +
+        `<span class="skill-name">${s.abbr}</span>` +
         `<span class="skill-lvl">${lvl}</span>` +
         `<span class="skill-bar"><i style="width:${(prog * 100).toFixed(1)}%;background:${s.colour}"></i></span>`;
 
