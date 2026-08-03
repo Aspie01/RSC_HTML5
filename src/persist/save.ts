@@ -30,6 +30,8 @@ export interface SaveData {
   slots: unknown;
   equipment: unknown;
   quests?: unknown;
+  /** Kill tallies for quest stages in progress. Absent means none counted. */
+  questKills?: unknown;
   /**
    * Shop stock and restock timers. Optional, and absent means every shop is
    * full -- which is why adding shops needed no version bump: a save written

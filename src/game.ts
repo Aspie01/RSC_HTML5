@@ -14,7 +14,7 @@ import type {
   EquipSlot, ItemStack, PlayerAction, Point, SkillId, StationKind, World
 } from './types';
 import type { GroundItem } from './systems/ground';
-import { GameMap, generateMap, CUT_ENTRANCE } from './world/map';
+import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE } from './world/map';
 import { GroundItems } from './systems/ground';
 import { WorldObjects } from './systems/objects';
 import { Player } from './entities/player';
@@ -28,7 +28,7 @@ import {
   getBar, getSmithable, bars, smithablesFor,
   HAMMER_SPEED, SMITH_XP_PER_BAR
 } from './data/resources';
-import type { BarDef, SmithDef } from './data/resources';
+import type { BarDef, SmithDef, FletchDef } from './data/resources';
 import { rollGather, rollBurn } from './systems/skilling';
 import { SKILL_LIST } from './systems/skills';
 import { Quests } from './systems/quests';
@@ -244,7 +244,12 @@ export class Game implements World {
     this.player.inCombatTicks++;
     for (const npc of this.npcs) npc.inCombatTicks++;
     this.ground.tick();
-    this.objects.tick();
+    // A dead fire leaves ash, which is half of what glass is made from. This
+    // is Firemaking's outbound arrow into Crafting: burning logs stops being
+    // only a means to cook and becomes a source of a material.
+    for (const spot of this.objects.tick()) {
+      this.ground.drop('ash', 1, spot.x, spot.y);
+    }
     this.shops.tick();
     this.player.regenTick();
 
@@ -265,7 +270,10 @@ export class Game implements World {
 
       p.target = t;
 
-      if (p.distanceTo(t) <= 1) {
+      // Stop as soon as the weapon can reach, not when the tile is adjacent.
+      // With a bow that is seven tiles out, which is the entire advantage the
+      // skill buys: the right to start the fight before it starts on you.
+      if (p.distanceTo(t) <= p.attackRange()) {
         p.clearPath();
         p.faceTowards(t.x, t.y);
       } else if (!p.path.length) {
@@ -517,10 +525,11 @@ export class Game implements World {
 
     if (!this.approach(tx, ty)) return;
 
-    const level = p.skills.level('smithing');
+    const level = p.skills.level(bar.skill);
     if (level < bar.level) {
+      const skill = SKILL_LIST.find((s) => s.id === bar.skill)?.name ?? bar.skill;
       this.ui.message(
-        `You need a Smithing level of ${bar.level} to smelt a ${bar.name.toLowerCase()}.`,
+        `You need a ${skill} level of ${bar.level} to make a ${bar.name.toLowerCase()}.`,
         'bad'
       );
       p.clearAction();
@@ -549,7 +558,7 @@ export class Game implements World {
     } else {
       p.inventory.add(bar.id, 1);
       audio.play('smelt');
-      this.announceXp('smithing', bar.xp);
+      this.announceXp(bar.skill, bar.xp);
       this.ui.message(`You retrieve a ${bar.name.toLowerCase()} from the furnace.`);
     }
 
@@ -778,6 +787,10 @@ export class Game implements World {
     // An inspect stage never ends at an NPC, so talking to one can only ever
     // produce the nudge. It is the looking that advances it.
     if (goal.type === 'inspect') return false;
+    if (goal.type === 'kill') {
+      const def = quests.find((q) => this.quests.activeStage(q) === stage);
+      return def ? this.quests.killsFor(def.id) >= goal.count : false;
+    }
     return this.objects.fireNear(npc.x, npc.y) !== null;
   }
 
@@ -809,6 +822,7 @@ export class Game implements World {
     // the inventory. Kept beside the quest that earns it, and mirrored in
     // restoreQuestUnlocks so a reload does not bury it again.
     if (def.id === 'deepcut') this.openTheCut();
+    if (def.id === 'quiet_grove') this.openTheGrove();
 
     this.ui.message(`Quest complete: ${def.name}!`, 'levelup');
     this.ui.message(
@@ -855,6 +869,9 @@ export class Game implements World {
     const deepcut = getQuest('deepcut');
     if (deepcut && this.quests.isComplete(deepcut)) this.openTheCut();
 
+    const grove = getQuest('quiet_grove');
+    if (grove && this.quests.isComplete(grove)) this.openTheGrove();
+
     const coldHearth = getQuest('cold_hearth');
     if (!coldHearth || !this.quests.isComplete(coldHearth)) return;
 
@@ -868,6 +885,11 @@ export class Game implements World {
   /** Clear the fall that buries the way into the lower mine. */
   private openTheCut(): void {
     this.map.scenery[this.map.idx(CUT_ENTRANCE.x, CUT_ENTRANCE.y)] = null;
+  }
+
+  /** Cut back the thicket across the grove path. */
+  private openTheGrove(): void {
+    this.map.scenery[this.map.idx(GROVE_ENTRANCE.x, GROVE_ENTRANCE.y)] = null;
   }
 
   private freeTileBeside(x: number, y: number): Point | null {
@@ -916,8 +938,71 @@ export class Game implements World {
       Object.values(inv.equipment).some((eq) => tagged(eq?.id));
   }
 
+  /**
+   * Fletch one batch. Needs no station and no tick loop -- it is instant, the
+   * way lighting a fire is, because a repeating action for something with a
+   * fixed input cost would only add waiting.
+   */
+  fletch(def: FletchDef): void {
+    const p = this.player;
+
+    const level = p.skills.level('crafting');
+    if (level < def.level) {
+      this.ui.message(
+        `You need a Crafting level of ${def.level} to make ${def.name.toLowerCase()}.`, 'bad'
+      );
+      return;
+    }
+
+    if (!this.hasIngredients(def.inputs)) {
+      this.ui.message(`You need ${this.ingredientText(def.inputs)}.`);
+      return;
+    }
+
+    // Consumed first so the outputs have somewhere to go: eight shafts out of
+    // one log would otherwise need a free slot the log is still sitting in.
+    for (const input of def.inputs) this.consume(input.id, input.qty);
+
+    if (!p.inventory.add(def.outputId, def.outputQty)) {
+      // Put it back rather than destroying the materials.
+      for (const input of def.inputs) p.inventory.add(input.id, input.qty);
+      this.ui.message('Your inventory is too full.', 'bad');
+      return;
+    }
+
+    audio.play('smith');
+    this.announceXp('crafting', def.xp);
+    this.ui.message(`You make ${def.outputQty} ${def.name.toLowerCase()}.`);
+    this.ui.dirty = true;
+  }
+
+  /** True if the player holds any part of this recipe. Used to filter menus. */
+  private hasAnyIngredient(bar: BarDef): boolean {
+    return bar.ingredients.some((i) => this.player.inventory.count(i.id) > 0);
+  }
+
   private hasIngredients(list: readonly { id: string; qty: number }[]): boolean {
     return list.every((i) => this.player.inventory.count(i.id) >= i.qty);
+  }
+
+  /**
+   * Take one arrow from the ammo slot. False when the quiver is empty.
+   *
+   * Arrows are not recovered from the ground. Picking spent shafts back up is
+   * fiddly in a game with no ground-item ownership, and it would turn every
+   * fight into a tidying exercise -- the cost is meant to be felt, not undone.
+   */
+  private spendArrow(p: Player): boolean {
+    const ammo = p.inventory.equipment.ammo;
+    if (!ammo || ammo.qty <= 0) return false;
+
+    ammo.qty--;
+    if (ammo.qty <= 0) {
+      p.inventory.equipment.ammo = null;
+      this.ui.message('That was your last arrow.');
+    }
+    this.ui.dirty = true;
+    return true;
   }
 
   /** Remove `qty` of an item, spanning slots for non-stackables. */
@@ -945,16 +1030,21 @@ export class Game implements World {
   private openSmeltMenu(at: Point, tx: number, ty: number): void {
     const p = this.player;
 
-    const opts = bars.map((bar: BarDef) => ({
-      verb: 'Smelt',
-      noun: `${bar.name} (${this.ingredientText(bar.ingredients)})`,
-      action: () => {
-        p.clearPath();
-        p.setAction({ type: 'smelt', x: tx, y: ty, barId: bar.id });
-      }
-    }));
+    // Only offer what the player has the makings of, plus everything they
+    // already know how to make. A furnace that lists glass to someone who has
+    // never seen sand is just a longer menu.
+    const opts = bars
+      .filter((bar) => bar.skill === 'smithing' || this.hasAnyIngredient(bar))
+      .map((bar: BarDef) => ({
+        verb: 'Make',
+        noun: `${bar.name} (${this.ingredientText(bar.ingredients)})`,
+        action: () => {
+          p.clearPath();
+          p.setAction({ type: 'smelt', x: tx, y: ty, barId: bar.id });
+        }
+      }));
 
-    this.ui.openMenu(at.x, at.y, 'Smelting', opts);
+    this.ui.openMenu(at.x, at.y, 'Furnace', opts);
   }
 
   /**
@@ -1062,8 +1152,17 @@ export class Game implements World {
       return;
     }
 
-    if (mob.distanceTo(target) > 1) return;
+    const reach = mob instanceof Player ? mob.attackRange() : 1;
+    if (mob.distanceTo(target) > reach) return;
     if (mob.attackCooldown > 0) return;
+
+    // A shot costs an arrow. Spent before the roll, so a miss costs the same as
+    // a hit -- ammunition is the price of ranged combat, not a fee for success.
+    if (mob instanceof Player && mob.usingBow() && !this.spendArrow(mob)) {
+      this.ui.message('You have no arrows left.', 'bad');
+      mob.clearAction();
+      return;
+    }
 
     mob.faceTowards(target.x, target.y);
     mob.attackCooldown = mob.attackSpeed;
@@ -1108,6 +1207,19 @@ export class Game implements World {
     if (killer instanceof Player) {
       this.ui.message(`You defeat the ${npc.name}.`, 'good');
       killer.clearAction();
+
+      // Count it against any quest stage currently asking for this kind.
+      for (const def of quests) {
+        const stage = this.quests.activeStage(def);
+        if (stage?.goal.type !== 'kill' || stage.goal.npcId !== npc.def.id) continue;
+
+        this.quests.countKill(def.id);
+        const done = this.quests.killsFor(def.id);
+        if (done <= stage.goal.count) {
+          this.ui.message(`${done}/${stage.goal.count} ${npc.name.toLowerCase()}s.`, 'sys');
+        }
+        this.ui.dirty = true;
+      }
     }
 
     npc.die();
@@ -1532,6 +1644,7 @@ export class Game implements World {
       slots: p.inventory.slots,
       equipment: p.inventory.equipment,
       quests: this.quests.stages,
+      questKills: this.quests.kills,
       shops: this.shops.snapshot()
     };
     return JSON.stringify(data);
@@ -1582,6 +1695,7 @@ export class Game implements World {
       }
 
       this.quests.restore(data.quests);
+      this.quests.restoreKills(data.questKills);
       this.restoreQuestUnlocks();
       this.shops.restore(data.shops);
 

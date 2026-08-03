@@ -45,7 +45,16 @@ export type QuestGoal =
    * talking. That is what makes an investigation feel like one: the discovery
    * happens at the well, not in a report afterwards.
    */
-  | { readonly type: 'inspect'; readonly x: number; readonly y: number };
+  | { readonly type: 'inspect'; readonly x: number; readonly y: number }
+  /**
+   * Kill `count` of an NPC while this stage is the active one.
+   *
+   * The tally starts at zero when the stage begins and is thrown away when it
+   * ends, so a player who has already killed a hundred goblins still has to
+   * kill these ones. Counting retroactively would let a quest complete itself
+   * the moment it is accepted, which is worse than asking for the walk.
+   */
+  | { readonly type: 'kill'; readonly npcId: string; readonly count: number };
 
 export interface QuestStage {
   /** Shown in the quest journal while this stage is the active one. */
@@ -178,6 +187,222 @@ export const quests: readonly QuestDef[] = [
     ],
     afterwards: [
       { who: 'npc', text: 'Mind the edge on that axe. I never did get round to blunting it.' }
+    ]
+  },
+
+  // Quest 10. Teaches the third Woodcutting tier and, through it, respawn:
+  // ironbark almost never falls, and when it does it is gone for a very long
+  // time, so a grove is worked by rotating between trees rather than camping
+  // one. Tobin gives it because he gave the first Woodcutting quest, and the
+  // shape of this one is his opinion of what has changed since.
+  {
+    id: 'quiet_grove',
+    name: 'The Quiet Grove',
+    requires: { quests: ['green_timber'], skills: { woodcutting: 20 } },
+    blocked: [
+      { who: 'npc', text: 'Not with that arm. Twenty levels of woodcutting before I send you at ironbark, and I will know if you have fudged it.' }
+    ],
+    reward: {
+      points: 2,
+      xp: { woodcutting: 500, firemaking: 150 },
+      unlock: 'The grove is open. Ironbark takes an age to come back -- work them in turn.'
+    },
+    stages: [
+      {
+        journal: 'Tobin Reeve wants back into a grove that has grown over.',
+        npc: 'tobin',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'There is a grove south of here. Ironbark, the whole stand of it, and I have not been able to get at it in six years.' },
+          { who: 'player', text: 'Why not?' },
+          { who: 'npc', text: 'Thorn grew across the path and I got old. Those two happened at about the same speed and only one of them was reversible.' },
+          { who: 'npc', text: 'Ironbark is not oak. You will swing at one for a quarter of an hour and get nothing, and then it will give, and then it is finished for the rest of the day.' },
+          { who: 'npc', text: 'So you work them in turn. Five trees, five in rotation, and you never wait on any of them. That is the whole trick and nobody believes it until they have stood there.' },
+          { who: 'npc', text: 'Bring me fifteen oak logs. Not for the wood -- I want to see you can keep going back to a tree that has nothing left to give yet.' }
+        ]
+      },
+      {
+        journal: 'Bring Tobin Reeve 15 oak logs. Oaks do not always fall, which is the point.',
+        npc: 'tobin',
+        goal: { type: 'give', items: [{ id: 'oak_logs', qty: 15 }] },
+        waiting: [
+          { who: 'npc', text: 'Fifteen. An oak stands more often than it falls, so you will be walking between them. Get used to it.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Fifteen, and you did not stand there sulking at one stump for an hour. Good.' },
+          { who: 'npc', text: 'The thorn is south, where the road runs out. Take an axe to it and the grove is yours -- I have no more use for it and it should not go to waste.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Ironbark burns half the night, mind. It is worth the wait on both counts.' }
+    ]
+  },
+
+  // Quest 8. The first quest that expects a fight, and it teaches the thing
+  // that actually keeps people alive in one: food. Gated on Cooking 10 rather
+  // than on any combat level, because the lesson is that you bring supper.
+  {
+    id: 'first_blood',
+    name: 'First Blood on the Ridge',
+    requires: { quests: ['cold_hearth'], skills: { cooking: 10 } },
+    blocked: [
+      { who: 'npc', text: 'Not yet. Learn to cook something first -- I have buried enough people who could swing and not eat.' }
+    ],
+    reward: {
+      points: 2,
+      xp: { attack: 250, strength: 250, vitality: 200 },
+      items: [{ id: 'bronze_kiteshield', qty: 1 }],
+      unlock: 'Hesk will keep training you as long as you keep coming back fed.'
+    },
+    stages: [
+      {
+        journal: 'Hesk Ardley trains people to fight, and has opinions about how.',
+        npc: 'hesk',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'You are carrying a sword and standing like someone who has never used one. That is not an insult, it is a diagnosis.' },
+          { who: 'npc', text: 'Goblins west of here. Kill four. That is the easy half.' },
+          { who: 'npc', text: 'The hard half is this: eat when you are hurt, not when you are nearly dead. Everyone learns that eventually and most of them learn it too late.' },
+          { who: 'player', text: 'Four goblins.' },
+          { who: 'npc', text: 'Four goblins, and come back with the food you did not need. If you come back empty I will know you ate it all, and we will have a different conversation.' }
+        ]
+      },
+      {
+        journal: 'Kill 4 goblins, west of the crossroads.',
+        npc: 'hesk',
+        goal: { type: 'kill', npcId: 'goblin', count: 4 },
+        waiting: [
+          { who: 'npc', text: 'West, past the quarry. Four of them, and eat while you are doing it -- that is the half people skip.' }
+        ],
+        done: [
+          { who: 'player', text: 'Four. And I ate during, not after.' },
+          { who: 'npc', text: 'So you say. Show me what you have left.' }
+        ]
+      },
+      {
+        journal: 'Bring Hesk Ardley 3 cooked chickens, to prove you did not need them all.',
+        npc: 'hesk',
+        goal: { type: 'give', items: [{ id: 'cooked_chicken', qty: 3 }] },
+        waiting: [
+          { who: 'npc', text: 'Three cooked chickens, still in your pack. If you have none left you fought it too close, and next time there will not be a next time.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Still standing, and still carrying supper. That is the correct order of those two things.' },
+          { who: 'npc', text: 'Take the shield. It is not a good one, but it is between you and the next mistake.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Eat early. That is all I have ever had to teach anybody.' }
+    ]
+  },
+
+  // Quest 9. Archery's introduction, and Crafting's second use. The debt in
+  // the title is the feathers: everything the player has killed so far has
+  // been dropping them, and this is the quest that says what they were for.
+  {
+    id: 'debt_of_feathers',
+    name: 'A Debt of Feathers',
+    requires: { quests: ['first_blood'] },
+    blocked: [
+      { who: 'npc', text: 'Talk to Hesk first. I am not arming somebody who has not been hit yet.' }
+    ],
+    reward: {
+      points: 2,
+      xp: { archery: 300, crafting: 150 },
+      items: [{ id: 'shortbow', qty: 1 }],
+      unlock: 'A bow of your own, and the knowledge to keep it fed.'
+    },
+    stages: [
+      {
+        journal: 'Hesk Ardley thinks you should learn to fight from further away.',
+        npc: 'hesk',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'You have been swinging at things that swing back. There is another way, and it involves being somewhere else when they arrive.' },
+          { who: 'npc', text: 'A bow. And before you ask -- no, I will not simply hand you arrows. An archer who cannot make arrows is a man with an expensive stick.' },
+          { who: 'npc', text: 'You have been stepping over feathers since the first chicken you killed. Every one of those was an arrow you did not make.' },
+          { who: 'npc', text: 'Cut shafts from logs, feather them, and cap them with bronze. Bring me sixteen bronze arrows and the bow is yours.' }
+        ]
+      },
+      {
+        journal: 'Fletch 16 bronze arrows and bring them to Hesk. Shafts from logs, feathers from birds, heads from a bronze bar.',
+        npc: 'hesk',
+        goal: { type: 'give', items: [{ id: 'bronze_arrow', qty: 16 }] },
+        waiting: [
+          { who: 'npc', text: 'Logs into shafts, then shafts and feathers and a bar of bronze. Right-click the logs, it is not a secret.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Sixteen, and straight. You will lose every one of them and that is what they are for.' },
+          { who: 'npc', text: 'The bow. Keep arrows in the slot beside your shield, and keep making more -- the day you run dry is the day something walks up to you.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Still making your own? Good. Bought arrows have never once been cheaper.' }
+    ]
+  },
+
+  // Quest 11. Introduces Crafting, and does it through glass because glass is
+  // the one material that needs a skill the player already has: ash only comes
+  // from fires that have burnt out, which is why the gate is Firemaking rather
+  // than anything to do with Crafting itself. Nobody can make glass without
+  // having burnt something first.
+  {
+    id: 'glass_and_ash',
+    name: 'Glass and Ash',
+    requires: { skills: { firemaking: 20 } },
+    blocked: [
+      { who: 'npc', text: 'Come back when you have kept a fire going longer than an afternoon. I can tell by the hands.' }
+    ],
+    reward: {
+      points: 2,
+      xp: { crafting: 250, firemaking: 100 },
+      items: [{ id: 'coins', qty: 80 }],
+      unlock: 'Sand and ash make glass, and glass makes anything that has to hold something.'
+    },
+    stages: [
+      {
+        journal: 'Sella Quist works glass on the shore, and has run out of the makings.',
+        npc: 'sella',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Mind the bench, it is hotter than it looks and so is everything on it.' },
+          { who: 'npc', text: 'You want to know what glass is. Everyone does, and nobody believes it: sand, and ash, and enough heat to make them stop being either.' },
+          { who: 'player', text: 'That is all?' },
+          { who: 'npc', text: 'That is all. The sand is under your feet and the ash is whatever you burned last night. The difficulty was never the ingredients.' },
+          { who: 'npc', text: 'Bring me four sand and four ash. Scoop the sand off the banks along the shore; for the ash, burn something and come back once it has gone out.' }
+        ]
+      },
+      {
+        journal: 'Bring Sella Quist 4 sand and 4 ash. Ash is left behind when a fire burns out.',
+        npc: 'sella',
+        goal: { type: 'give', items: [{ id: 'sand', qty: 4 }, { id: 'ash', qty: 4 }] },
+        waiting: [
+          { who: 'npc', text: 'Sand from the banks, ash from a dead fire. A fire you are still standing over is no use to me -- let it finish.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Good. Now watch, because I will only be slow about it once.' },
+          { who: 'npc', text: 'Both into the furnace together. It comes out as a lump that is still deciding what it wants to be, and while it is deciding you can make it into anything.' },
+          { who: 'npc', text: 'Vials, mostly. Everything worth carrying in this world is a liquid and every liquid needs something to be carried in.' }
+        ]
+      },
+      {
+        journal: 'Melt sand and ash into molten glass at the furnace, then work it into a vial. Bring the vial to Sella.',
+        npc: 'sella',
+        goal: { type: 'give', items: [{ id: 'glass_vial', qty: 1 }] },
+        waiting: [
+          { who: 'npc', text: 'The furnace west of the crossroads. Sand and ash for the melt, then the melt again for the vial.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Hm. Thin at the shoulder and it will crack if you look at it in winter. But it holds, and it is yours, and the first one always is.' },
+          { who: 'npc', text: 'Keep at it. There is more than vials in glass, and I will show you when there is more than sand in this village.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Sand, ash, heat. Still the only three things I know.' }
     ]
   },
 

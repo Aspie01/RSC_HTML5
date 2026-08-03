@@ -5,6 +5,8 @@
 // be regenerated or reloaded from a map editor without losing track of what the
 // player has chopped down, and it keeps GameMap free of gameplay state.
 
+import type { Point } from '../types';
+
 export interface Fire {
   readonly x: number;
   readonly y: number;
@@ -56,16 +58,28 @@ export class WorldObjects {
   // ----------------------------------------------------------------------
   // Upkeep
   // ----------------------------------------------------------------------
-  tick(): void {
+  /**
+   * Advance timers, and report where any fires burnt out.
+   *
+   * The positions are returned rather than acted on because what a dead fire
+   * leaves behind is a gameplay decision -- ash, for Crafting -- and this
+   * module owns object lifetimes, not the item economy.
+   */
+  tick(): Point[] {
     for (const [idx, remaining] of this.depleted) {
       if (remaining <= 1) this.depleted.delete(idx);
       else this.depleted.set(idx, remaining - 1);
     }
 
+    const burntOut: Point[] = [];
     for (let i = this.fires.length - 1; i >= 0; i--) {
       const fire = this.fires[i]!;
       if (fire.permanent) continue;
-      if (--fire.ticks <= 0) this.fires.splice(i, 1);
+      if (--fire.ticks <= 0) {
+        burntOut.push({ x: fire.x, y: fire.y });
+        this.fires.splice(i, 1);
+      }
     }
+    return burntOut;
   }
 }

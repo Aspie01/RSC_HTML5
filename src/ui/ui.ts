@@ -14,7 +14,7 @@ import { INVENTORY_CAPACITY, EQUIP_SLOTS } from '../systems/inventory';
 import { SKILL_LIST } from '../systems/skills';
 import { STYLES, previewMaxHit } from '../systems/combat';
 import { getItem } from '../data/items';
-import { burnables } from '../data/resources';
+import { burnables, fletchablesFrom } from '../data/resources';
 import { quests, TOTAL_QUEST_POINTS } from '../data/quests';
 import * as sprites from '../render/sprites';
 import * as XP from '../data/xp';
@@ -275,6 +275,14 @@ export class UI {
 
     if (burnables[def.id]) {
       opts.push({ verb: 'Light', noun: def.name, action: () => this.game.lightLogs(index) });
+    }
+    // Anything that starts a fletching recipe offers it here. Driven by the
+    // recipe table, so a new arrow tier needs no change in this file.
+    for (const recipe of fletchablesFrom(def.id)) {
+      opts.push({
+        verb: 'Fletch', noun: recipe.name,
+        action: () => this.game.fletch(recipe)
+      });
     }
     if (def.slot) {
       opts.push({

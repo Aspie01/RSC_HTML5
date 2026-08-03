@@ -16,6 +16,7 @@ interface ItemOpts {
   heals?: number;
   tags?: readonly string[];
   value?: number;
+  range?: number;
 }
 
 function item(id: string, name: string, opts: ItemOpts = {}): ItemDef {
@@ -28,7 +29,11 @@ function item(id: string, name: string, opts: ItemOpts = {}): ItemDef {
     speed: opts.speed ?? 4,
     colour: opts.colour ?? '#b9a06a',
     shape: opts.shape ?? 'blob',
-    bonuses: { attack: 0, strength: 0, defence: 0, ...opts.bonuses },
+    bonuses: {
+      attack: 0, strength: 0, defence: 0, ranged: 0, rangedStrength: 0,
+      ...opts.bonuses
+    },
+    range: opts.range ?? 1,
     heals: opts.heals ?? 0,
     tags: opts.tags ?? [],
     value: opts.value ?? 0
@@ -70,6 +75,11 @@ export const items = {
   oak_logs: item('oak_logs', 'Oak logs', { value: 12,
     colour: '#6b4a24', shape: 'log',
     examine: 'Logs cut from an oak tree.'
+  }),
+
+  ironbark_logs: item('ironbark_logs', 'Ironbark logs', { value: 38,
+    colour: '#4a4a32', shape: 'log',
+    examine: 'Dense, dark, and heavier than wood has any right to be.'
   }),
 
   bronze_axe: item('bronze_axe', 'Bronze axe', { value: 16,
@@ -135,6 +145,66 @@ export const items = {
 
   burnt_bream: item('burnt_bream', 'Burnt bream', {
     colour: '#3a3028', shape: 'fish', examine: 'You left it on too long.'
+  }),
+
+  // ------------------------------------------------------------------------
+  // Archery
+  //
+  // A bow reaches seven tiles, which is the whole point of the skill: it trades
+  // the damage a scimitar does for the right to start the fight. Arrows sit in
+  // their own slot and are spent one per shot, so ranged combat costs something
+  // per swing where melee costs nothing.
+  // ------------------------------------------------------------------------
+  shortbow: item('shortbow', 'Shortbow', { value: 40,
+    slot: 'weapon', speed: 4, range: 7, colour: '#7a5230', shape: 'bow',
+    tags: ['bow'], bonuses: { ranged: 8 },
+    examine: 'A short bow of green wood. Needs arrows.'
+  }),
+
+  oak_shortbow: item('oak_shortbow', 'Oak shortbow', { value: 110,
+    slot: 'weapon', speed: 4, range: 7, colour: '#6b4a24', shape: 'bow',
+    tags: ['bow'], bonuses: { ranged: 16 },
+    examine: 'Heavier draw, and it tells at a distance.'
+  }),
+
+  arrow_shaft: item('arrow_shaft', 'Arrow shaft', { value: 1,
+    stackable: true, colour: '#8a6a3a', shape: 'arrow',
+    examine: 'Straight, trimmed, and no use without a head or a feather.'
+  }),
+
+  bronze_arrow: item('bronze_arrow', 'Bronze arrow', { value: 2,
+    stackable: true, slot: 'ammo', colour: '#a97142', shape: 'arrow',
+    tags: ['arrow'], bonuses: { rangedStrength: 7 },
+    examine: 'Bronze-tipped. It will do.'
+  }),
+
+  iron_arrow: item('iron_arrow', 'Iron arrow', { value: 5,
+    stackable: true, slot: 'ammo', colour: '#8f8f96', shape: 'arrow',
+    tags: ['arrow'], bonuses: { rangedStrength: 14 },
+    examine: 'Iron-tipped, and noticeably heavier.'
+  }),
+
+  // ------------------------------------------------------------------------
+  // Crafting: glass
+  // ------------------------------------------------------------------------
+  sand: item('sand', 'Sand', { value: 2,
+    stackable: true, colour: '#c2ad78', shape: 'ore',
+    examine: 'Fine, pale, and everywhere along the shore.'
+  }),
+
+  ash: item('ash', 'Ash', { value: 3,
+    stackable: true, colour: '#54504a', shape: 'ore',
+    examine: 'What a fire leaves once it has finished with the wood.'
+  }),
+
+  molten_glass: item('molten_glass', 'Molten glass', { value: 18,
+    colour: '#9fd8d0', shape: 'blob',
+    examine: 'Still glowing. Best worked before it sets.'
+  }),
+
+  glass_vial: item('glass_vial', 'Glass vial', { value: 30,
+    colour: '#bfe6e0', shape: 'vial',
+    examine: 'Empty, stoppered, and worth more than the sand it came from.'
   }),
 
   smiths_hammer: item('smiths_hammer', "Smith's hammer", {

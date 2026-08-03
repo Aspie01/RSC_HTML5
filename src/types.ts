@@ -26,18 +26,30 @@ export interface Point {
 // --------------------------------------------------------------------------
 // Items
 // --------------------------------------------------------------------------
-export type EquipSlot = 'head' | 'cape' | 'body' | 'legs' | 'weapon' | 'shield';
+export type EquipSlot =
+  | 'head' | 'cape' | 'body' | 'legs' | 'weapon' | 'shield' | 'ammo';
 
 export type ItemShape =
   | 'blob' | 'coin' | 'bone' | 'feather'
   | 'meat' | 'blade' | 'shield' | 'plate'
   | 'log' | 'axe' | 'tinderbox'
-  | 'ore' | 'bar' | 'pickaxe' | 'hammer' | 'helm' | 'legs' | 'fish';
+  | 'ore' | 'bar' | 'pickaxe' | 'hammer' | 'helm' | 'legs' | 'fish'
+  | 'bow' | 'arrow' | 'vial';
 
 export interface Bonuses {
   attack: number;
   strength: number;
   defence: number;
+  /**
+   * Ranged accuracy and ranged damage, kept separate from the melee pair.
+   *
+   * A bow contributes nothing to a punch and a scimitar nothing to a shot, so
+   * mixing them into one number would let a player carry the wrong weapon and
+   * still benefit from it. Which pair is used is decided by what is wielded,
+   * not by a mode the player selects.
+   */
+  ranged: number;
+  rangedStrength: number;
 }
 
 export interface ItemDef {
@@ -48,6 +60,11 @@ export interface ItemDef {
   readonly slot: EquipSlot | null;
   /** Attack speed in game ticks. 4 = scimitar, 5 = longsword, 6 = two-hander. */
   readonly speed: number;
+  /**
+   * How far this weapon reaches, in tiles. 1 is melee and the default, so any
+   * weapon that does not say otherwise behaves exactly as it always has.
+   */
+  readonly range: number;
   readonly colour: string;
   readonly shape: ItemShape;
   readonly bonuses: Bonuses;

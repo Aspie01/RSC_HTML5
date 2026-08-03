@@ -458,7 +458,61 @@ export function rubble(ctx: CanvasRenderingContext2D, x: number, y: number): voi
   }
 }
 
-export const scenerySprites = { bush, fence, furnace, anvil, well, rubble } as const;
+/** A low drift of sand. Flattens once picked over, so a spent bank reads as spent. */
+export function sandBank(
+  ctx: CanvasRenderingContext2D, x: number, y: number, spent: boolean
+): void {
+  const h = spent ? 3 : 7;
+  ctx.fillStyle = spent ? '#b3a071' : '#d8c48b';
+  ctx.strokeStyle = '#8b7a54';
+  ctx.lineWidth = 1;
+
+  ctx.beginPath();
+  ctx.ellipse(x, y - h * 0.4, 14, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  if (!spent) {
+    ctx.fillStyle = '#e6d4a2';
+    ctx.beginPath();
+    ctx.ellipse(x - 2, y - h * 0.9, 7, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** Dense, thorny undergrowth. Taller and darker than a bush, and impassable. */
+export function thicket(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  shadow(ctx, x, y, 15, 7);
+
+  const clumps: ReadonlyArray<readonly [number, number, number, string]> = [
+    [-8, -6, 9, '#243b1e'], [8, -6, 9, '#243b1e'],
+    [0, -13, 11, '#2f4a26'], [-4, -3, 8, '#1d3018'], [5, -3, 8, '#1d3018']
+  ];
+
+  ctx.strokeStyle = '#14210f';
+  ctx.lineWidth = 1.5;
+  for (const [dx, dy, r, fill] of clumps) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.ellipse(x + dx, y + dy, r, r * 0.85, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // A few thorns, so it reads as hostile rather than merely leafy.
+  ctx.strokeStyle = '#5c6b3a';
+  ctx.lineWidth = 1;
+  for (const [dx, dy] of [[-10, -14], [-2, -20], [7, -15], [12, -8]] as const) {
+    ctx.beginPath();
+    ctx.moveTo(x + dx, y + dy);
+    ctx.lineTo(x + dx + 3, y + dy - 4);
+    ctx.stroke();
+  }
+}
+
+export const scenerySprites = {
+  bush, fence, furnace, anvil, well, rubble, thicket
+} as const;
 
 // --------------------------------------------------------------------------
 // Creatures
@@ -615,6 +669,62 @@ export function item(
       ctx.beginPath();
       ctx.arc(s * 0.18, -s * 0.03, s * 0.035, 0, Math.PI * 2);
       ctx.fill();
+      break;
+
+    // Stave and string. The gap between them is what reads as "bow" at 34px.
+    case 'bow':
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(s * 0.1, 0, s * 0.32, Math.PI * 0.62, Math.PI * 1.38);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(240,236,220,0.85)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.09, -s * 0.3);
+      ctx.lineTo(-s * 0.09, s * 0.3);
+      ctx.stroke();
+      break;
+
+    case 'arrow':
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.28, s * 0.26);
+      ctx.lineTo(s * 0.2, -s * 0.2);
+      ctx.stroke();
+      // Head.
+      ctx.beginPath();
+      ctx.moveTo(s * 0.3, -s * 0.3);
+      ctx.lineTo(s * 0.12, -s * 0.24);
+      ctx.lineTo(s * 0.24, -s * 0.12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // Fletching.
+      ctx.strokeStyle = 'rgba(240,236,220,0.8)';
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.28, s * 0.26);
+      ctx.lineTo(-s * 0.12, s * 0.28);
+      ctx.moveTo(-s * 0.28, s * 0.26);
+      ctx.lineTo(-s * 0.3, s * 0.1);
+      ctx.stroke();
+      break;
+
+    case 'vial':
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.12, -s * 0.3);
+      ctx.lineTo(-s * 0.12, -s * 0.12);
+      ctx.lineTo(-s * 0.2, s * 0.1);
+      ctx.lineTo(-s * 0.2, s * 0.28);
+      ctx.lineTo(s * 0.2, s * 0.28);
+      ctx.lineTo(s * 0.2, s * 0.1);
+      ctx.lineTo(s * 0.12, -s * 0.12);
+      ctx.lineTo(s * 0.12, -s * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // Stopper.
+      ctx.fillStyle = '#8a6a3a';
+      ctx.fillRect(-s * 0.15, -s * 0.36, s * 0.3, s * 0.09);
       break;
 
     case 'blade':

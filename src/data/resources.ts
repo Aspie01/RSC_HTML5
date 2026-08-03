@@ -98,6 +98,23 @@ export const gatherables = {
     colour: '#4a6b22', scale: 1.22
   },
 
+  // Hardwood. The third Woodcutting tier, and the one that teaches respawn:
+  // it almost never falls, but when it does it is gone for a very long time,
+  // so a grove is worked by rotating between trees rather than camping one.
+  ironbark: {
+    id: 'ironbark', name: 'Ironbark tree', skill: 'woodcutting',
+    level: 20, xp: 62.5, outputId: 'ironbark_logs',
+    low: 20, high: 95,
+    tool: 'axe',
+    depleteChance: 0.2, respawnTicks: 120,
+    cue: 'chop',
+    success: 'You lever off a length of {item}.',
+    depleted: 'This one is cut out. It will be a long while coming back.',
+    full: 'Your inventory is too full to hold any more logs.',
+    noTool: 'You need an axe to chop this tree.',
+    colour: '#3d4a30', scale: 1.45
+  },
+
   // Rocks. Always empty on a success -- that is why mining is a walk between
   // veins rather than a stand-still skill.
   copper: {
@@ -168,6 +185,22 @@ export const gatherables = {
     noTool: 'You need a fishing rod to fish here.',
     colour: '#6f97b5'
   },
+  // Sand off the shore. No tool and no level, because it is the first half of
+  // a chain the player meets before they have any Crafting at all -- the gate
+  // on glass is Firemaking, which is the other half.
+  sand: {
+    id: 'sand', name: 'Sand bank', skill: 'crafting',
+    level: 1, xp: 5, outputId: 'sand',
+    low: 120, high: 240,
+    depleteChance: 0.15, respawnTicks: 10,
+    cue: 'mine',
+    success: 'You scoop up some {item}.',
+    depleted: 'You have picked this bank over. Try another.',
+    full: 'Your inventory is too full to hold any more sand.',
+    noTool: '',
+    colour: '#c2ad78'
+  },
+
   bream: {
     id: 'bream', name: 'Deep water', skill: 'fishing',
     level: 10, xp: 40, outputId: 'raw_bream',
@@ -202,7 +235,10 @@ export interface BurnableDef {
 
 export const burnables: Record<string, BurnableDef> = {
   logs: { logId: 'logs', level: 1, xp: 40, burnTicks: 120 },
-  oak_logs: { logId: 'oak_logs', level: 10, xp: 60, burnTicks: 200 }
+  oak_logs: { logId: 'oak_logs', level: 10, xp: 60, burnTicks: 200 },
+  // Burns a long time, which matters now that a dead fire leaves ash: one
+  // ironbark is a cooking fire that outlasts a whole inventory of fish.
+  ironbark_logs: { logId: 'ironbark_logs', level: 20, xp: 95, burnTicks: 340 }
 };
 
 // --------------------------------------------------------------------------
@@ -265,6 +301,12 @@ export interface BarDef {
   /** Item id of the bar produced. */
   readonly id: string;
   readonly name: string;
+  /**
+   * Which skill the furnace is being used for. A furnace is a hot box, not a
+   * smithy: glass is made in the same one, and saying so here is what stops
+   * the engine assuming everything poured out of it is Smithing.
+   */
+  readonly skill: SkillId;
   readonly level: number;
   readonly xp: number;
   readonly ingredients: readonly Ingredient[];
@@ -277,21 +319,95 @@ export interface BarDef {
 
 export const bars: readonly BarDef[] = [
   {
-    id: 'bronze_bar', name: 'Bronze bar',
+    id: 'bronze_bar', name: 'Bronze bar', skill: 'smithing',
     level: 1, xp: 6.2, successChance: 1,
     ingredients: [{ id: 'copper_ore', qty: 1 }, { id: 'tin_ore', qty: 1 }]
   },
   {
-    id: 'iron_bar', name: 'Iron bar',
+    id: 'iron_bar', name: 'Iron bar', skill: 'smithing',
     level: 10, xp: 12.5, successChance: 0.5,
     ingredients: [{ id: 'iron_ore', qty: 1 }]
   },
   {
-    id: 'steel_bar', name: 'Steel bar',
+    id: 'steel_bar', name: 'Steel bar', skill: 'smithing',
     level: 20, xp: 17.5, successChance: 1,
     ingredients: [{ id: 'iron_ore', qty: 1 }, { id: 'coal', qty: 2 }]
+  },
+
+  // Glass. Sand off the shore and ash out of a dead fire, which is why the
+  // quest that teaches this is gated on Firemaking: you cannot make glass
+  // without having burnt something first.
+  {
+    id: 'molten_glass', name: 'Molten glass', skill: 'crafting',
+    level: 1, xp: 12, successChance: 1,
+    ingredients: [{ id: 'sand', qty: 1 }, { id: 'ash', qty: 1 }]
+  },
+  {
+    id: 'glass_vial', name: 'Glass vial', skill: 'crafting',
+    level: 5, xp: 20, successChance: 1,
+    ingredients: [{ id: 'molten_glass', qty: 1 }]
   }
 ];
+
+// --------------------------------------------------------------------------
+// Fletching (Crafting, done anywhere)
+// --------------------------------------------------------------------------
+
+/**
+ * Turning wood and feathers into ammunition.
+ *
+ * Fletching is folded into Crafting for v1 rather than being its own skill,
+ * per the content roadmap. It needs no station: this is knife work, done
+ * wherever you are standing, which is also what makes it the thing an archer
+ * does between fights rather than a trip back to town.
+ *
+ * It is the join between three skills that had nothing to do with each other:
+ * Woodcutting supplies the shafts, killing things supplies the feathers, and
+ * Smithing supplies the heads. All three feed Archery.
+ */
+export interface FletchDef {
+  readonly id: string;
+  readonly name: string;
+  readonly level: number;
+  readonly xp: number;
+  readonly inputs: readonly Ingredient[];
+  readonly outputId: string;
+  readonly outputQty: number;
+}
+
+export const fletchables: readonly FletchDef[] = [
+  {
+    id: 'arrow_shafts', name: 'Arrow shafts',
+    level: 1, xp: 5,
+    inputs: [{ id: 'logs', qty: 1 }],
+    outputId: 'arrow_shaft', outputQty: 8
+  },
+  {
+    id: 'bronze_arrows', name: 'Bronze arrows',
+    level: 5, xp: 20,
+    inputs: [
+      { id: 'arrow_shaft', qty: 8 },
+      { id: 'feather', qty: 8 },
+      { id: 'bronze_bar', qty: 1 }
+    ],
+    outputId: 'bronze_arrow', outputQty: 8
+  },
+  {
+    id: 'iron_arrows', name: 'Iron arrows',
+    level: 20, xp: 38,
+    inputs: [
+      { id: 'arrow_shaft', qty: 8 },
+      { id: 'feather', qty: 8 },
+      { id: 'iron_bar', qty: 1 }
+    ],
+    outputId: 'iron_arrow', outputQty: 8
+  }
+];
+
+/** Every recipe whose FIRST input is this item, for the right-click menu. */
+export function fletchablesFrom(itemId: string): readonly FletchDef[] {
+  return fletchables.filter((f) => f.inputs[0]?.id === itemId);
+}
 
 export function getBar(id: string): BarDef | undefined {
   return bars.find((b) => b.id === id);
@@ -358,3 +474,4 @@ export const WOODCUTTING: SkillId = 'woodcutting';
 export const COOKING: SkillId = 'cooking';
 export const MINING: SkillId = 'mining';
 export const SMITHING: SkillId = 'smithing';
+export const CRAFTING: SkillId = 'crafting';

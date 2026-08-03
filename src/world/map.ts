@@ -23,7 +23,7 @@ export interface TerrainInfo {
 
 export type SceneryKind =
   | 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil' | 'fishing_spot'
-  | 'well' | 'rubble';
+  | 'well' | 'rubble' | 'sand_bank' | 'thicket';
 
 export interface Scenery {
   readonly kind: SceneryKind;
@@ -200,6 +200,27 @@ const CUT_VEINS: ReadonlyArray<{ x: number; y: number; rock: string }> = [
 export const CUT_ENTRANCE = { x: 7, y: 26 } as const;
 
 /**
+ * Wrackwood: old forest, south down the road. The grove inside it is walled by
+ * thicket and its one gap is grown over until The Quiet Grove is finished.
+ *
+ * The ironbark is inside. Level alone would not have been a reward -- a player
+ * who reaches Woodcutting 20 would simply find the trees waiting -- so the
+ * quest opens the place instead, the same trade Deepcut makes for coal.
+ */
+const GROVE_TREES: ReadonlyArray<{ x: number; y: number; tree: string }> = [
+  { x: 19, y: 41, tree: 'ironbark' },
+  { x: 21, y: 43, tree: 'ironbark' },
+  { x: 23, y: 41, tree: 'ironbark' },
+  { x: 25, y: 43, tree: 'ironbark' },
+  { x: 27, y: 41, tree: 'ironbark' },
+  { x: 20, y: 44, tree: 'oak' },
+  { x: 26, y: 44, tree: 'oak' }
+];
+
+/** The tile that seals the grove. Cleared when The Quiet Grove completes. */
+export const GROVE_ENTRANCE = { x: 23, y: 39 } as const;
+
+/**
  * Fishing spots, all placed so that a pier or shore tile sits beside them.
  * Shallows hug the sand; the deep water is out at the pier head, which is what
  * makes walking to the end of it worth doing at Fishing 10.
@@ -230,7 +251,11 @@ const QUEST_GIVERS: ReadonlyArray<{ npcId: string; x: number; y: number }> = [
   { npcId: 'iselle', x: 44, y: 23 },
   // On the crossroads verge, beside the path but never on it -- see the note
   // above about stationary NPCs and chokepoints.
-  { npcId: 'corbin', x: 27, y: 25 }
+  { npcId: 'corbin', x: 27, y: 25 },
+  // On the sand, between the banks and the furnace road.
+  { npcId: 'sella', x: 42, y: 21 },
+  // South-east, on the road out towards the guards -- where the fighting is.
+  { npcId: 'hesk', x: 30, y: 31 }
 ];
 
 function spawnCluster(
@@ -314,6 +339,12 @@ export function generateMap(): GameMap {
     });
   }
 
+  // Sand banks along the shore, either side of the pier. Non-blocking, because
+  // they are a feature of the beach rather than an object standing on it.
+  for (const y of [19, 20, 21, 28, 29, 30]) {
+    map.setScenery(43, y, { kind: 'sand_bank', blocks: false, resource: 'sand' });
+  }
+
   // Scatter trees and rocks on open grass, keeping the paths clear.
   for (let y = 1; y < H - 1; y++) {
     for (let x = 1; x < W - 1; x++) {
@@ -376,6 +407,31 @@ export function generateMap(): GameMap {
   // rather than making them decide anything. Down here the near seams can be
   // worked in peace and the far ones have to be earned.
   spawnCluster(map, 'goblin', 9, 29, 12, 30, 2, rng);
+
+  // Wrackwood's grove. Walled with thicket on every side but the road, and
+  // that gap grown over until a quest clears it.
+  for (let y = 39; y <= 45; y++) {
+    for (let x = 17; x <= 29; x++) {
+      const edge = x === 17 || x === 29 || y === 39 || y === 45;
+      if (!edge) { map.scenery[map.idx(x, y)] = null; continue; }
+      if (x === GROVE_ENTRANCE.x && y === GROVE_ENTRANCE.y) continue;
+      map.setScenery(x, y, { kind: 'thicket', blocks: true });
+    }
+  }
+  map.setScenery(GROVE_ENTRANCE.x, GROVE_ENTRANCE.y, { kind: 'thicket', blocks: true });
+
+  for (const t of GROVE_TREES) {
+    map.setScenery(t.x, t.y, {
+      kind: 'tree', blocks: true, variant: 1, resource: t.tree
+    });
+  }
+
+  // Something has been living in here undisturbed -- but boars, which do not
+  // start fights. The grove is a Woodcutting reward gated on Woodcutting, so
+  // anything in it has to be a choice rather than a toll. Aggressive spawns
+  // here killed a test woodcutter mid-chop, which is precisely the failure the
+  // goblins in the Cut already taught.
+  spawnCluster(map, 'boar', 24, 42, 28, 44, 3, rng);
 
   // The village well. Placed after the scatter pass, and its surroundings
   // cleared, because a tree dropped against it would leave the one thing a
