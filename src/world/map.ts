@@ -367,7 +367,14 @@ export function generateMap(): GameMap {
       } else if (r < 0.072) {
         map.setScenery(x, y, { kind: 'rock', blocks: true });
       } else if (r < 0.10) {
-        map.setScenery(x, y, { kind: 'bush', blocks: false });
+        // Roughly a third of the hedgerow is worth cutting. The rest stays
+        // decorative, so finding a marshroot is a small piece of luck rather
+        // than a guarantee attached to every bush in the world.
+        const forageable = rng() < 0.34;
+        map.setScenery(x, y, {
+          kind: 'bush', blocks: false,
+          ...(forageable ? { resource: 'marshroot' } : {})
+        });
       }
     }
   }
@@ -419,6 +426,12 @@ export function generateMap(): GameMap {
     }
   }
   map.setScenery(GROVE_ENTRANCE.x, GROVE_ENTRANCE.y, { kind: 'thicket', blocks: true });
+
+  // Emberleaf grows in the grove and nowhere else, which gives Wrackwood a
+  // reason to be returned to once the ironbark has been cut.
+  for (const [ex, ey] of [[18, 42], [22, 44], [26, 40], [28, 43]] as const) {
+    map.setScenery(ex, ey, { kind: 'bush', blocks: false, resource: 'emberleaf' });
+  }
 
   for (const t of GROVE_TREES) {
     map.setScenery(t.x, t.y, {

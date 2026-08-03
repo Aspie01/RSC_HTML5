@@ -98,6 +98,36 @@ export const gatherables = {
     colour: '#4a6b22', scale: 1.22
   },
 
+  // Foraging. Hedges and undergrowth, worked with a sickle. Both outputs leave
+  // the skill immediately: marshroot is food once cooked, emberleaf is what a
+  // spell burns. Neither is any use raw, which is the point.
+  marshroot: {
+    id: 'marshroot', name: 'Marshroot', skill: 'foraging',
+    level: 1, xp: 15, outputId: 'marshroot',
+    low: 90, high: 230,
+    tool: 'sickle',
+    depleteChance: 0.5, respawnTicks: 18,
+    cue: 'chop',
+    success: 'You cut a {item} free.',
+    depleted: 'This has been picked clean.',
+    full: 'Your inventory is too full to hold any more.',
+    noTool: 'You need a sickle to cut this.',
+    colour: '#6f8a4a'
+  },
+  emberleaf: {
+    id: 'emberleaf', name: 'Emberleaf bush', skill: 'foraging',
+    level: 15, xp: 42, outputId: 'emberleaf',
+    low: 35, high: 145,
+    tool: 'sickle',
+    depleteChance: 0.6, respawnTicks: 40,
+    cue: 'chop',
+    success: 'You cut a handful of {item}.',
+    depleted: 'This has been picked clean.',
+    full: 'Your inventory is too full to hold any more.',
+    noTool: 'You need a sickle to cut this.',
+    colour: '#a8532c'
+  },
+
   // Hardwood. The third Woodcutting tier, and the one that teaches respawn:
   // it almost never falls, but when it does it is gone for a very long time,
   // so a grove is worked by rotating between trees rather than camping one.
@@ -269,6 +299,12 @@ export const recipes: Record<string, RecipeDef> = {
   raw_bream: {
     rawId: 'raw_bream', cookedId: 'cooked_bream', burntId: 'burnt_bream',
     level: 10, xp: 50, stopBurnLevel: 28
+  },
+  // Foraging's outbound arrow into Cooking. Raw marshroot is inedible, so the
+  // forage is worth nothing until it has been through a fire.
+  marshroot: {
+    rawId: 'marshroot', cookedId: 'roasted_marshroot', burntId: 'burnt_marshroot',
+    level: 5, xp: 35, stopBurnLevel: 20
   }
 };
 
@@ -346,6 +382,14 @@ export const bars: readonly BarDef[] = [
     id: 'glass_vial', name: 'Glass vial', skill: 'crafting',
     level: 5, xp: 20, successChance: 1,
     ingredients: [{ id: 'molten_glass', qty: 1 }]
+  },
+  // Crafting's outbound arrow into Magic. A leaf sealed in glass while the
+  // glass is still soft -- which is why it takes both skills and why the
+  // focus cannot be bought.
+  {
+    id: 'emberglass_focus', name: 'Emberglass focus', skill: 'crafting',
+    level: 15, xp: 90, successChance: 1,
+    ingredients: [{ id: 'molten_glass', qty: 2 }, { id: 'emberleaf', qty: 1 }]
   }
 ];
 
@@ -458,7 +502,11 @@ function tier(metal: string, base: number): SmithDef[] {
 export const smithables: readonly SmithDef[] = [
   ...tier('bronze', 1),
   ...tier('iron', 10),
-  ...tier('steel', 20)
+  ...tier('steel', 20),
+  // Foraging's inbound arrow. Nothing can be cut from a hedge without one, so
+  // the skill that produces reagents starts at a forge, and no skill in the
+  // game stands entirely on its own.
+  { id: 'bronze_sickle', barId: 'bronze_bar', bars: 1, level: 5 }
 ];
 
 export function smithablesFor(barId: string): readonly SmithDef[] {
