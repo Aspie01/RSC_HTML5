@@ -73,6 +73,30 @@
 
 <div id="context-menu"></div>
 
+<!-- Shop. Stock on the left, your pack on the right, coins between them. -->
+<div id="shop-modal">
+  <div id="shop-panel">
+    <div id="shop-head">
+      <span id="shop-name">Shop</span>
+      <button id="btn-shop-close" title="Close">x</button>
+    </div>
+    <div id="shop-cols">
+      <div class="shop-col">
+        <div class="shop-col-head">In stock <span class="shop-hint">click to buy</span></div>
+        <div id="shop-stock" class="shop-grid"></div>
+      </div>
+      <div class="shop-col">
+        <div class="shop-col-head">Your pack <span class="shop-hint">click to sell</span></div>
+        <div id="shop-inv" class="shop-grid"></div>
+      </div>
+    </div>
+    <div id="shop-foot">
+      <span id="shop-coins">0 coins</span>
+      <span id="shop-status"></span>
+    </div>
+  </div>
+</div>
+
 <!-- Manual save export/import. The way out when browser storage is blocked. -->
 <div id="save-modal">
   <div id="save-panel">

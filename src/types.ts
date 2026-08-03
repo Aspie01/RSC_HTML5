@@ -32,7 +32,7 @@ export type ItemShape =
   | 'blob' | 'coin' | 'bone' | 'feather'
   | 'meat' | 'blade' | 'shield' | 'plate'
   | 'log' | 'axe' | 'tinderbox'
-  | 'ore' | 'bar' | 'pickaxe' | 'hammer' | 'helm' | 'legs';
+  | 'ore' | 'bar' | 'pickaxe' | 'hammer' | 'helm' | 'legs' | 'fish';
 
 export interface Bonuses {
   attack: number;
@@ -53,6 +53,23 @@ export interface ItemDef {
   readonly bonuses: Bonuses;
   /** Hitpoints restored when eaten. 0 means not edible. */
   readonly heals: number;
+  /**
+   * What this item *is*, for engine code that must not name it.
+   *
+   * A gathering action asks for the tag `axe`, never for `bronze_axe`, so a
+   * new metal tier is a row in this file and nothing else. Every tool check in
+   * the game resolves through these: `axe`, `pickaxe`, `hammer`, `tinderbox`,
+   * `rod`, `raw_food`.
+   */
+  readonly tags: readonly string[];
+  /**
+   * Base worth in coins. Shops price against this: they sell above it and buy
+   * below it, so the spread is what makes trading a cost rather than a loop.
+   *
+   * 0 means the item has no market -- quest rewards and burnt food, which
+   * should never be a source of coins.
+   */
+  readonly value: number;
 }
 
 /** A quantity of an item, as held in an inventory or equipment slot. */
@@ -177,12 +194,16 @@ export interface Hitsplat {
 export type PlayerAction =
   | { type: 'attack'; target: Npc }
   | { type: 'pickup'; item: GroundItem }
-  /** Chop the tree at this tile; repeats each tick until it falls or you stop. */
-  | { type: 'chop'; x: number; y: number }
+  /**
+   * Work the gatherable at this tile -- a tree, a rock or a fishing spot --
+   * repeating each tick until it is exhausted or you stop. One action rather
+   * than three because chopping, mining and fishing differ only in their data.
+   */
+  | { type: 'gather'; x: number; y: number }
   /** Cook raw food on the fire at this tile, one item per successful tick. */
   | { type: 'cook'; x: number; y: number }
-  /** Mine the rock at this tile; repeats each tick until the ore is out. */
-  | { type: 'mine'; x: number; y: number }
+  /** Walk to a thing and look at it closely. Advances `inspect` quest stages. */
+  | { type: 'inspect'; x: number; y: number }
   /**
    * Walk to a furnace or an anvil and open its interface on arrival. The
    * interface is what turns this into a `smelt` or `smith` action -- clicking

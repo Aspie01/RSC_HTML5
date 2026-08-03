@@ -30,6 +30,12 @@ export interface SaveData {
   slots: unknown;
   equipment: unknown;
   quests?: unknown;
+  /**
+   * Shop stock and restock timers. Optional, and absent means every shop is
+   * full -- which is why adding shops needed no version bump: a save written
+   * before they existed restores to exactly the state a new game starts in.
+   */
+  shops?: unknown;
 }
 
 /**

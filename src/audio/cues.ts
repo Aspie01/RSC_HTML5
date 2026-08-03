@@ -45,7 +45,7 @@ export type Layer =
     };
 
 export type CueId =
-  | 'chop' | 'mine' | 'smelt' | 'smith' | 'fire' | 'cook' | 'eat'
+  | 'chop' | 'mine' | 'fish' | 'smelt' | 'smith' | 'fire' | 'cook' | 'eat'
   | 'hit' | 'hurt' | 'die' | 'pickup' | 'drop' | 'levelup' | 'quest'
   | 'click' | 'deny';
 
@@ -60,6 +60,14 @@ export const CUES: Readonly<Record<CueId, readonly Layer[]>> = {
   mine: [
     { kind: 'tone', freq: 420, to: 240, dur: 0.07, gain: 0.22, wave: 'square' },
     { kind: 'noise', dur: 0.16, gain: 0.13, filter: 2600, q: 1.4, at: 0.03 }
+  ],
+
+  // A catch breaking the surface: a wet plip, then the line coming in. Softer
+  // than chop or mine, because fishing is the one gathering skill you stand
+  // still for and a hard transient every few seconds would wear thin.
+  fish: [
+    { kind: 'tone', freq: 620, to: 940, dur: 0.07, gain: 0.13, wave: 'sine' },
+    { kind: 'noise', dur: 0.22, gain: 0.09, filter: 1700, q: 0.7, at: 0.05 }
   ],
 
   // Ore going into the furnace: a soft roar rather than an impact.

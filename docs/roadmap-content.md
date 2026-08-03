@@ -249,8 +249,8 @@ Six regions, unlocked by quest rather than level where possible.
 
 | Phase | Version | Content | Milestone dependency |
 |---|---|---|---|
-| **A** | 0.1 — first public build | WC, Firemaking, Cooking. Quests 1–3. The Landing only. | Engine M0–M10 |
-| **B** | 0.3 | Mining, Smithing, Fishing. Quests 4–7. Kettle Ridge, The Cut. | — |
+| **A** *[done]* | 0.1 — first public build | WC, Firemaking, Cooking. Quests 1–3. The Landing only. | Engine M0–M10 |
+| **B** *[done]* | 0.3 | Mining, Smithing, Fishing. Quests 4–7. Kettle Ridge, The Cut. | — |
 | **C** | 0.5 | Full combat suite + Vitality. Quests 8–11. Wrackwood. | Combat system |
 | **D** | 0.7 | Magic, Crafting, Foraging. Quests 12–16. | Spell system |
 | **E** | 0.9 | Drowned Interior. Quests 17–21. Tiers 5–6 equipment. | Boss framework |
@@ -258,6 +258,26 @@ Six regions, unlocked by quest rather than level where possible.
 | **Post** | 1.x | Alchemy, Thieving, Agility, task system, Farming | — |
 
 Phase A is the build you already have a technical roadmap for. Everything after it is content on a proven engine.
+
+**Phases A and B are built.** Seven quests, seven skills, and both regions:
+Kettle Ridge is the surface quarry and smithy, The Cut is the sealed lower mine
+that Deepcut opens. Shops and coins arrived with quest 6, which the economy
+section below asks for and the phase table does not mention.
+
+Two deviations worth knowing:
+
+- **Coal moved.** It used to sit in the open quarry, which made Deepcut an
+  optional detour rather than the thing that unlocks steel. The only coal in
+  the world is now inside The Cut. A save made before this keeps its coal but
+  has to finish Deepcut to mine more — the quest gates on Mining 10, so anyone
+  who could reach coal at all can open it immediately.
+- **Foraging did not arrive with quest 5.** The phase table lists a "Foraging
+  intro" as its unlock, but Foraging is a Phase D skill and introducing it here
+  would mean shipping a skill with no production chain to feed. Salt in the
+  Well plants the flood thread instead, which is what §5.2 actually says it is
+  for; the hook stays for Phase D.
+
+Phase C is next: the full combat suite plus Vitality, quests 8–11, Wrackwood.
 
 ---
 

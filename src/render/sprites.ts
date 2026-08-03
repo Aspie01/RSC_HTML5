@@ -349,7 +349,116 @@ export function fence(ctx: CanvasRenderingContext2D, x: number, y: number): void
  * are drawn by dedicated branches, so this table can stay uniformly
  * (ctx, x, y).
  */
-export const scenerySprites = { bush, fence, furnace, anvil } as const;
+/**
+ * A fishing spot: expanding rings on the water, with the odd fin breaking the
+ * surface. There is no object to draw here -- the tile is water and the shoal
+ * is invisible -- so the motion IS the sprite. Pass `time = 0` for a spent
+ * spot and the rings freeze, which is how a player reads it as empty.
+ */
+export function fishingSpot(
+  ctx: CanvasRenderingContext2D, x: number, y: number,
+  time: number, colour = '#6f97b5'
+): void {
+  ctx.save();
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = 1.5;
+
+  if (time === 0) {
+    // Still water: one flat ring, so the spot stays clickable but reads as dead.
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath();
+    ctx.ellipse(x, y - 2, 9, 4.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  // Three rings, offset in phase, each fading as it grows.
+  for (let i = 0; i < 3; i++) {
+    const t = ((time * 0.0007) + i / 3) % 1;
+    ctx.globalAlpha = 0.55 * (1 - t);
+    const rx = 3 + t * 11;
+    ctx.beginPath();
+    ctx.ellipse(x, y - 2, rx, rx * 0.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // A fin surfacing on a slow cycle. Render-only jitter -- nothing in the
+  // simulation can see this, so Math.random() is fine here.
+  const fin = Math.sin(time * 0.0012);
+  if (fin > 0.86) {
+    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = colour;
+    ctx.beginPath();
+    ctx.moveTo(x + 3, y - 3);
+    ctx.lineTo(x + 6, y - 8);
+    ctx.lineTo(x + 8, y - 3);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+/** A low stone ring with a roof on two posts. */
+export function well(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  shadow(ctx, x, y, 15, 7);
+
+  // Stone ring.
+  ctx.fillStyle = '#7d7776';
+  ctx.strokeStyle = '#4a4640';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.ellipse(x, y - 4, 13, 6.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // The dark of the shaft, which is the whole point of the object.
+  ctx.fillStyle = '#14100c';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 5, 9, 4.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Posts and roof.
+  ctx.strokeStyle = '#5a4028';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(x - 10, y - 7); ctx.lineTo(x - 10, y - 24);
+  ctx.moveTo(x + 10, y - 7); ctx.lineTo(x + 10, y - 24);
+  ctx.stroke();
+
+  ctx.fillStyle = '#6b4a24';
+  ctx.strokeStyle = '#3d2a14';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x - 14, y - 23);
+  ctx.lineTo(x, y - 32);
+  ctx.lineTo(x + 14, y - 23);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+}
+
+/** A heap of broken stone filling a gap. Reads as "was a way through". */
+export function rubble(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  shadow(ctx, x, y, 16, 7);
+
+  const lumps: ReadonlyArray<readonly [number, number, number]> = [
+    [-9, -3, 7], [0, -7, 9], [9, -3, 7], [-4, 1, 6], [5, 1, 6]
+  ];
+
+  ctx.strokeStyle = '#2f2b26';
+  ctx.lineWidth = 1.5;
+  for (const [dx, dy, r] of lumps) {
+    ctx.fillStyle = dy < -5 ? '#6d675f' : '#57524b';
+    ctx.beginPath();
+    ctx.ellipse(x + dx, y + dy, r, r * 0.72, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+export const scenerySprites = { bush, fence, furnace, anvil, well, rubble } as const;
 
 // --------------------------------------------------------------------------
 // Creatures
@@ -486,6 +595,25 @@ export function item(
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
       ctx.beginPath();
       ctx.ellipse(-s * 0.1, -s * 0.07, s * 0.1, s * 0.06, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+
+    // Body plus a triangular tail. The eye is what stops it reading as a leaf.
+    case 'fish':
+      ctx.beginPath();
+      ctx.ellipse(s * 0.04, 0, s * 0.28, s * 0.15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.2, 0);
+      ctx.lineTo(-s * 0.36, -s * 0.16);
+      ctx.lineTo(-s * 0.36, s * 0.16);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.beginPath();
+      ctx.arc(s * 0.18, -s * 0.03, s * 0.035, 0, Math.PI * 2);
       ctx.fill();
       break;
 

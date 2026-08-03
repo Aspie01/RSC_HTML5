@@ -4,6 +4,7 @@ import { Game } from './game';
 import { openSaveStore } from './persist/storage';
 import { bindSaveDialog } from './ui/savedialog';
 import { bindStartOverlay } from './ui/startoverlay';
+import { bindShopWindow } from './ui/shopwindow';
 
 async function boot(): Promise<void> {
   const canvas = document.getElementById('game');
@@ -37,6 +38,7 @@ async function boot(): Promise<void> {
   });
 
   bindSaveDialog(game);
+  bindShopWindow(game);
 
   // Handy while developing: `game` in the console lets you poke at live state.
   (window as unknown as { game: Game }).game = game;

@@ -14,7 +14,7 @@ import type {
   EquipSlot, ItemStack, PlayerAction, Point, SkillId, StationKind, World
 } from './types';
 import type { GroundItem } from './systems/ground';
-import { GameMap, generateMap } from './world/map';
+import { GameMap, generateMap, CUT_ENTRANCE } from './world/map';
 import { GroundItems } from './systems/ground';
 import { WorldObjects } from './systems/objects';
 import { Player } from './entities/player';
@@ -24,15 +24,19 @@ import { UI } from './ui/ui';
 import { rollDrops } from './data/npcs';
 import { getItem } from './data/items';
 import {
-  getTree, burnables, recipeFor,
-  getRock, getBar, getSmithable, bars, smithablesFor,
-  PICKAXE_IDS, HAMMER_IDS, HAMMER_SPEED, SMITH_XP_PER_BAR
+  getGatherable, burnables, recipeFor,
+  getBar, getSmithable, bars, smithablesFor,
+  HAMMER_SPEED, SMITH_XP_PER_BAR
 } from './data/resources';
 import type { BarDef, SmithDef } from './data/resources';
 import { rollGather, rollBurn } from './systems/skilling';
 import { SKILL_LIST } from './systems/skills';
 import { Quests } from './systems/quests';
-import { getQuest, questsForNpc } from './data/quests';
+import { Shops } from './systems/shop';
+import type { TradeResult } from './systems/shop';
+import { shopForNpc } from './data/shops';
+import type { ShopDef } from './data/shops';
+import { getQuest, questsForNpc, quests } from './data/quests';
 import type { QuestDef, QuestItem, QuestStage } from './data/quests';
 import { Dialogue } from './ui/dialogue';
 import { INVENTORY_CAPACITY } from './systems/inventory';
@@ -47,6 +51,21 @@ import type { SaveStore } from './persist/storage';
 import { SAVE_VERSION, type SaveData, encodeSaveCode, decodeSaveCode, parseSave } from './persist/save';
 
 const AUTOSAVE_TICKS = 50; // every 30 seconds
+
+/**
+ * The right-click verb for each gathering skill. Data rather than a `switch`,
+ * so adding Foraging is a row here and a row in `resources.ts`.
+ */
+/** What looking closely at a piece of scenery tells you, absent a quest. */
+const INSPECT_TEXT: Readonly<Record<string, string>> = {
+  well: 'The village well. The water is a long way down, and further than it used to be.'
+};
+
+const GATHER_VERBS: Readonly<Partial<Record<SkillId, string>>> = {
+  woodcutting: 'Chop down',
+  mining: 'Mine',
+  fishing: 'Fish at'
+};
 
 /** Keys whose default action scrolls the page the game is embedded in. */
 const SCROLL_KEYS: ReadonlySet<string> = new Set([
@@ -91,6 +110,7 @@ export class Game implements World {
   readonly player: Player;
   readonly npcs: Npc[] = [];
   readonly quests = new Quests();
+  readonly shops = new Shops();
 
   private readonly renderer: Renderer;
   private readonly ui: UI;
@@ -225,6 +245,7 @@ export class Game implements World {
     for (const npc of this.npcs) npc.inCombatTicks++;
     this.ground.tick();
     this.objects.tick();
+    this.shops.tick();
     this.player.regenTick();
 
     if (++this.autosaveCounter >= AUTOSAVE_TICKS) {
@@ -271,14 +292,14 @@ export class Game implements World {
         }
       }
 
-    } else if (action.type === 'chop') {
-      this.resolveChop(action.x, action.y);
+    } else if (action.type === 'gather') {
+      this.resolveGather(action.x, action.y);
 
     } else if (action.type === 'cook') {
       this.resolveCook(action.x, action.y);
 
-    } else if (action.type === 'mine') {
-      this.resolveMine(action.x, action.y);
+    } else if (action.type === 'inspect') {
+      this.resolveInspect(action.x, action.y);
 
     } else if (action.type === 'use-station') {
       this.resolveStation(action.x, action.y, action.station);
@@ -321,52 +342,60 @@ export class Game implements World {
   }
 
   /**
-   * One tick of woodcutting. Like combat, this is an independent roll every
-   * tick rather than a progress bar -- which is why a tree sometimes falls
-   * immediately and sometimes takes ten seconds.
+   * One tick of gathering -- chopping, mining or fishing, which are the same
+   * action with different data behind them.
+   *
+   * Like combat, this is an independent roll every tick rather than a progress
+   * bar filling up, which is why a tree sometimes falls immediately and
+   * sometimes takes ten seconds. Nothing below names a skill, a tool or an
+   * item; everything specific comes from the `GatherDef`.
    */
-  private resolveChop(tx: number, ty: number): void {
+  private resolveGather(tx: number, ty: number): void {
     const p = this.player;
 
     const scenery = this.map.sceneryAt(tx, ty);
-    if (!scenery || scenery.kind !== 'tree' || !scenery.resource) {
-      p.clearAction();
-      return;
-    }
-
-    const def = getTree(scenery.resource);
+    const def = scenery?.resource ? getGatherable(scenery.resource) : undefined;
     if (!def) { p.clearAction(); return; }
 
     const tileIndex = this.map.idx(tx, ty);
     if (this.objects.isDepleted(tileIndex)) {
-      this.ui.message('This tree has already been cut down.');
+      this.ui.message(def.depleted);
+      p.clearAction();
+      return;
+    }
+
+    if (def.tool && !this.hasToolTagged(def.tool)) {
+      this.ui.message(def.noTool, 'bad');
       p.clearAction();
       return;
     }
 
     if (!this.approach(tx, ty)) return;
 
-    const level = p.skills.level('woodcutting');
+    const level = p.skills.level(def.skill);
     if (level < def.level) {
+      const skill = SKILL_LIST.find((s) => s.id === def.skill)?.name ?? def.skill;
       this.ui.message(
-        `You need a Woodcutting level of ${def.level} to chop this tree.`, 'bad'
+        `You need a ${skill} level of ${def.level} to use this.`, 'bad'
       );
       p.clearAction();
       return;
     }
 
-    if (!rollGather(def.low, def.high, level)) return; // swing missed; try again next tick
+    if (!rollGather(def.low, def.high, level)) return; // missed; roll again next tick
 
     if (p.inventory.isFull()) {
-      this.ui.message("Your inventory is too full to hold any more logs.", 'bad');
+      this.ui.message(def.full, 'bad');
       p.clearAction();
       return;
     }
 
-    p.inventory.add(def.logId, 1);
-    audio.play('chop');
-    this.announceXp('woodcutting', def.xp);
-    this.ui.message(`You get some ${getItem(def.logId)?.name.toLowerCase() ?? 'logs'}.`);
+    p.inventory.add(def.outputId, 1);
+    audio.play(def.cue);
+    this.announceXp(def.skill, def.xp);
+    this.ui.message(
+      def.success.replace('{item}', getItem(def.outputId)?.name.toLowerCase() ?? 'something')
+    );
     this.ui.dirty = true;
 
     if (Math.random() < def.depleteChance) {
@@ -426,63 +455,35 @@ export class Game implements World {
   }
 
   /**
-   * One tick of mining. The same repeated-roll shape as woodcutting, with two
-   * differences: a pickaxe is required, and a successful swing always empties
-   * the vein -- which is what makes mining a circuit between rocks rather than
-   * a stand-still skill.
+   * Look closely at something, and let any quest waiting on it move.
+   *
+   * The discovery happens here rather than in a report to an NPC afterwards,
+   * which is what separates investigating from fetching. The lines are the
+   * player's own, so the dialogue opens with no speaker.
    */
-  private resolveMine(tx: number, ty: number): void {
+  private resolveInspect(tx: number, ty: number): void {
     const p = this.player;
 
     const scenery = this.map.sceneryAt(tx, ty);
-    if (!scenery || scenery.kind !== 'rock' || !scenery.resource) {
-      p.clearAction();
-      return;
-    }
-
-    const def = getRock(scenery.resource);
-    if (!def) { p.clearAction(); return; }
-
-    const tileIndex = this.map.idx(tx, ty);
-    if (this.objects.isDepleted(tileIndex)) {
-      this.ui.message('There is no ore left in this rock.');
-      p.clearAction();
-      return;
-    }
-
-    if (!this.hasTool(PICKAXE_IDS)) {
-      this.ui.message('You need a pickaxe to mine this rock.', 'bad');
-      p.clearAction();
-      return;
-    }
-
+    if (!scenery) { p.clearAction(); return; }
     if (!this.approach(tx, ty)) return;
 
-    const level = p.skills.level('mining');
-    if (level < def.level) {
-      this.ui.message(
-        `You need a Mining level of ${def.level} to mine this rock.`, 'bad'
-      );
-      p.clearAction();
-      return;
-    }
-
-    if (!rollGather(def.low, def.high, level)) return; // swing glanced off
-
-    if (p.inventory.isFull()) {
-      this.ui.message('Your inventory is too full to hold any more ore.', 'bad');
-      p.clearAction();
-      return;
-    }
-
-    p.inventory.add(def.oreId, 1);
-    audio.play('mine');
-    this.announceXp('mining', def.xp);
-    this.ui.message(`You manage to mine some ${getItem(def.oreId)?.name.toLowerCase() ?? 'ore'}.`);
-    this.ui.dirty = true;
-
-    this.objects.deplete(tileIndex, def.respawnTicks);
     p.clearAction();
+    if (this.dialogue.isOpen()) return;
+
+    for (const def of quests) {
+      const stage = this.quests.activeStage(def);
+      if (stage?.goal.type !== 'inspect') continue;
+      if (stage.goal.x !== tx || stage.goal.y !== ty) continue;
+
+      this.dialogue.open('', stage.done, () => {
+        this.quests.advance(def);
+        this.onStageAdvanced(def, stage);
+      });
+      return;
+    }
+
+    this.ui.message(INSPECT_TEXT[scenery.kind] ?? 'You see nothing unusual.');
   }
 
   /** Walk to a furnace or anvil, then hand over to its interface. */
@@ -566,7 +567,7 @@ export class Game implements World {
       return;
     }
 
-    if (!this.hasTool(HAMMER_IDS)) {
+    if (!this.hasToolTagged('hammer')) {
       this.ui.message('You need a hammer to work the metal with.', 'bad');
       p.clearAction();
       return;
@@ -668,11 +669,60 @@ export class Game implements World {
       return;
     }
 
+    // A shopkeeper with nothing left to say opens the shop instead. Checked
+    // after quests so a merchant can still be a quest giver, and the errand
+    // always comes before the counter.
+    const shop = shopForNpc(id);
+    if (shop) {
+      const finished = questsForNpc(id).find((d) => this.quests.isComplete(d));
+      this.dialogue.open(npc.name, finished?.afterwards ?? [
+        { who: 'npc', text: 'Have a look. Everything on the cart is for sale.' }
+      ], () => this.openShop(shop));
+      return;
+    }
+
     // Nothing outstanding: say the after-the-fact line, or shrug.
     const finished = questsForNpc(id).find((d) => this.quests.isComplete(d));
     this.dialogue.open(npc.name, finished?.afterwards ?? [
       { who: 'npc', text: 'Good day to you.' }
     ]);
+  }
+
+  // ----------------------------------------------------------------------
+  // Shops
+  // ----------------------------------------------------------------------
+
+  /**
+   * Set by the shop window at boot. The game announces that a shop should be
+   * shown; it does not know what showing one involves, which is what keeps the
+   * trading rules testable without a DOM.
+   */
+  onShopOpen: ((shop: ShopDef) => void) | null = null;
+
+  private openShop(shop: ShopDef): void {
+    this.onShopOpen?.(shop);
+  }
+
+  buyFromShop(shop: ShopDef, itemId: string): TradeResult {
+    const result = this.shops.buy(shop, itemId, this.player.inventory);
+    if (result.ok) {
+      audio.play('pickup');
+      this.ui.dirty = true;
+    } else {
+      audio.play('deny');
+    }
+    return result;
+  }
+
+  sellToShop(shop: ShopDef, itemId: string): TradeResult {
+    const result = this.shops.sell(shop, itemId, this.player.inventory);
+    if (result.ok) {
+      audio.play('drop');
+      this.ui.dirty = true;
+    } else {
+      audio.play('deny');
+    }
+    return result;
   }
 
   /**
@@ -710,6 +760,10 @@ export class Game implements World {
       if (fire) fire.permanent = true;
     }
 
+    // Handed over before the next stage is set, so a stage that supplies the
+    // tool for the one after it cannot leave the player unable to continue.
+    for (const item of stage.gives ?? []) this.giveQuestItem(item);
+
     if (this.quests.isComplete(def)) this.completeQuest(def);
     this.ui.dirty = true;
   }
@@ -721,6 +775,9 @@ export class Game implements World {
     if (goal.type === 'give') {
       return goal.items.every((i) => this.player.inventory.count(i.id) >= i.qty);
     }
+    // An inspect stage never ends at an NPC, so talking to one can only ever
+    // produce the nudge. It is the looking that advances it.
+    if (goal.type === 'inspect') return false;
     return this.objects.fireNear(npc.x, npc.y) !== null;
   }
 
@@ -747,6 +804,11 @@ export class Game implements World {
 
   private completeQuest(def: QuestDef): void {
     const reward = def.reward;
+
+    // Deepcut's reward is a place, so it has to change the world rather than
+    // the inventory. Kept beside the quest that earns it, and mirrored in
+    // restoreQuestUnlocks so a reload does not bury it again.
+    if (def.id === 'deepcut') this.openTheCut();
 
     this.ui.message(`Quest complete: ${def.name}!`, 'levelup');
     this.ui.message(
@@ -787,6 +849,12 @@ export class Game implements World {
    * Anything a quest promised to leave behind has to be re-established here.
    */
   private restoreQuestUnlocks(): void {
+    // The Cut stays open once it has been opened. The map is regenerated from
+    // seed on every load, so anything a quest changed about the world has to
+    // be re-applied here or it silently seals itself again.
+    const deepcut = getQuest('deepcut');
+    if (deepcut && this.quests.isComplete(deepcut)) this.openTheCut();
+
     const coldHearth = getQuest('cold_hearth');
     if (!coldHearth || !this.quests.isComplete(coldHearth)) return;
 
@@ -795,6 +863,11 @@ export class Game implements World {
 
     const spot = this.freeTileBeside(maren.x, maren.y);
     if (spot) this.objects.addFire(spot.x, spot.y, 0, true);
+  }
+
+  /** Clear the fall that buries the way into the lower mine. */
+  private openTheCut(): void {
+    this.map.scenery[this.map.idx(CUT_ENTRANCE.x, CUT_ENTRANCE.y)] = null;
   }
 
   private freeTileBeside(x: number, y: number): Point | null {
@@ -827,9 +900,20 @@ export class Game implements World {
       Object.values(inv.equipment).some((eq) => eq?.id === id);
   }
 
-  /** True if any of these tool ids is carried or worn. */
-  private hasTool(ids: readonly string[]): boolean {
-    return ids.some((id) => this.carries(id));
+  /**
+   * True if anything carried or worn has this tag.
+   *
+   * Tools are matched this way rather than by id so the engine never names an
+   * item: a steel axe added to `items.ts` tomorrow chops trees the moment it
+   * has the `axe` tag, with no change here.
+   */
+  private hasToolTagged(tag: string): boolean {
+    const inv = this.player.inventory;
+    const tagged = (id: string | undefined): boolean =>
+      id !== undefined && (getItem(id)?.tags.includes(tag) ?? false);
+
+    return inv.slots.some((s) => tagged(s?.id)) ||
+      Object.values(inv.equipment).some((eq) => tagged(eq?.id));
   }
 
   private hasIngredients(list: readonly { id: string; qty: number }[]): boolean {
@@ -1239,16 +1323,17 @@ export class Game implements World {
     const scenery = this.map.sceneryAt(tile.x, tile.y);
     const spent = this.objects.isDepleted(this.map.idx(tile.x, tile.y));
 
-    if (scenery?.kind === 'tree' && scenery.resource && !spent) {
+    // Anything with a resource is gathered the same way, whatever it looks like.
+    if (scenery?.resource && !spent) {
       p.clearPath();
-      p.setAction({ type: 'chop', x: tile.x, y: tile.y });
+      p.setAction({ type: 'gather', x: tile.x, y: tile.y });
       this.renderer.setClickMarker(tile.x, tile.y, 'move');
       return;
     }
 
-    if (scenery?.kind === 'rock' && scenery.resource && !spent) {
+    if (scenery?.kind === 'well') {
       p.clearPath();
-      p.setAction({ type: 'mine', x: tile.x, y: tile.y });
+      p.setAction({ type: 'inspect', x: tile.x, y: tile.y });
       this.renderer.setClickMarker(tile.x, tile.y, 'move');
       return;
     }
@@ -1350,51 +1435,31 @@ export class Game implements World {
       }
 
       const scenery = this.map.sceneryAt(tile.x, tile.y);
-      if (scenery?.kind === 'tree' && scenery.resource) {
-        const treeDef = getTree(scenery.resource);
-        const stumped = this.objects.isDepleted(this.map.idx(tile.x, tile.y));
-
-        if (treeDef && !stumped) {
-          opts.push({
-            verb: 'Chop down', noun: treeDef.name,
-            action: () => {
-              p.clearPath();
-              p.setAction({ type: 'chop', x: tile.x, y: tile.y });
-            }
-          });
-        }
-        if (treeDef) {
-          opts.push({
-            verb: 'Examine', noun: treeDef.name,
-            action: () => {
-              this.ui.message(stumped
-                ? 'A freshly cut tree stump. It will regrow shortly.'
-                : `${treeDef.name}. Requires Woodcutting ${treeDef.level}.`);
-            }
-          });
-        }
-      }
-
-      if (scenery?.kind === 'rock' && scenery.resource) {
-        const rockDef = getRock(scenery.resource);
+      if (scenery?.resource) {
+        const def = getGatherable(scenery.resource);
         const spent = this.objects.isDepleted(this.map.idx(tile.x, tile.y));
 
-        if (rockDef && !spent) {
+        if (def) {
+          // The verb belongs to the resource, not to the engine, so a new
+          // gathering skill does not need a new arm here.
+          const verb = GATHER_VERBS[def.skill] ?? 'Use';
+          const skill = SKILL_LIST.find((s) => s.id === def.skill)?.name ?? def.skill;
+
+          if (!spent) {
+            opts.push({
+              verb, noun: def.name,
+              action: () => {
+                p.clearPath();
+                p.setAction({ type: 'gather', x: tile.x, y: tile.y });
+              }
+            });
+          }
           opts.push({
-            verb: 'Mine', noun: rockDef.name,
-            action: () => {
-              p.clearPath();
-              p.setAction({ type: 'mine', x: tile.x, y: tile.y });
-            }
-          });
-        }
-        if (rockDef) {
-          opts.push({
-            verb: 'Examine', noun: rockDef.name,
+            verb: 'Examine', noun: def.name,
             action: () => {
               this.ui.message(spent
-                ? 'The ore has been mined out. It will reform shortly.'
-                : `${rockDef.name}. Requires Mining ${rockDef.level}.`);
+                ? def.depleted
+                : `${def.name}. Requires ${skill} ${def.level}.`);
             }
           });
         }
@@ -1466,7 +1531,8 @@ export class Game implements World {
       running: p.running,
       slots: p.inventory.slots,
       equipment: p.inventory.equipment,
-      quests: this.quests.stages
+      quests: this.quests.stages,
+      shops: this.shops.snapshot()
     };
     return JSON.stringify(data);
   }
@@ -1517,6 +1583,7 @@ export class Game implements World {
 
       this.quests.restore(data.quests);
       this.restoreQuestUnlocks();
+      this.shops.restore(data.shops);
 
       if (data.slots) p.inventory.slots = this.migrateSlots(data.slots);
       if (data.equipment) p.inventory.equipment = data.equipment as typeof p.inventory.equipment;

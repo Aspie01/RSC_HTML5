@@ -21,16 +21,18 @@ export interface TerrainInfo {
   readonly walk: boolean;
 }
 
-export type SceneryKind = 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil';
+export type SceneryKind =
+  | 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil' | 'fishing_spot'
+  | 'well' | 'rubble';
 
 export interface Scenery {
   readonly kind: SceneryKind;
   readonly blocks: boolean;
   readonly variant?: number;
   /**
-   * Id into the matching table in data/resources.ts -- trees for `tree`, rocks
-   * for `rock` -- when this scenery can be gathered from. Absent means purely
-   * decorative, which is what separates an ore vein from a boulder.
+   * Id into `gatherables` in data/resources.ts when this scenery can be worked
+   * for a resource. Absent means purely decorative, which is what separates an
+   * ore vein from a boulder, or a fishing spot from open water.
    */
   readonly resource?: string;
 }
@@ -170,21 +172,65 @@ const ORE_VEINS: ReadonlyArray<{ x: number; y: number; rock: string }> = [
   { x: 10, y: 16, rock: 'iron' },
   { x: 11, y: 19, rock: 'iron' },
   { x: 8, y: 20, rock: 'iron' },
-  { x: 11, y: 14, rock: 'coal' },
-  { x: 12, y: 16, rock: 'coal' },
-  { x: 12, y: 18, rock: 'coal' },
-  { x: 10, y: 20, rock: 'coal' }
+  // No coal at the surface. Coal is what Deepcut exists to unlock, and leaving
+  // it lying about the open quarry would make the whole quest optional.
+  { x: 11, y: 14, rock: 'iron' },
+  { x: 12, y: 18, rock: 'tin' }
+];
+
+/**
+ * The Cut: the sealed lower mine, south-west of the quarry.
+ *
+ * Everything here is coal or iron, and it is the only coal in the world. The
+ * chamber is walled and its one entrance is buried until Deepcut is finished,
+ * which is what makes the quest's reward a place rather than an item.
+ */
+const CUT_VEINS: ReadonlyArray<{ x: number; y: number; rock: string }> = [
+  { x: 4, y: 28, rock: 'coal' },
+  { x: 5, y: 30, rock: 'coal' },
+  { x: 7, y: 29, rock: 'coal' },
+  { x: 9, y: 28, rock: 'coal' },
+  { x: 11, y: 30, rock: 'coal' },
+  { x: 12, y: 28, rock: 'coal' },
+  { x: 3, y: 30, rock: 'iron' },
+  { x: 10, y: 27, rock: 'iron' }
+];
+
+/** The tile that seals The Cut. Cleared when Deepcut completes. */
+export const CUT_ENTRANCE = { x: 7, y: 26 } as const;
+
+/**
+ * Fishing spots, all placed so that a pier or shore tile sits beside them.
+ * Shallows hug the sand; the deep water is out at the pier head, which is what
+ * makes walking to the end of it worth doing at Fishing 10.
+ */
+const FISHING_SPOTS: ReadonlyArray<{ x: number; y: number; spot: string }> = [
+  { x: 45, y: 22, spot: 'sprat' },
+  { x: 45, y: 23, spot: 'sprat' },
+  { x: 45, y: 25, spot: 'sprat' },
+  { x: 45, y: 26, spot: 'sprat' },
+  { x: 46, y: 23, spot: 'sprat' },
+  { x: 46, y: 25, spot: 'bream' },
+  { x: 47, y: 24, spot: 'bream' }
 ];
 
 /**
  * Where the quest givers stand. Fixed tiles, chosen so each one is found at
  * the place their quest is about: Maren on the crossroads you spawn at, Tobin
- * among the trees, Garrow inside the smithy.
+ * among the trees, Garrow inside the smithy, Iselle at the pier.
  */
 const QUEST_GIVERS: ReadonlyArray<{ npcId: string; x: number; y: number }> = [
   { npcId: 'maren', x: 26, y: 22 },
   { npcId: 'tobin', x: 19, y: 28 },
-  { npcId: 'garrow', x: 17, y: 20 }
+  { npcId: 'garrow', x: 17, y: 20 },
+  // Beside the pier mouth, never on it. A quest giver never wanders, and the
+  // pathfinder walks through NPCs while movement refuses to enter their tile,
+  // so anyone standing on a one-tile chokepoint seals it permanently. (44,24)
+  // is that chokepoint here -- it is the only way onto the boards.
+  { npcId: 'iselle', x: 44, y: 23 },
+  // On the crossroads verge, beside the path but never on it -- see the note
+  // above about stationary NPCs and chokepoints.
+  { npcId: 'corbin', x: 27, y: 25 }
 ];
 
 function spawnCluster(
@@ -225,6 +271,12 @@ export function generateMap(): GameMap {
   map.fillRect(45, 0, W - 1, H - 1, Terrain.Water);
   map.fillRect(43, 0, 44, H - 1, Terrain.Sand);
 
+  // A short pier at the end of the east road. Without it the only reachable
+  // water would be the single column touching the sand: every tile further out
+  // has nothing walkable beside it, so no fishing spot out there could ever be
+  // approached. The pier is what makes the lake a place rather than a wall.
+  map.fillRect(45, 24, 46, 24, Terrain.Stone);
+
   // Crossroads: the main path through the world.
   map.fillRect(2, 23, 42, 24, Terrain.Path);
   map.fillRect(23, 2, 24, 42, Terrain.Path);
@@ -252,6 +304,15 @@ export function generateMap(): GameMap {
   map.setScenery(16, 17, { kind: 'furnace', blocks: true });
   map.setScenery(18, 17, { kind: 'anvil', blocks: true });
   map.setScenery(18, 19, { kind: 'anvil', blocks: true });
+
+  // Fishing spots do not block: the water under them already refuses to be
+  // walked on, and marking them blocking as well would stop the pathfinder
+  // considering the pier tiles beside them.
+  for (const spot of FISHING_SPOTS) {
+    map.setScenery(spot.x, spot.y, {
+      kind: 'fishing_spot', blocks: false, resource: spot.spot
+    });
+  }
 
   // Scatter trees and rocks on open grass, keeping the paths clear.
   for (let y = 1; y < H - 1; y++) {
@@ -284,6 +345,46 @@ export function generateMap(): GameMap {
   // sees, so one of each type.
   map.setScenery(21, 21, { kind: 'tree', blocks: true, variant: 0, resource: 'tree' });
   map.setScenery(26, 26, { kind: 'tree', blocks: true, variant: 1, resource: 'oak' });
+
+  // The Cut. A stone chamber walled in on every side, with coal inside and one
+  // buried way in. Carved after the scatter pass so nothing has grown through
+  // the walls, and dug out of the map rather than placed on top of it.
+  map.fillRect(2, 26, 13, 30, Terrain.Stone);
+  for (let y = 25; y <= 31; y++) {
+    for (let x = 1; x <= 14; x++) {
+      const edge = x === 1 || x === 14 || y === 25 || y === 31;
+      if (!edge) { if (y >= 26 && y <= 30 && x >= 2 && x <= 13) map.scenery[map.idx(x, y)] = null; continue; }
+      // The entrance is the one gap, and it starts blocked.
+      if (x === CUT_ENTRANCE.x && y === CUT_ENTRANCE.y - 1) continue;
+      map.setScenery(x, y, { kind: 'rock', blocks: true });
+    }
+  }
+  map.setScenery(CUT_ENTRANCE.x, CUT_ENTRANCE.y, { kind: 'rubble', blocks: true });
+
+  for (const vein of CUT_VEINS) {
+    map.setScenery(vein.x, vein.y, {
+      kind: 'rock', blocks: true, resource: vein.rock
+    });
+  }
+
+  // Something lives down there -- the roadmap wants The Cut to serve Mining
+  // and Combat both, and an empty mine is just a longer walk to the same rocks.
+  //
+  // Two, and confined to the far end. Goblins are aggressive, Deepcut gates on
+  // Mining rather than on any combat skill, and this is the only coal in the
+  // world: a swarm at the entrance would wall miners out of steel entirely
+  // rather than making them decide anything. Down here the near seams can be
+  // worked in peace and the far ones have to be earned.
+  spawnCluster(map, 'goblin', 9, 29, 12, 30, 2, rng);
+
+  // The village well. Placed after the scatter pass, and its surroundings
+  // cleared, because a tree dropped against it would leave the one thing a
+  // quest sends you to look at awkward to walk up to.
+  for (let y = 26; y <= 28; y++) {
+    for (let x = 20; x <= 22; x++) map.scenery[map.idx(x, y)] = null;
+  }
+  map.setTerrain(21, 27, Terrain.Stone);
+  map.setScenery(21, 27, { kind: 'well', blocks: true });
 
   // Persistent spawn points: each becomes one NPC that respawns at this exact
   // tile after its timer, exactly like RuneScape.
