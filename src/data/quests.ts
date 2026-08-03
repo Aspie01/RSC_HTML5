@@ -45,7 +45,16 @@ export type QuestGoal =
    * talking. That is what makes an investigation feel like one: the discovery
    * happens at the well, not in a report afterwards.
    */
-  | { readonly type: 'inspect'; readonly x: number; readonly y: number };
+  | { readonly type: 'inspect'; readonly x: number; readonly y: number }
+  /**
+   * Kill `count` of an NPC while this stage is the active one.
+   *
+   * The tally starts at zero when the stage begins and is thrown away when it
+   * ends, so a player who has already killed a hundred goblins still has to
+   * kill these ones. Counting retroactively would let a quest complete itself
+   * the moment it is accepted, which is worse than asking for the walk.
+   */
+  | { readonly type: 'kill'; readonly npcId: string; readonly count: number };
 
 export interface QuestStage {
   /** Shown in the quest journal while this stage is the active one. */
@@ -178,6 +187,111 @@ export const quests: readonly QuestDef[] = [
     ],
     afterwards: [
       { who: 'npc', text: 'Mind the edge on that axe. I never did get round to blunting it.' }
+    ]
+  },
+
+  // Quest 8. The first quest that expects a fight, and it teaches the thing
+  // that actually keeps people alive in one: food. Gated on Cooking 10 rather
+  // than on any combat level, because the lesson is that you bring supper.
+  {
+    id: 'first_blood',
+    name: 'First Blood on the Ridge',
+    requires: { quests: ['cold_hearth'], skills: { cooking: 10 } },
+    blocked: [
+      { who: 'npc', text: 'Not yet. Learn to cook something first -- I have buried enough people who could swing and not eat.' }
+    ],
+    reward: {
+      points: 2,
+      xp: { attack: 250, strength: 250, vitality: 200 },
+      items: [{ id: 'bronze_kiteshield', qty: 1 }],
+      unlock: 'Hesk will keep training you as long as you keep coming back fed.'
+    },
+    stages: [
+      {
+        journal: 'Hesk Ardley trains people to fight, and has opinions about how.',
+        npc: 'hesk',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'You are carrying a sword and standing like someone who has never used one. That is not an insult, it is a diagnosis.' },
+          { who: 'npc', text: 'Goblins west of here. Kill four. That is the easy half.' },
+          { who: 'npc', text: 'The hard half is this: eat when you are hurt, not when you are nearly dead. Everyone learns that eventually and most of them learn it too late.' },
+          { who: 'player', text: 'Four goblins.' },
+          { who: 'npc', text: 'Four goblins, and come back with the food you did not need. If you come back empty I will know you ate it all, and we will have a different conversation.' }
+        ]
+      },
+      {
+        journal: 'Kill 4 goblins, west of the crossroads.',
+        npc: 'hesk',
+        goal: { type: 'kill', npcId: 'goblin', count: 4 },
+        waiting: [
+          { who: 'npc', text: 'West, past the quarry. Four of them, and eat while you are doing it -- that is the half people skip.' }
+        ],
+        done: [
+          { who: 'player', text: 'Four. And I ate during, not after.' },
+          { who: 'npc', text: 'So you say. Show me what you have left.' }
+        ]
+      },
+      {
+        journal: 'Bring Hesk Ardley 3 cooked chickens, to prove you did not need them all.',
+        npc: 'hesk',
+        goal: { type: 'give', items: [{ id: 'cooked_chicken', qty: 3 }] },
+        waiting: [
+          { who: 'npc', text: 'Three cooked chickens, still in your pack. If you have none left you fought it too close, and next time there will not be a next time.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Still standing, and still carrying supper. That is the correct order of those two things.' },
+          { who: 'npc', text: 'Take the shield. It is not a good one, but it is between you and the next mistake.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Eat early. That is all I have ever had to teach anybody.' }
+    ]
+  },
+
+  // Quest 9. Archery's introduction, and Crafting's second use. The debt in
+  // the title is the feathers: everything the player has killed so far has
+  // been dropping them, and this is the quest that says what they were for.
+  {
+    id: 'debt_of_feathers',
+    name: 'A Debt of Feathers',
+    requires: { quests: ['first_blood'] },
+    blocked: [
+      { who: 'npc', text: 'Talk to Hesk first. I am not arming somebody who has not been hit yet.' }
+    ],
+    reward: {
+      points: 2,
+      xp: { archery: 300, crafting: 150 },
+      items: [{ id: 'shortbow', qty: 1 }],
+      unlock: 'A bow of your own, and the knowledge to keep it fed.'
+    },
+    stages: [
+      {
+        journal: 'Hesk Ardley thinks you should learn to fight from further away.',
+        npc: 'hesk',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'You have been swinging at things that swing back. There is another way, and it involves being somewhere else when they arrive.' },
+          { who: 'npc', text: 'A bow. And before you ask -- no, I will not simply hand you arrows. An archer who cannot make arrows is a man with an expensive stick.' },
+          { who: 'npc', text: 'You have been stepping over feathers since the first chicken you killed. Every one of those was an arrow you did not make.' },
+          { who: 'npc', text: 'Cut shafts from logs, feather them, and cap them with bronze. Bring me sixteen bronze arrows and the bow is yours.' }
+        ]
+      },
+      {
+        journal: 'Fletch 16 bronze arrows and bring them to Hesk. Shafts from logs, feathers from birds, heads from a bronze bar.',
+        npc: 'hesk',
+        goal: { type: 'give', items: [{ id: 'bronze_arrow', qty: 16 }] },
+        waiting: [
+          { who: 'npc', text: 'Logs into shafts, then shafts and feathers and a bar of bronze. Right-click the logs, it is not a secret.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Sixteen, and straight. You will lose every one of them and that is what they are for.' },
+          { who: 'npc', text: 'The bow. Keep arrows in the slot beside your shield, and keep making more -- the day you run dry is the day something walks up to you.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Still making your own? Good. Bought arrows have never once been cheaper.' }
     ]
   },
 

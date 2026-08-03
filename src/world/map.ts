@@ -232,7 +232,9 @@ const QUEST_GIVERS: ReadonlyArray<{ npcId: string; x: number; y: number }> = [
   // above about stationary NPCs and chokepoints.
   { npcId: 'corbin', x: 27, y: 25 },
   // On the sand, between the banks and the furnace road.
-  { npcId: 'sella', x: 42, y: 21 }
+  { npcId: 'sella', x: 42, y: 21 },
+  // South-east, on the road out towards the guards -- where the fighting is.
+  { npcId: 'hesk', x: 30, y: 31 }
 ];
 
 function spawnCluster(

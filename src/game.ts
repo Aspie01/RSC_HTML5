@@ -28,7 +28,7 @@ import {
   getBar, getSmithable, bars, smithablesFor,
   HAMMER_SPEED, SMITH_XP_PER_BAR
 } from './data/resources';
-import type { BarDef, SmithDef } from './data/resources';
+import type { BarDef, SmithDef, FletchDef } from './data/resources';
 import { rollGather, rollBurn } from './systems/skilling';
 import { SKILL_LIST } from './systems/skills';
 import { Quests } from './systems/quests';
@@ -787,6 +787,10 @@ export class Game implements World {
     // An inspect stage never ends at an NPC, so talking to one can only ever
     // produce the nudge. It is the looking that advances it.
     if (goal.type === 'inspect') return false;
+    if (goal.type === 'kill') {
+      const def = quests.find((q) => this.quests.activeStage(q) === stage);
+      return def ? this.quests.killsFor(def.id) >= goal.count : false;
+    }
     return this.objects.fireNear(npc.x, npc.y) !== null;
   }
 
@@ -923,6 +927,44 @@ export class Game implements World {
 
     return inv.slots.some((s) => tagged(s?.id)) ||
       Object.values(inv.equipment).some((eq) => tagged(eq?.id));
+  }
+
+  /**
+   * Fletch one batch. Needs no station and no tick loop -- it is instant, the
+   * way lighting a fire is, because a repeating action for something with a
+   * fixed input cost would only add waiting.
+   */
+  fletch(def: FletchDef): void {
+    const p = this.player;
+
+    const level = p.skills.level('crafting');
+    if (level < def.level) {
+      this.ui.message(
+        `You need a Crafting level of ${def.level} to make ${def.name.toLowerCase()}.`, 'bad'
+      );
+      return;
+    }
+
+    if (!this.hasIngredients(def.inputs)) {
+      this.ui.message(`You need ${this.ingredientText(def.inputs)}.`);
+      return;
+    }
+
+    // Consumed first so the outputs have somewhere to go: eight shafts out of
+    // one log would otherwise need a free slot the log is still sitting in.
+    for (const input of def.inputs) this.consume(input.id, input.qty);
+
+    if (!p.inventory.add(def.outputId, def.outputQty)) {
+      // Put it back rather than destroying the materials.
+      for (const input of def.inputs) p.inventory.add(input.id, input.qty);
+      this.ui.message('Your inventory is too full.', 'bad');
+      return;
+    }
+
+    audio.play('smith');
+    this.announceXp('crafting', def.xp);
+    this.ui.message(`You make ${def.outputQty} ${def.name.toLowerCase()}.`);
+    this.ui.dirty = true;
   }
 
   /** True if the player holds any part of this recipe. Used to filter menus. */
@@ -1156,6 +1198,19 @@ export class Game implements World {
     if (killer instanceof Player) {
       this.ui.message(`You defeat the ${npc.name}.`, 'good');
       killer.clearAction();
+
+      // Count it against any quest stage currently asking for this kind.
+      for (const def of quests) {
+        const stage = this.quests.activeStage(def);
+        if (stage?.goal.type !== 'kill' || stage.goal.npcId !== npc.def.id) continue;
+
+        this.quests.countKill(def.id);
+        const done = this.quests.killsFor(def.id);
+        if (done <= stage.goal.count) {
+          this.ui.message(`${done}/${stage.goal.count} ${npc.name.toLowerCase()}s.`, 'sys');
+        }
+        this.ui.dirty = true;
+      }
     }
 
     npc.die();
@@ -1580,6 +1635,7 @@ export class Game implements World {
       slots: p.inventory.slots,
       equipment: p.inventory.equipment,
       quests: this.quests.stages,
+      questKills: this.quests.kills,
       shops: this.shops.snapshot()
     };
     return JSON.stringify(data);
@@ -1630,6 +1686,7 @@ export class Game implements World {
       }
 
       this.quests.restore(data.quests);
+      this.quests.restoreKills(data.questKills);
       this.restoreQuestUnlocks();
       this.shops.restore(data.shops);
 

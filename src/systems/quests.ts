@@ -44,6 +44,29 @@ export class Quests {
 
   advance(def: QuestDef): void {
     this.stages[def.id] = this.stageOf(def.id) + 1;
+    // The tally belongs to the stage that asked for it, not to the quest.
+    delete this.kills[def.id];
+  }
+
+  /** Kills counted toward the active stage of each quest. */
+  kills: Record<string, number> = {};
+
+  killsFor(id: string): number {
+    return this.kills[id] ?? 0;
+  }
+
+  countKill(id: string): void {
+    this.kills[id] = this.killsFor(id) + 1;
+  }
+
+  restoreKills(saved: unknown): void {
+    if (!saved || typeof saved !== 'object') return;
+    for (const [id, value] of Object.entries(saved as Record<string, unknown>)) {
+      if (!getQuest(id)) continue;
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        this.kills[id] = Math.max(0, Math.floor(value));
+      }
+    }
   }
 
   points(): number {

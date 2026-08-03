@@ -129,6 +129,11 @@ export const npcs = {
     colour: '#3c5a63', accent: '#e0c9a6', size: 1.0
   }),
 
+  hesk: npc('hesk', 'Hesk Ardley', {
+    talkable: true, attackable: false, wanderRadius: 0,
+    colour: '#5a4630', accent: '#cbb489', size: 1.08
+  }),
+
   sella: npc('sella', 'Sella Quist', {
     talkable: true, attackable: false, wanderRadius: 0,
     colour: '#4a3f5a', accent: '#d8c9a0', size: 1.0

@@ -162,6 +162,11 @@ export const items = {
     examine: 'Heavier draw, and it tells at a distance.'
   }),
 
+  arrow_shaft: item('arrow_shaft', 'Arrow shaft', { value: 1,
+    stackable: true, colour: '#8a6a3a', shape: 'arrow',
+    examine: 'Straight, trimmed, and no use without a head or a feather.'
+  }),
+
   bronze_arrow: item('bronze_arrow', 'Bronze arrow', { value: 2,
     stackable: true, slot: 'ammo', colour: '#a97142', shape: 'arrow',
     tags: ['arrow'], bonuses: { rangedStrength: 7 },

@@ -329,6 +329,66 @@ export const bars: readonly BarDef[] = [
   }
 ];
 
+// --------------------------------------------------------------------------
+// Fletching (Crafting, done anywhere)
+// --------------------------------------------------------------------------
+
+/**
+ * Turning wood and feathers into ammunition.
+ *
+ * Fletching is folded into Crafting for v1 rather than being its own skill,
+ * per the content roadmap. It needs no station: this is knife work, done
+ * wherever you are standing, which is also what makes it the thing an archer
+ * does between fights rather than a trip back to town.
+ *
+ * It is the join between three skills that had nothing to do with each other:
+ * Woodcutting supplies the shafts, killing things supplies the feathers, and
+ * Smithing supplies the heads. All three feed Archery.
+ */
+export interface FletchDef {
+  readonly id: string;
+  readonly name: string;
+  readonly level: number;
+  readonly xp: number;
+  readonly inputs: readonly Ingredient[];
+  readonly outputId: string;
+  readonly outputQty: number;
+}
+
+export const fletchables: readonly FletchDef[] = [
+  {
+    id: 'arrow_shafts', name: 'Arrow shafts',
+    level: 1, xp: 5,
+    inputs: [{ id: 'logs', qty: 1 }],
+    outputId: 'arrow_shaft', outputQty: 8
+  },
+  {
+    id: 'bronze_arrows', name: 'Bronze arrows',
+    level: 5, xp: 20,
+    inputs: [
+      { id: 'arrow_shaft', qty: 8 },
+      { id: 'feather', qty: 8 },
+      { id: 'bronze_bar', qty: 1 }
+    ],
+    outputId: 'bronze_arrow', outputQty: 8
+  },
+  {
+    id: 'iron_arrows', name: 'Iron arrows',
+    level: 20, xp: 38,
+    inputs: [
+      { id: 'arrow_shaft', qty: 8 },
+      { id: 'feather', qty: 8 },
+      { id: 'iron_bar', qty: 1 }
+    ],
+    outputId: 'iron_arrow', outputQty: 8
+  }
+];
+
+/** Every recipe whose FIRST input is this item, for the right-click menu. */
+export function fletchablesFrom(itemId: string): readonly FletchDef[] {
+  return fletchables.filter((f) => f.inputs[0]?.id === itemId);
+}
+
 export function getBar(id: string): BarDef | undefined {
   return bars.find((b) => b.id === id);
 }
