@@ -181,6 +181,80 @@ export const quests: readonly QuestDef[] = [
     ]
   },
 
+  // Quest 7. The reward is a place, not an item: the only coal in the world is
+  // behind this, which is what stops the lower mine being an optional detour.
+  // Gated on Mining 10 because the quest asks for iron, and a player who
+  // cannot mine iron would be sent somewhere they have no business being.
+  {
+    id: 'deepcut',
+    name: 'Deepcut',
+    requires: { quests: ['bent_nail'], skills: { mining: 10 } },
+    blocked: [
+      { who: 'npc', text: 'Not yet. Get some iron out of the quarry first -- ten levels of it, and then we will talk about going deeper.' }
+    ],
+    reward: {
+      points: 2,
+      xp: { mining: 400, smithing: 150 },
+      unlock: 'The way into the Cut is open. Coal, and whatever else is down there.'
+    },
+    stages: [
+      {
+        journal: 'Garrow Blackfen needs coal, and the only coal is in a mine nobody uses.',
+        npc: 'garrow',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'You want to make steel. Everyone wants to make steel. Steel wants coal, and there is no coal in this quarry -- there never was.' },
+          { who: 'npc', text: 'The coal is in the Cut, south of here. Was. The roof came in eight years back and nobody has been down since.' },
+          { who: 'player', text: 'Nobody dug it out?' },
+          { who: 'npc', text: 'Nobody wanted to. Two men were down there when it went and only the fall came back up.' },
+          { who: 'npc', text: 'Bring me six iron. If you can pull six iron out of that quarry you have the arms to move a fall, and I will stop worrying about sending you.' }
+        ]
+      },
+      {
+        journal: 'Bring Garrow Blackfen 6 iron ore.',
+        npc: 'garrow',
+        goal: { type: 'give', items: [{ id: 'iron_ore', qty: 6 }] },
+        waiting: [
+          { who: 'npc', text: 'Six. Iron, not tin -- I will know, and so will the furnace.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Good. That is not luck, that is technique.' },
+          { who: 'npc', text: 'The mouth of the Cut is south-west, past the well. Go and look at the fall before you touch it. I want to know how it sits.' }
+        ]
+      },
+      {
+        journal: 'Examine the collapsed entrance to the Cut, south-west past the well.',
+        npc: 'garrow',
+        goal: { type: 'inspect', x: 7, y: 26 },
+        waiting: [
+          { who: 'npc', text: 'South-west, past the well. You will know it when the ground turns to stone under you.' }
+        ],
+        done: [
+          { who: 'player', text: 'The fall is loose. Not packed the way eight years of settling would pack it -- it would come apart with a pick and an afternoon.' },
+          { who: 'player', text: 'The stone at the edges is cut, not broken. Someone squared this off after it came down.' },
+          { who: 'player', text: 'And the draught coming through the gaps is cold, and it smells of salt.' }
+        ]
+      },
+      {
+        journal: 'Tell Garrow Blackfen what the fall looks like.',
+        npc: 'garrow',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'player', text: 'It is loose, and the edges were squared after the collapse. Somebody finished the job by hand.' },
+          { who: 'npc', text: '...Say that again.' },
+          { who: 'player', text: 'Someone closed it deliberately. And there is a draught through it that smells of salt.' },
+          { who: 'npc', text: 'There is no salt in that hill. There is no salt for sixty miles.' },
+          { who: 'npc', text: 'Take my second pick and open it. I would rather know than keep not knowing, and I am too old to be the one who finds out.' },
+          { who: 'npc', text: 'Mind yourself down there. Things have had eight years to move in.' }
+        ],
+        gives: [{ id: 'bronze_pickaxe', qty: 1 }]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Salt, in that hill. I have thought about it every day since and I have got no further with it.' }
+    ]
+  },
+
   // Quest 5. The first thread of the flood, and the first quest that is not
   // about acquiring anything: the reward is knowing something is wrong.
   //

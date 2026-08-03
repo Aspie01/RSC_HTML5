@@ -439,7 +439,26 @@ export function well(ctx: CanvasRenderingContext2D, x: number, y: number): void 
   ctx.stroke();
 }
 
-export const scenerySprites = { bush, fence, furnace, anvil, well } as const;
+/** A heap of broken stone filling a gap. Reads as "was a way through". */
+export function rubble(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  shadow(ctx, x, y, 16, 7);
+
+  const lumps: ReadonlyArray<readonly [number, number, number]> = [
+    [-9, -3, 7], [0, -7, 9], [9, -3, 7], [-4, 1, 6], [5, 1, 6]
+  ];
+
+  ctx.strokeStyle = '#2f2b26';
+  ctx.lineWidth = 1.5;
+  for (const [dx, dy, r] of lumps) {
+    ctx.fillStyle = dy < -5 ? '#6d675f' : '#57524b';
+    ctx.beginPath();
+    ctx.ellipse(x + dx, y + dy, r, r * 0.72, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+export const scenerySprites = { bush, fence, furnace, anvil, well, rubble } as const;
 
 // --------------------------------------------------------------------------
 // Creatures

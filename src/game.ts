@@ -14,7 +14,7 @@ import type {
   EquipSlot, ItemStack, PlayerAction, Point, SkillId, StationKind, World
 } from './types';
 import type { GroundItem } from './systems/ground';
-import { GameMap, generateMap } from './world/map';
+import { GameMap, generateMap, CUT_ENTRANCE } from './world/map';
 import { GroundItems } from './systems/ground';
 import { WorldObjects } from './systems/objects';
 import { Player } from './entities/player';
@@ -805,6 +805,11 @@ export class Game implements World {
   private completeQuest(def: QuestDef): void {
     const reward = def.reward;
 
+    // Deepcut's reward is a place, so it has to change the world rather than
+    // the inventory. Kept beside the quest that earns it, and mirrored in
+    // restoreQuestUnlocks so a reload does not bury it again.
+    if (def.id === 'deepcut') this.openTheCut();
+
     this.ui.message(`Quest complete: ${def.name}!`, 'levelup');
     this.ui.message(
       `You have ${this.quests.points()} quest point` +
@@ -844,6 +849,12 @@ export class Game implements World {
    * Anything a quest promised to leave behind has to be re-established here.
    */
   private restoreQuestUnlocks(): void {
+    // The Cut stays open once it has been opened. The map is regenerated from
+    // seed on every load, so anything a quest changed about the world has to
+    // be re-applied here or it silently seals itself again.
+    const deepcut = getQuest('deepcut');
+    if (deepcut && this.quests.isComplete(deepcut)) this.openTheCut();
+
     const coldHearth = getQuest('cold_hearth');
     if (!coldHearth || !this.quests.isComplete(coldHearth)) return;
 
@@ -852,6 +863,11 @@ export class Game implements World {
 
     const spot = this.freeTileBeside(maren.x, maren.y);
     if (spot) this.objects.addFire(spot.x, spot.y, 0, true);
+  }
+
+  /** Clear the fall that buries the way into the lower mine. */
+  private openTheCut(): void {
+    this.map.scenery[this.map.idx(CUT_ENTRANCE.x, CUT_ENTRANCE.y)] = null;
   }
 
   private freeTileBeside(x: number, y: number): Point | null {

@@ -23,7 +23,7 @@ export interface TerrainInfo {
 
 export type SceneryKind =
   | 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil' | 'fishing_spot'
-  | 'well';
+  | 'well' | 'rubble';
 
 export interface Scenery {
   readonly kind: SceneryKind;
@@ -172,11 +172,32 @@ const ORE_VEINS: ReadonlyArray<{ x: number; y: number; rock: string }> = [
   { x: 10, y: 16, rock: 'iron' },
   { x: 11, y: 19, rock: 'iron' },
   { x: 8, y: 20, rock: 'iron' },
-  { x: 11, y: 14, rock: 'coal' },
-  { x: 12, y: 16, rock: 'coal' },
-  { x: 12, y: 18, rock: 'coal' },
-  { x: 10, y: 20, rock: 'coal' }
+  // No coal at the surface. Coal is what Deepcut exists to unlock, and leaving
+  // it lying about the open quarry would make the whole quest optional.
+  { x: 11, y: 14, rock: 'iron' },
+  { x: 12, y: 18, rock: 'tin' }
 ];
+
+/**
+ * The Cut: the sealed lower mine, south-west of the quarry.
+ *
+ * Everything here is coal or iron, and it is the only coal in the world. The
+ * chamber is walled and its one entrance is buried until Deepcut is finished,
+ * which is what makes the quest's reward a place rather than an item.
+ */
+const CUT_VEINS: ReadonlyArray<{ x: number; y: number; rock: string }> = [
+  { x: 4, y: 28, rock: 'coal' },
+  { x: 5, y: 30, rock: 'coal' },
+  { x: 7, y: 29, rock: 'coal' },
+  { x: 9, y: 28, rock: 'coal' },
+  { x: 11, y: 30, rock: 'coal' },
+  { x: 12, y: 28, rock: 'coal' },
+  { x: 3, y: 30, rock: 'iron' },
+  { x: 10, y: 27, rock: 'iron' }
+];
+
+/** The tile that seals The Cut. Cleared when Deepcut completes. */
+export const CUT_ENTRANCE = { x: 7, y: 26 } as const;
 
 /**
  * Fishing spots, all placed so that a pier or shore tile sits beside them.
@@ -324,6 +345,37 @@ export function generateMap(): GameMap {
   // sees, so one of each type.
   map.setScenery(21, 21, { kind: 'tree', blocks: true, variant: 0, resource: 'tree' });
   map.setScenery(26, 26, { kind: 'tree', blocks: true, variant: 1, resource: 'oak' });
+
+  // The Cut. A stone chamber walled in on every side, with coal inside and one
+  // buried way in. Carved after the scatter pass so nothing has grown through
+  // the walls, and dug out of the map rather than placed on top of it.
+  map.fillRect(2, 26, 13, 30, Terrain.Stone);
+  for (let y = 25; y <= 31; y++) {
+    for (let x = 1; x <= 14; x++) {
+      const edge = x === 1 || x === 14 || y === 25 || y === 31;
+      if (!edge) { if (y >= 26 && y <= 30 && x >= 2 && x <= 13) map.scenery[map.idx(x, y)] = null; continue; }
+      // The entrance is the one gap, and it starts blocked.
+      if (x === CUT_ENTRANCE.x && y === CUT_ENTRANCE.y - 1) continue;
+      map.setScenery(x, y, { kind: 'rock', blocks: true });
+    }
+  }
+  map.setScenery(CUT_ENTRANCE.x, CUT_ENTRANCE.y, { kind: 'rubble', blocks: true });
+
+  for (const vein of CUT_VEINS) {
+    map.setScenery(vein.x, vein.y, {
+      kind: 'rock', blocks: true, resource: vein.rock
+    });
+  }
+
+  // Something lives down there -- the roadmap wants The Cut to serve Mining
+  // and Combat both, and an empty mine is just a longer walk to the same rocks.
+  //
+  // Two, and confined to the far end. Goblins are aggressive, Deepcut gates on
+  // Mining rather than on any combat skill, and this is the only coal in the
+  // world: a swarm at the entrance would wall miners out of steel entirely
+  // rather than making them decide anything. Down here the near seams can be
+  // worked in peace and the far ones have to be earned.
+  spawnCluster(map, 'goblin', 9, 29, 12, 30, 2, rng);
 
   // The village well. Placed after the scatter pass, and its surroundings
   // cleared, because a tree dropped against it would leave the one thing a
