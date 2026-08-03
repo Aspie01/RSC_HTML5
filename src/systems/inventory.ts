@@ -10,7 +10,7 @@ import { getItem } from '../data/items';
 export const INVENTORY_CAPACITY = 30;
 
 export const EQUIP_SLOTS: readonly EquipSlot[] = [
-  'head', 'cape', 'body', 'legs', 'weapon', 'shield'
+  'head', 'cape', 'body', 'legs', 'weapon', 'shield', 'ammo'
 ];
 
 export type EquipmentMap = Record<EquipSlot, ItemStack | null>;
@@ -95,11 +95,16 @@ export class Inventory {
 
     const previous = this.equipment[def.slot];
 
+    // Stackables equip as the whole stack. Arrows are the first equippable
+    // stack in the game, and a quiver holding exactly one of them would be
+    // useless -- everything else still moves one at a time.
+    const qty = def.stackable ? slot.qty : 1;
+
     this.slots[index] = null;
-    this.equipment[def.slot] = { id: slot.id, qty: 1 };
+    this.equipment[def.slot] = { id: slot.id, qty };
 
     // Guaranteed to fit: we just vacated this slot.
-    if (previous) this.slots[index] = { id: previous.id, qty: 1 };
+    if (previous) this.slots[index] = { id: previous.id, qty: previous.qty };
 
     return { ok: true, name: def.name };
   }
@@ -110,14 +115,16 @@ export class Inventory {
     if (this.isFull()) return { ok: false, reason: 'inventory-full' };
 
     this.equipment[slotName] = null;
-    this.add(equipped.id, 1);
+    this.add(equipped.id, equipped.qty);
 
     return { ok: true, name: getItem(equipped.id)?.name ?? equipped.id };
   }
 
   /** Summed equipment bonuses, fed straight into the combat formulas. */
   bonuses(): Bonuses {
-    const total: Bonuses = { attack: 0, strength: 0, defence: 0 };
+    const total: Bonuses = {
+      attack: 0, strength: 0, defence: 0, ranged: 0, rangedStrength: 0
+    };
 
     for (const slotName of EQUIP_SLOTS) {
       const eq = this.equipment[slotName];
@@ -127,6 +134,8 @@ export class Inventory {
       total.attack += def.bonuses.attack;
       total.strength += def.bonuses.strength;
       total.defence += def.bonuses.defence;
+      total.ranged += def.bonuses.ranged;
+      total.rangedStrength += def.bonuses.rangedStrength;
     }
 
     return total;

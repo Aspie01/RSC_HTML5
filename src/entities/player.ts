@@ -11,6 +11,7 @@ import { Mob } from './mob';
 import { Skills } from '../systems/skills';
 import { Inventory } from '../systems/inventory';
 import { STYLES } from '../systems/combat';
+import { getItem } from '../data/items';
 
 /** 100 ticks = 60 seconds, roughly RuneScape's passive regeneration rate. */
 const REGEN_INTERVAL_TICKS = 100;
@@ -43,9 +44,43 @@ export class Player extends Mob {
     this.respawnPoint = { x, y };
   }
 
+  /** True when the wielded weapon shoots rather than swings. */
+  usingBow(): boolean {
+    const w = this.inventory.equipment.weapon;
+    return w ? (getItem(w.id)?.tags.includes('bow') ?? false) : false;
+  }
+
+  /** How far this character can attack from, in tiles. */
+  attackRange(): number {
+    const w = this.inventory.equipment.weapon;
+    return w ? (getItem(w.id)?.range ?? 1) : 1;
+  }
+
   override combatStats(): CombatStats {
     const style = STYLES[this.attackStyle];
     const bonus = this.inventory.bonuses();
+
+    // A bow substitutes Archery for both halves of the melee pair, so the
+    // accuracy and max-hit formulas need no separate ranged branch -- they get
+    // the same shape of numbers and stay one implementation.
+    //
+    // Melee style bonuses do not apply to a shot. Aggressive stance does
+    // nothing for a bowstring, and letting it would make the combat tab a
+    // free damage boost that costs a player nothing to pick.
+    if (this.usingBow()) {
+      const archery = this.skills.level('archery');
+      return {
+        attack: archery,
+        strength: archery,
+        defence: this.skills.level('defence'),
+        attackBonus: bonus.ranged,
+        strengthBonus: bonus.rangedStrength,
+        defenceBonus: bonus.defence,
+        styleAttack: 0,
+        styleStrength: 0,
+        styleDefence: style.defence
+      };
+    }
 
     return {
       attack: this.skills.level('attack'),

@@ -95,12 +95,19 @@ export function resolve(attacker: Mob, defender: Mob): HitResult {
 export function awardXp(player: Player, damage: number): SkillId[] {
   if (damage <= 0) return [];
 
-  const style = STYLES[player.attackStyle];
   const gained: SkillId[] = [];
-  const share = (4 * damage) / style.xp.length;
 
-  for (const skill of style.xp) {
-    if (player.skills.addXp(skill, share) > 0) gained.push(skill);
+  // A shot trains Archery and nothing else. The melee styles are a melee
+  // concept, and splitting a bow's experience across Attack and Strength would
+  // let a player level the wrong skills by shooting things.
+  if (player.usingBow()) {
+    if (player.skills.addXp('archery', 4 * damage) > 0) gained.push('archery');
+  } else {
+    const style = STYLES[player.attackStyle];
+    const share = (4 * damage) / style.xp.length;
+    for (const skill of style.xp) {
+      if (player.skills.addXp(skill, share) > 0) gained.push(skill);
+    }
   }
 
   if (player.skills.addXp('vitality', 1.33 * damage) > 0) {

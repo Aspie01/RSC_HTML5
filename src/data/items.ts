@@ -16,6 +16,7 @@ interface ItemOpts {
   heals?: number;
   tags?: readonly string[];
   value?: number;
+  range?: number;
 }
 
 function item(id: string, name: string, opts: ItemOpts = {}): ItemDef {
@@ -28,7 +29,11 @@ function item(id: string, name: string, opts: ItemOpts = {}): ItemDef {
     speed: opts.speed ?? 4,
     colour: opts.colour ?? '#b9a06a',
     shape: opts.shape ?? 'blob',
-    bonuses: { attack: 0, strength: 0, defence: 0, ...opts.bonuses },
+    bonuses: {
+      attack: 0, strength: 0, defence: 0, ranged: 0, rangedStrength: 0,
+      ...opts.bonuses
+    },
+    range: opts.range ?? 1,
     heals: opts.heals ?? 0,
     tags: opts.tags ?? [],
     value: opts.value ?? 0
@@ -135,6 +140,38 @@ export const items = {
 
   burnt_bream: item('burnt_bream', 'Burnt bream', {
     colour: '#3a3028', shape: 'fish', examine: 'You left it on too long.'
+  }),
+
+  // ------------------------------------------------------------------------
+  // Archery
+  //
+  // A bow reaches seven tiles, which is the whole point of the skill: it trades
+  // the damage a scimitar does for the right to start the fight. Arrows sit in
+  // their own slot and are spent one per shot, so ranged combat costs something
+  // per swing where melee costs nothing.
+  // ------------------------------------------------------------------------
+  shortbow: item('shortbow', 'Shortbow', { value: 40,
+    slot: 'weapon', speed: 4, range: 7, colour: '#7a5230', shape: 'bow',
+    tags: ['bow'], bonuses: { ranged: 8 },
+    examine: 'A short bow of green wood. Needs arrows.'
+  }),
+
+  oak_shortbow: item('oak_shortbow', 'Oak shortbow', { value: 110,
+    slot: 'weapon', speed: 4, range: 7, colour: '#6b4a24', shape: 'bow',
+    tags: ['bow'], bonuses: { ranged: 16 },
+    examine: 'Heavier draw, and it tells at a distance.'
+  }),
+
+  bronze_arrow: item('bronze_arrow', 'Bronze arrow', { value: 2,
+    stackable: true, slot: 'ammo', colour: '#a97142', shape: 'arrow',
+    tags: ['arrow'], bonuses: { rangedStrength: 7 },
+    examine: 'Bronze-tipped. It will do.'
+  }),
+
+  iron_arrow: item('iron_arrow', 'Iron arrow', { value: 5,
+    stackable: true, slot: 'ammo', colour: '#8f8f96', shape: 'arrow',
+    tags: ['arrow'], bonuses: { rangedStrength: 14 },
+    examine: 'Iron-tipped, and noticeably heavier.'
   }),
 
   smiths_hammer: item('smiths_hammer', "Smith's hammer", {

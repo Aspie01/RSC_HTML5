@@ -617,6 +617,44 @@ export function item(
       ctx.fill();
       break;
 
+    // Stave and string. The gap between them is what reads as "bow" at 34px.
+    case 'bow':
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(s * 0.1, 0, s * 0.32, Math.PI * 0.62, Math.PI * 1.38);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(240,236,220,0.85)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.09, -s * 0.3);
+      ctx.lineTo(-s * 0.09, s * 0.3);
+      ctx.stroke();
+      break;
+
+    case 'arrow':
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.28, s * 0.26);
+      ctx.lineTo(s * 0.2, -s * 0.2);
+      ctx.stroke();
+      // Head.
+      ctx.beginPath();
+      ctx.moveTo(s * 0.3, -s * 0.3);
+      ctx.lineTo(s * 0.12, -s * 0.24);
+      ctx.lineTo(s * 0.24, -s * 0.12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // Fletching.
+      ctx.strokeStyle = 'rgba(240,236,220,0.8)';
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.28, s * 0.26);
+      ctx.lineTo(-s * 0.12, s * 0.28);
+      ctx.moveTo(-s * 0.28, s * 0.26);
+      ctx.lineTo(-s * 0.3, s * 0.1);
+      ctx.stroke();
+      break;
+
     case 'blade':
       ctx.beginPath();
       ctx.moveTo(-s * 0.28, s * 0.3);

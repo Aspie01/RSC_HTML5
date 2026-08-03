@@ -265,7 +265,10 @@ export class Game implements World {
 
       p.target = t;
 
-      if (p.distanceTo(t) <= 1) {
+      // Stop as soon as the weapon can reach, not when the tile is adjacent.
+      // With a bow that is seven tiles out, which is the entire advantage the
+      // skill buys: the right to start the fight before it starts on you.
+      if (p.distanceTo(t) <= p.attackRange()) {
         p.clearPath();
         p.faceTowards(t.x, t.y);
       } else if (!p.path.length) {
@@ -920,6 +923,26 @@ export class Game implements World {
     return list.every((i) => this.player.inventory.count(i.id) >= i.qty);
   }
 
+  /**
+   * Take one arrow from the ammo slot. False when the quiver is empty.
+   *
+   * Arrows are not recovered from the ground. Picking spent shafts back up is
+   * fiddly in a game with no ground-item ownership, and it would turn every
+   * fight into a tidying exercise -- the cost is meant to be felt, not undone.
+   */
+  private spendArrow(p: Player): boolean {
+    const ammo = p.inventory.equipment.ammo;
+    if (!ammo || ammo.qty <= 0) return false;
+
+    ammo.qty--;
+    if (ammo.qty <= 0) {
+      p.inventory.equipment.ammo = null;
+      this.ui.message('That was your last arrow.');
+    }
+    this.ui.dirty = true;
+    return true;
+  }
+
   /** Remove `qty` of an item, spanning slots for non-stackables. */
   private consume(id: string, qty: number): void {
     const inv = this.player.inventory;
@@ -1062,8 +1085,17 @@ export class Game implements World {
       return;
     }
 
-    if (mob.distanceTo(target) > 1) return;
+    const reach = mob instanceof Player ? mob.attackRange() : 1;
+    if (mob.distanceTo(target) > reach) return;
     if (mob.attackCooldown > 0) return;
+
+    // A shot costs an arrow. Spent before the roll, so a miss costs the same as
+    // a hit -- ammunition is the price of ranged combat, not a fee for success.
+    if (mob instanceof Player && mob.usingBow() && !this.spendArrow(mob)) {
+      this.ui.message('You have no arrows left.', 'bad');
+      mob.clearAction();
+      return;
+    }
 
     mob.faceTowards(target.x, target.y);
     mob.attackCooldown = mob.attackSpeed;
