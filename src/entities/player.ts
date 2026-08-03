@@ -24,13 +24,20 @@ export class Player extends Mob {
   attackStyle: AttackStyleId = 'accurate';
   action: PlayerAction | null = null;
 
+  /**
+   * Ticks left before a repeating production action yields again. Gathering
+   * rolls the dice every tick, but smelting and smithing are paced: you stand
+   * at the furnace for a beat between bars, as in RuneScape.
+   */
+  actionDelay = 0;
+
   readonly respawnPoint: { x: number; y: number };
   private hpRegenCounter = 0;
 
   constructor(x: number, y: number) {
     super(x, y);
 
-    this.maxHp = this.skills.level('hitpoints');
+    this.maxHp = this.skills.level('vitality');
     this.hp = this.maxHp;
     this.running = true;
     this.respawnPoint = { x, y };
@@ -59,10 +66,12 @@ export class Player extends Mob {
 
   setAction(action: PlayerAction): void {
     this.action = action;
+    this.actionDelay = 0;
   }
 
   clearAction(): void {
     this.action = null;
+    this.actionDelay = 0;
     this.target = null;
   }
 
@@ -79,7 +88,7 @@ export class Player extends Mob {
 
   respawn(): void {
     this.dead = false;
-    this.maxHp = this.skills.level('hitpoints');
+    this.maxHp = this.skills.level('vitality');
     this.hp = this.maxHp;
     this.x = this.prevX = this.respawnPoint.x;
     this.y = this.prevY = this.respawnPoint.y;

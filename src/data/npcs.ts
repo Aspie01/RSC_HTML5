@@ -4,8 +4,10 @@ import type { NpcDef, DropEntry, ItemStack } from '../types';
 import { rand, randRange } from '../core/util';
 
 interface NpcOpts {
-  level: number;
-  hitpoints: number;
+  level?: number;
+  hitpoints?: number;
+  talkable?: boolean;
+  attackable?: boolean;
   attack?: number;
   strength?: number;
   defence?: number;
@@ -26,8 +28,10 @@ function npc(id: string, name: string, opts: NpcOpts): NpcDef {
   return {
     id,
     name,
-    level: opts.level,
-    hitpoints: opts.hitpoints,
+    talkable: opts.talkable ?? false,
+    attackable: opts.attackable ?? true,
+    level: opts.level ?? 1,
+    hitpoints: opts.hitpoints ?? 10,
     attack: opts.attack ?? 1,
     strength: opts.strength ?? 1,
     defence: opts.defence ?? 1,
@@ -100,6 +104,24 @@ export const npcs = {
       { id: 'steel_scimitar', qty: 1, weight: 3 },
       { id: null, weight: 32 }
     ]
+  }),
+
+  // ------------------------------------------------------------------------
+  // Quest givers. Rooted to their tile, unarmed, and not to be swung at.
+  // ------------------------------------------------------------------------
+  maren: npc('maren', 'Maren Ashfall', {
+    talkable: true, attackable: false, wanderRadius: 0,
+    colour: '#6b4a6b', accent: '#e8c39e', size: 1.0
+  }),
+
+  tobin: npc('tobin', 'Tobin Reeve', {
+    talkable: true, attackable: false, wanderRadius: 0,
+    colour: '#4a5f3a', accent: '#d8b48c', size: 1.05
+  }),
+
+  garrow: npc('garrow', 'Garrow Blackfen', {
+    talkable: true, attackable: false, wanderRadius: 0,
+    colour: '#3f3a36', accent: '#c9a184', size: 1.1
   })
 } as const satisfies Record<string, NpcDef>;
 

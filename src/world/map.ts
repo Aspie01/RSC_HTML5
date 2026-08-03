@@ -21,15 +21,16 @@ export interface TerrainInfo {
   readonly walk: boolean;
 }
 
-export type SceneryKind = 'tree' | 'rock' | 'bush' | 'fence';
+export type SceneryKind = 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil';
 
 export interface Scenery {
   readonly kind: SceneryKind;
   readonly blocks: boolean;
   readonly variant?: number;
   /**
-   * Id into the tree table in data/resources.ts, when this scenery can be
-   * gathered from. Absent means purely decorative.
+   * Id into the matching table in data/resources.ts -- trees for `tree`, rocks
+   * for `rock` -- when this scenery can be gathered from. Absent means purely
+   * decorative, which is what separates an ore vein from a boulder.
    */
   readonly resource?: string;
 }
@@ -152,6 +153,40 @@ function fence(
   }
 }
 
+/**
+ * The quarry's veins, hand-placed rather than scattered. Ore rocks are the one
+ * thing worth authoring by hand: players learn a mining site by its shape, and
+ * a random sprinkle never produces one you can remember.
+ */
+const ORE_VEINS: ReadonlyArray<{ x: number; y: number; rock: string }> = [
+  { x: 6, y: 14, rock: 'copper' },
+  { x: 5, y: 15, rock: 'copper' },
+  { x: 4, y: 17, rock: 'copper' },
+  { x: 5, y: 19, rock: 'copper' },
+  { x: 4, y: 15, rock: 'tin' },
+  { x: 7, y: 15, rock: 'tin' },
+  { x: 6, y: 20, rock: 'tin' },
+  { x: 9, y: 14, rock: 'iron' },
+  { x: 10, y: 16, rock: 'iron' },
+  { x: 11, y: 19, rock: 'iron' },
+  { x: 8, y: 20, rock: 'iron' },
+  { x: 11, y: 14, rock: 'coal' },
+  { x: 12, y: 16, rock: 'coal' },
+  { x: 12, y: 18, rock: 'coal' },
+  { x: 10, y: 20, rock: 'coal' }
+];
+
+/**
+ * Where the quest givers stand. Fixed tiles, chosen so each one is found at
+ * the place their quest is about: Maren on the crossroads you spawn at, Tobin
+ * among the trees, Garrow inside the smithy.
+ */
+const QUEST_GIVERS: ReadonlyArray<{ npcId: string; x: number; y: number }> = [
+  { npcId: 'maren', x: 26, y: 22 },
+  { npcId: 'tobin', x: 19, y: 28 },
+  { npcId: 'garrow', x: 17, y: 20 }
+];
+
 function spawnCluster(
   map: GameMap, npcId: string,
   x0: number, y0: number, x1: number, y1: number,
@@ -202,6 +237,22 @@ export function generateMap(): GameMap {
   map.fillRect(5, 30, 15, 40, Terrain.Dirt);       // goblin camp
   map.fillRect(30, 30, 40, 40, Terrain.Stone);     // guard post
 
+  // Quarry and smithy, west of the crossroads. They sit next to each other on
+  // purpose: mine, smelt, smith and equip should be one short walk, so the
+  // whole production chain is visible from the moment you find it.
+  map.fillRect(4, 14, 12, 20, Terrain.Stone);
+  map.fillRect(15, 16, 19, 20, Terrain.Path);
+
+  for (const vein of ORE_VEINS) {
+    map.setScenery(vein.x, vein.y, {
+      kind: 'rock', blocks: true, resource: vein.rock
+    });
+  }
+
+  map.setScenery(16, 17, { kind: 'furnace', blocks: true });
+  map.setScenery(18, 17, { kind: 'anvil', blocks: true });
+  map.setScenery(18, 19, { kind: 'anvil', blocks: true });
+
   // Scatter trees and rocks on open grass, keeping the paths clear.
   for (let y = 1; y < H - 1; y++) {
     for (let x = 1; x < W - 1; x++) {
@@ -240,8 +291,18 @@ export function generateMap(): GameMap {
   spawnCluster(map, 'cow', 31, 6, 39, 13, 5, rng);
   spawnCluster(map, 'goblin', 6, 31, 14, 39, 6, rng);
   spawnCluster(map, 'guard', 32, 32, 38, 38, 3, rng);
-  spawnCluster(map, 'rat', 16, 16, 22, 22, 3, rng);
+  spawnCluster(map, 'rat', 15, 26, 21, 31, 3, rng);
   spawnCluster(map, 'rat', 26, 28, 32, 34, 3, rng);
+
+  // Quest givers stand on fixed tiles rather than being scattered, because a
+  // player has to be able to find them again. Maren sits on the crossroads
+  // where you spawn; the other two stand at the places their quests are about.
+  for (const q of QUEST_GIVERS) {
+    // Clear whatever the scatter pass left here; a quest giver standing inside
+    // a tree is unreachable, and these tiles are not negotiable.
+    map.scenery[map.idx(q.x, q.y)] = null;
+    map.spawns.push({ npcId: q.npcId, x: q.x, y: q.y });
+  }
 
   return map;
 }

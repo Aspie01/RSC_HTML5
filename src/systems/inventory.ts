@@ -1,4 +1,4 @@
-// 28-slot inventory plus equipment, following RuneScape's rules:
+// 30-slot inventory plus equipment, following RuneScape's rules:
 //   - stackable items merge into one slot with a quantity
 //   - non-stackables take one slot each
 //   - equipping moves the item out of the inventory into its slot
@@ -6,7 +6,8 @@
 import type { Bonuses, EquipSlot, ItemStack } from '../types';
 import { getItem } from '../data/items';
 
-export const INVENTORY_CAPACITY = 28;
+/** 30 slots, as in RuneScape Classic. Inventory pressure is a design tool. */
+export const INVENTORY_CAPACITY = 30;
 
 export const EQUIP_SLOTS: readonly EquipSlot[] = [
   'head', 'cape', 'body', 'legs', 'weapon', 'shield'

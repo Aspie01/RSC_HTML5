@@ -5,19 +5,24 @@
 // chopping a tree sometimes takes one tick and sometimes twelve -- there is no
 // progress bar filling up underneath, just repeated dice.
 //
-// The interpolation is OSRS's:
-//   chance = (low + (high - low) * (level - 1) / 98) / 256
+// The interpolation is OSRS's, stretched to whatever the level cap is:
+//   chance = (low + (high - low) * (level - 1) / (MAX_LEVEL - 1)) / 256
 //
-// `low` is the roll weight at level 1 and `high` the weight at level 99, both
-// on the engine's 0..255 scale. Keeping the /256 denominator means the numbers
-// in resources.ts are directly comparable to values from the wiki.
+// `low` is the roll weight at level 1 and `high` the weight at the cap, both on
+// the engine's 0..255 scale. Keeping the /256 denominator means the numbers in
+// resources.ts stay directly comparable to values from the wiki.
+//
+// Deriving the span from MAX_LEVEL rather than hardcoding 98 is what keeps a
+// capped skill actually reaching its `high` weight -- with the divisor pinned
+// at 98, a level-50 cap would top out halfway up every curve in the game.
 
 import { clamp } from '../core/util';
+import { MAX_LEVEL } from '../data/xp';
 
 /** Per-tick success probability for a gathering action, in [0, 1]. */
 export function gatherChance(low: number, high: number, level: number): number {
-  const l = clamp(level, 1, 99);
-  return (low + ((high - low) * (l - 1)) / 98) / 256;
+  const l = clamp(level, 1, MAX_LEVEL);
+  return (low + ((high - low) * (l - 1)) / (MAX_LEVEL - 1)) / 256;
 }
 
 export function rollGather(low: number, high: number, level: number): boolean {

@@ -31,7 +31,8 @@ export type EquipSlot = 'head' | 'cape' | 'body' | 'legs' | 'weapon' | 'shield';
 export type ItemShape =
   | 'blob' | 'coin' | 'bone' | 'feather'
   | 'meat' | 'blade' | 'shield' | 'plate'
-  | 'log' | 'axe' | 'tinderbox';
+  | 'log' | 'axe' | 'tinderbox'
+  | 'ore' | 'bar' | 'pickaxe' | 'hammer' | 'helm' | 'legs';
 
 export interface Bonuses {
   attack: number;
@@ -74,6 +75,13 @@ export interface DropEntry {
 export interface NpcDef {
   readonly id: string;
   readonly name: string;
+  /**
+   * Quest-givers and shopkeepers are talked to, not fought. Keeping these two
+   * flags separate leaves room for the guard who will both answer a question
+   * and hit you for asking it.
+   */
+  readonly talkable: boolean;
+  readonly attackable: boolean;
   readonly level: number;
   readonly hitpoints: number;
   readonly attack: number;
@@ -110,10 +118,20 @@ export interface CombatStats {
 
 export type AttackStyleId = 'accurate' | 'aggressive' | 'defensive' | 'controlled';
 
+/**
+ * The 14 skills of v1. Note the naming: Vitality rather than Hitpoints and
+ * Archery rather than Ranged, both to stay clear of RuneScape's distinctive
+ * vocabulary. There is deliberately no Prayer skill.
+ *
+ * These ids are written into save files. Renaming one needs a migration.
+ */
 export type SkillId =
-  | 'attack' | 'strength' | 'defence' | 'hitpoints'
-  | 'ranged' | 'prayer' | 'magic' | 'cooking'
-  | 'woodcutting' | 'firemaking' | 'fishing' | 'mining' | 'smithing';
+  // Combat
+  | 'attack' | 'strength' | 'defence' | 'vitality' | 'archery' | 'magic'
+  // Gathering
+  | 'woodcutting' | 'mining' | 'fishing' | 'foraging'
+  // Production
+  | 'firemaking' | 'cooking' | 'smithing' | 'crafting';
 
 export interface AttackStyle {
   readonly name: string;
@@ -162,7 +180,24 @@ export type PlayerAction =
   /** Chop the tree at this tile; repeats each tick until it falls or you stop. */
   | { type: 'chop'; x: number; y: number }
   /** Cook raw food on the fire at this tile, one item per successful tick. */
-  | { type: 'cook'; x: number; y: number };
+  | { type: 'cook'; x: number; y: number }
+  /** Mine the rock at this tile; repeats each tick until the ore is out. */
+  | { type: 'mine'; x: number; y: number }
+  /**
+   * Walk to a furnace or an anvil and open its interface on arrival. The
+   * interface is what turns this into a `smelt` or `smith` action -- clicking
+   * the station itself only ever means "go there and show me my options".
+   */
+  | { type: 'use-station'; x: number; y: number; station: StationKind }
+  /** Smelt ore into `barId` at the furnace on this tile, repeating. */
+  | { type: 'smelt'; x: number; y: number; barId: string }
+  /** Hammer bars into `productId` at the anvil on this tile, repeating. */
+  | { type: 'smith'; x: number; y: number; productId: string }
+  /** Walk to this NPC and open the conversation. */
+  | { type: 'talk'; target: Npc };
+
+/** Scenery you interact with through an interface rather than a single verb. */
+export type StationKind = 'furnace' | 'anvil';
 
 // --------------------------------------------------------------------------
 // World

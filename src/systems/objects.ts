@@ -11,6 +11,8 @@ export interface Fire {
   ticks: number;
   /** Set once at creation so the flame animation is not synchronised. */
   readonly phase: number;
+  /** A fire somebody has undertaken to keep alight. It never burns down. */
+  permanent: boolean;
 }
 
 export class WorldObjects {
@@ -32,8 +34,10 @@ export class WorldObjects {
   // ----------------------------------------------------------------------
   // Fires
   // ----------------------------------------------------------------------
-  addFire(x: number, y: number, ticks: number): Fire {
-    const fire: Fire = { x, y, ticks, phase: Math.random() * Math.PI * 2 };
+  addFire(x: number, y: number, ticks: number, permanent = false): Fire {
+    const fire: Fire = {
+      x, y, ticks, permanent, phase: Math.random() * Math.PI * 2
+    };
     this.fires.push(fire);
     return fire;
   }
@@ -60,6 +64,7 @@ export class WorldObjects {
 
     for (let i = this.fires.length - 1; i >= 0; i--) {
       const fire = this.fires[i]!;
+      if (fire.permanent) continue;
       if (--fire.ticks <= 0) this.fires.splice(i, 1);
     }
   }

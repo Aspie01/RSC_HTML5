@@ -5,7 +5,7 @@
 // browser already lays out and styles for free. Canvas is for the world, DOM is
 // for the UI -- mixing the two is a common and painful mistake.
 //
-// Redraws are gated on a dirty flag; there is no reason to rebuild 28 inventory
+// Redraws are gated on a dirty flag; there is no reason to rebuild 30 inventory
 // icons at 144fps.
 
 import type { Game } from '../game';
@@ -15,10 +15,11 @@ import { SKILL_LIST } from '../systems/skills';
 import { STYLES, previewMaxHit } from '../systems/combat';
 import { getItem } from '../data/items';
 import { burnables } from '../data/resources';
+import { quests, TOTAL_QUEST_POINTS } from '../data/quests';
 import * as sprites from '../render/sprites';
 import * as XP from '../data/xp';
 
-export type TabId = 'inventory' | 'equipment' | 'skills' | 'combat';
+export type TabId = 'inventory' | 'equipment' | 'skills' | 'combat' | 'quests';
 export type ChatClass = '' | 'sys' | 'good' | 'bad' | 'levelup';
 
 interface TabDef {
@@ -31,7 +32,8 @@ const TABS: readonly TabDef[] = [
   { id: 'inventory', label: 'Inv', title: 'Inventory' },
   { id: 'equipment', label: 'Equip', title: 'Worn Equipment' },
   { id: 'skills', label: 'Skills', title: 'Skills' },
-  { id: 'combat', label: 'Combat', title: 'Combat Options' }
+  { id: 'combat', label: 'Combat', title: 'Combat Options' },
+  { id: 'quests', label: 'Quests', title: 'Quest Journal' }
 ];
 
 interface MenuOption {
@@ -206,6 +208,7 @@ export class UI {
       case 'equipment': this.renderEquipment(panel); break;
       case 'skills': this.renderSkills(panel); break;
       case 'combat': this.renderCombat(panel); break;
+      case 'quests': this.renderQuests(panel); break;
     }
   }
 
@@ -274,7 +277,11 @@ export class UI {
       opts.push({ verb: 'Light', noun: def.name, action: () => this.game.lightLogs(index) });
     }
     if (def.slot) {
-      opts.push({ verb: 'Wield', noun: def.name, action: () => this.game.equipItem(index) });
+      opts.push({
+        verb: def.slot === 'weapon' ? 'Wield' : 'Wear',
+        noun: def.name,
+        action: () => this.game.equipItem(index)
+      });
     }
     if (def.heals > 0) {
       opts.push({ verb: 'Eat', noun: def.name, action: () => this.game.eatItem(index) });
@@ -351,13 +358,13 @@ export class UI {
       cell.className = 'skill-cell';
       cell.title =
         `${s.name}\nXP: ${Math.floor(exp).toLocaleString()}\n` +
-        (lvl < 99
+        (lvl < XP.MAX_LEVEL
           ? `Next level: ${Math.ceil(XP.forLevel(lvl + 1) - exp).toLocaleString()} xp`
           : 'Maxed');
 
       cell.innerHTML =
         `<span class="skill-dot" style="background:${s.colour}"></span>` +
-        `<span class="skill-name">${s.name.slice(0, 5)}</span>` +
+        `<span class="skill-name">${s.abbr}</span>` +
         `<span class="skill-lvl">${lvl}</span>` +
         `<span class="skill-bar"><i style="width:${(prog * 100).toFixed(1)}%;background:${s.colour}"></i></span>`;
 
@@ -366,6 +373,56 @@ export class UI {
 
     panel.appendChild(grid);
     panel.appendChild(this.footer(`Total level: ${skills.totalLevel()}`));
+  }
+
+  // --------------------------------------------------------------------
+  // Quests
+  // --------------------------------------------------------------------
+  private renderQuests(panel: HTMLElement): void {
+    const journal = this.game.quests;
+
+    const list = document.createElement('div');
+    list.className = 'quest-list';
+
+    for (const def of quests) {
+      const complete = journal.isComplete(def);
+      const started = journal.isStarted(def.id);
+      const stage = journal.activeStage(def);
+
+      const row = document.createElement('div');
+      row.className = 'quest-row ' +
+        (complete ? 'done' : started ? 'active' : 'unstarted');
+
+      const head = document.createElement('div');
+      head.className = 'quest-name';
+      head.textContent = def.name;
+
+      const state = document.createElement('span');
+      state.className = 'quest-state';
+      state.textContent = complete
+        ? 'Complete'
+        : started
+          ? `Step ${journal.stageOf(def.id)} of ${def.stages.length}`
+          : 'Not started';
+      head.appendChild(state);
+
+      const body = document.createElement('div');
+      body.className = 'quest-step';
+      body.textContent = complete
+        ? def.reward.unlock
+        : stage
+          ? stage.journal
+          : 'You have not begun this quest.';
+
+      row.append(head, body);
+      list.appendChild(row);
+    }
+
+    panel.appendChild(list);
+    panel.appendChild(this.footer(
+      `${journal.points()} / ${TOTAL_QUEST_POINTS} quest points` +
+      `  ·  ${journal.completedCount()} of ${quests.length} complete`
+    ));
   }
 
   // --------------------------------------------------------------------

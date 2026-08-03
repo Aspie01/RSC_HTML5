@@ -1,7 +1,8 @@
-// Gatherable resources, fires, and cooking recipes -- data only.
+// Gatherable resources, fires, and crafting recipes -- data only.
 //
-// Adding a new tree, log, or cookable food should never require touching engine
-// code: add an entry here and the existing skilling pipeline picks it up.
+// Adding a new tree, ore, log, bar, or cookable food should never require
+// touching engine code: add an entry here and the existing skilling pipeline
+// picks it up.
 
 import type { SkillId } from '../types';
 
@@ -15,7 +16,7 @@ export interface TreeDef {
   readonly level: number;
   readonly xp: number;
   readonly logId: string;
-  /** Roll weights at level 1 and level 99, on the engine's 0..255 scale. */
+  /** Roll weights at level 1 and at the level cap, on the engine's 0..255 scale. */
   readonly low: number;
   readonly high: number;
   /**
@@ -41,7 +42,7 @@ export const trees = {
   },
   oak: {
     id: 'oak', name: 'Oak tree',
-    level: 15, xp: 37.5, logId: 'oak_logs',
+    level: 10, xp: 37.5, logId: 'oak_logs',
     low: 32, high: 120,
     depleteChance: 0.35,
     respawnTicks: 25,
@@ -68,7 +69,7 @@ export interface BurnableDef {
 
 export const burnables: Record<string, BurnableDef> = {
   logs: { logId: 'logs', level: 1, xp: 40, burnTicks: 120 },
-  oak_logs: { logId: 'oak_logs', level: 15, xp: 60, burnTicks: 200 }
+  oak_logs: { logId: 'oak_logs', level: 10, xp: 60, burnTicks: 200 }
 };
 
 // --------------------------------------------------------------------------
@@ -87,7 +88,7 @@ export interface RecipeDef {
 export const recipes: Record<string, RecipeDef> = {
   raw_chicken: {
     rawId: 'raw_chicken', cookedId: 'cooked_chicken', burntId: 'burnt_chicken',
-    level: 1, xp: 30, stopBurnLevel: 30
+    level: 1, xp: 30, stopBurnLevel: 15
   }
 };
 
@@ -95,6 +96,177 @@ export function recipeFor(itemId: string): RecipeDef | undefined {
   return recipes[itemId];
 }
 
+// --------------------------------------------------------------------------
+// Mining
+// --------------------------------------------------------------------------
+export interface RockDef {
+  readonly id: string;
+  readonly name: string;
+  /** Mining level required to swing at this rock. */
+  readonly level: number;
+  readonly xp: number;
+  readonly oreId: string;
+  /** Roll weights at level 1 and at the level cap, on the engine's 0..255 scale. */
+  readonly low: number;
+  readonly high: number;
+  /** Ticks before the vein refills. Coal is slow on purpose. */
+  readonly respawnTicks: number;
+  /** Ore fleck colour, so copper reads differently from coal at a glance. */
+  readonly colour: string;
+}
+
+// Unlike trees, a rock ALWAYS empties on a successful swing -- that is why
+// mining is a walk between veins rather than a stand-still skill.
+export const rocks = {
+  copper: {
+    id: 'copper', name: 'Copper rock',
+    level: 1, xp: 17.5, oreId: 'copper_ore',
+    low: 75, high: 220,
+    respawnTicks: 8, colour: '#c06a3a'
+  },
+  tin: {
+    id: 'tin', name: 'Tin rock',
+    level: 1, xp: 17.5, oreId: 'tin_ore',
+    low: 75, high: 220,
+    respawnTicks: 8, colour: '#b6b6c2'
+  },
+  iron: {
+    id: 'iron', name: 'Iron rock',
+    level: 10, xp: 35, oreId: 'iron_ore',
+    low: 40, high: 165,
+    respawnTicks: 16, colour: '#8a5030'
+  },
+  coal: {
+    id: 'coal', name: 'Coal rock',
+    level: 20, xp: 50, oreId: 'coal',
+    low: 18, high: 110,
+    respawnTicks: 50, colour: '#2c2c31'
+  }
+} as const satisfies Record<string, RockDef>;
+
+export type RockId = keyof typeof rocks;
+
+export function getRock(id: string): RockDef | undefined {
+  return (rocks as Record<string, RockDef>)[id];
+}
+
+/** Any one of these in the inventory or equipped lets you mine. */
+export const PICKAXE_IDS: readonly string[] = ['bronze_pickaxe'];
+
+/**
+ * Smithing at an anvil needs one of these to hand, and a better hammer works
+ * the metal faster. Keeping the pace here rather than in the engine means a
+ * new hammer is a data edit, not a special case at the anvil.
+ */
+export const HAMMER_SPEED: Readonly<Record<string, number>> = {
+  hammer: 3,
+  smiths_hammer: 2
+};
+
+export const HAMMER_IDS: readonly string[] = Object.keys(HAMMER_SPEED);
+
+// --------------------------------------------------------------------------
+// Smelting (Smithing, at a furnace)
+// --------------------------------------------------------------------------
+export interface Ingredient {
+  readonly id: string;
+  readonly qty: number;
+}
+
+export interface BarDef {
+  /** Item id of the bar produced. */
+  readonly id: string;
+  readonly name: string;
+  readonly level: number;
+  readonly xp: number;
+  readonly ingredients: readonly Ingredient[];
+  /**
+   * Chance the pour succeeds. Iron is the odd one out: half of it comes out
+   * too impure to use, and the ore is lost either way.
+   */
+  readonly successChance: number;
+}
+
+export const bars: readonly BarDef[] = [
+  {
+    id: 'bronze_bar', name: 'Bronze bar',
+    level: 1, xp: 6.2, successChance: 1,
+    ingredients: [{ id: 'copper_ore', qty: 1 }, { id: 'tin_ore', qty: 1 }]
+  },
+  {
+    id: 'iron_bar', name: 'Iron bar',
+    level: 10, xp: 12.5, successChance: 0.5,
+    ingredients: [{ id: 'iron_ore', qty: 1 }]
+  },
+  {
+    id: 'steel_bar', name: 'Steel bar',
+    level: 20, xp: 17.5, successChance: 1,
+    ingredients: [{ id: 'iron_ore', qty: 1 }, { id: 'coal', qty: 2 }]
+  }
+];
+
+export function getBar(id: string): BarDef | undefined {
+  return bars.find((b) => b.id === id);
+}
+
+// --------------------------------------------------------------------------
+// Smithing (at an anvil)
+// --------------------------------------------------------------------------
+export interface SmithDef {
+  /** Item id of the finished product. */
+  readonly id: string;
+  readonly barId: string;
+  readonly bars: number;
+  readonly level: number;
+}
+
+/**
+ * Every hammered item is worth the same per bar, so a platebody is simply five
+ * daggers' worth of experience. Keeping it a single constant means new products
+ * only ever need a bar count.
+ */
+export const SMITH_XP_PER_BAR = 12.5;
+
+// Each tier occupies a nine-level band starting at its unlock level (1, 10,
+// 20), with the same shape inside every band: dagger first, platebody last.
+// Compressing the bands this way is what keeps 30, 40 and 50 free for the
+// three tiers still to come, under a cap of 50 rather than 99.
+const SMITH_OFFSETS = {
+  dagger: 0, med_helm: 1, scimitar: 2, kiteshield: 4, platelegs: 6, platebody: 8
+} as const;
+
+function tier(metal: string, base: number): SmithDef[] {
+  const barId = `${metal}_bar`;
+  const barsFor: Record<keyof typeof SMITH_OFFSETS, number> = {
+    dagger: 1, med_helm: 1, scimitar: 2, kiteshield: 3, platelegs: 3, platebody: 5
+  };
+
+  return (Object.keys(SMITH_OFFSETS) as (keyof typeof SMITH_OFFSETS)[]).map(
+    (piece) => ({
+      id: `${metal}_${piece}`,
+      barId,
+      bars: barsFor[piece],
+      level: base + SMITH_OFFSETS[piece]
+    })
+  );
+}
+
+export const smithables: readonly SmithDef[] = [
+  ...tier('bronze', 1),
+  ...tier('iron', 10),
+  ...tier('steel', 20)
+];
+
+export function smithablesFor(barId: string): readonly SmithDef[] {
+  return smithables.filter((s) => s.barId === barId);
+}
+
+export function getSmithable(id: string): SmithDef | undefined {
+  return smithables.find((s) => s.id === id);
+}
+
 /** Skills these systems train, kept here so the wiring stays honest. */
 export const WOODCUTTING: SkillId = 'woodcutting';
 export const COOKING: SkillId = 'cooking';
+export const MINING: SkillId = 'mining';
+export const SMITHING: SkillId = 'smithing';

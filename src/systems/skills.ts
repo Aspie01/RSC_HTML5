@@ -10,23 +10,32 @@ import * as XP from '../data/xp';
 export interface SkillInfo {
   readonly id: SkillId;
   readonly name: string;
+  /**
+   * What the skills panel shows. Chosen rather than truncated, because
+   * name.slice(0, 5) turns Attack into "Attac" and Mining into "Minin".
+   */
+  readonly abbr: string;
   readonly colour: string;
 }
 
 export const SKILL_LIST: readonly SkillInfo[] = [
-  { id: 'attack', name: 'Attack', colour: '#9b2f2f' },
-  { id: 'strength', name: 'Strength', colour: '#2f7a4f' },
-  { id: 'defence', name: 'Defence', colour: '#3a5f9b' },
-  { id: 'hitpoints', name: 'Hitpoints', colour: '#a8452a' },
-  { id: 'ranged', name: 'Ranged', colour: '#5d7a2f' },
-  { id: 'prayer', name: 'Prayer', colour: '#8a8ab0' },
-  { id: 'magic', name: 'Magic', colour: '#2f5f8a' },
-  { id: 'cooking', name: 'Cooking', colour: '#6b3f8a' },
-  { id: 'woodcutting', name: 'Woodcutting', colour: '#4a6b2f' },
-  { id: 'firemaking', name: 'Firemaking', colour: '#b5561f' },
-  { id: 'fishing', name: 'Fishing', colour: '#4a6f8a' },
-  { id: 'mining', name: 'Mining', colour: '#6b6b6b' },
-  { id: 'smithing', name: 'Smithing', colour: '#5a4a3a' }
+  // Combat
+  { id: 'attack', name: 'Attack', abbr: 'Attack', colour: '#9b2f2f' },
+  { id: 'strength', name: 'Strength', abbr: 'Strength', colour: '#2f7a4f' },
+  { id: 'defence', name: 'Defence', abbr: 'Defence', colour: '#3a5f9b' },
+  { id: 'vitality', name: 'Vitality', abbr: 'Vitality', colour: '#a8452a' },
+  { id: 'archery', name: 'Archery', abbr: 'Archery', colour: '#5d7a2f' },
+  { id: 'magic', name: 'Magic', abbr: 'Magic', colour: '#2f5f8a' },
+  // Gathering
+  { id: 'woodcutting', name: 'Woodcutting', abbr: 'Woodcut', colour: '#4a6b2f' },
+  { id: 'mining', name: 'Mining', abbr: 'Mining', colour: '#6b6b6b' },
+  { id: 'fishing', name: 'Fishing', abbr: 'Fishing', colour: '#4a6f8a' },
+  { id: 'foraging', name: 'Foraging', abbr: 'Forage', colour: '#7a8a3a' },
+  // Production
+  { id: 'firemaking', name: 'Firemaking', abbr: 'Firemake', colour: '#b5561f' },
+  { id: 'cooking', name: 'Cooking', abbr: 'Cooking', colour: '#6b3f8a' },
+  { id: 'smithing', name: 'Smithing', abbr: 'Smithing', colour: '#5a4a3a' },
+  { id: 'crafting', name: 'Crafting', abbr: 'Crafting', colour: '#8a6a4a' }
 ];
 
 export type SkillXp = Record<SkillId, number>;
@@ -39,8 +48,8 @@ export class Skills {
       SKILL_LIST.map((s) => [s.id, 0])
     ) as SkillXp;
 
-    // Hitpoints is the one skill that does not start at level 1.
-    this.xp.hitpoints = XP.forLevel(10);
+    // Vitality is the one skill that does not start at level 1.
+    this.xp.vitality = XP.forLevel(10);
   }
 
   level(id: SkillId): number {
@@ -55,25 +64,25 @@ export class Skills {
   addXp(id: SkillId, amount: number): number {
     if (!(id in this.xp)) return 0;
     const before = this.level(id);
-    this.xp[id] = Math.min(this.xp[id] + amount, XP.forLevel(99));
+    this.xp[id] = Math.min(this.xp[id] + amount, XP.forLevel(XP.MAX_LEVEL));
     return this.level(id) - before;
   }
 
-  /** RuneScape combat level, including the ranged and magic branches. */
+  /**
+   * Combat level: RuneScape's formula minus its Prayer term, since there is no
+   * Prayer skill here. Your best of the three branches decides the number, so
+   * training melee and magic in parallel does not inflate it.
+   */
   combatLevel(): number {
-    const base = 0.25 * (
-      this.level('defence') +
-      this.level('hitpoints') +
-      Math.floor(this.level('prayer') / 2)
-    );
+    const base = 0.25 * (this.level('defence') + this.level('vitality'));
 
     const melee = 0.325 * (this.level('attack') + this.level('strength'));
-    const ranged = this.level('ranged');
+    const archery = this.level('archery');
     const magic = this.level('magic');
-    const range = 0.325 * (Math.floor(ranged / 2) + ranged);
+    const ranged = 0.325 * (Math.floor(archery / 2) + archery);
     const mage = 0.325 * (Math.floor(magic / 2) + magic);
 
-    return Math.floor(base + Math.max(melee, range, mage));
+    return Math.floor(base + Math.max(melee, ranged, mage));
   }
 
   totalLevel(): number {

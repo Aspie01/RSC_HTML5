@@ -10,7 +10,9 @@
 // away from. Resolve intent after movement and targeting lags a tick behind,
 // which makes combat feel sticky.
 
-import type { EquipSlot, PlayerAction, SkillId, World } from './types';
+import type {
+  EquipSlot, ItemStack, PlayerAction, Point, SkillId, StationKind, World
+} from './types';
 import type { GroundItem } from './systems/ground';
 import { GameMap, generateMap } from './world/map';
 import { GroundItems } from './systems/ground';
@@ -21,9 +23,20 @@ import { Renderer } from './render/renderer';
 import { UI } from './ui/ui';
 import { rollDrops } from './data/npcs';
 import { getItem } from './data/items';
-import { getTree, burnables, recipeFor } from './data/resources';
+import {
+  getTree, burnables, recipeFor,
+  getRock, getBar, getSmithable, bars, smithablesFor,
+  PICKAXE_IDS, HAMMER_IDS, HAMMER_SPEED, SMITH_XP_PER_BAR
+} from './data/resources';
+import type { BarDef, SmithDef } from './data/resources';
 import { rollGather, rollBurn } from './systems/skilling';
 import { SKILL_LIST } from './systems/skills';
+import { Quests } from './systems/quests';
+import { getQuest, questsForNpc } from './data/quests';
+import type { QuestDef, QuestItem, QuestStage } from './data/quests';
+import { Dialogue } from './ui/dialogue';
+import { INVENTORY_CAPACITY } from './systems/inventory';
+import * as XP from './data/xp';
 import * as pathfind from './world/pathfind';
 import * as combat from './systems/combat';
 import * as iso from './world/iso';
@@ -32,6 +45,36 @@ import { loop } from './core/loop';
 
 const SAVE_KEY = 'rs_html5_save_v1';
 const AUTOSAVE_TICKS = 50; // every 30 seconds
+
+/**
+ * Bump when the save format changes in a way old data cannot survive
+ * unaltered, and add a step to migrate(). Never silently discard progress.
+ *
+ * 1 -> 2: skills renamed (hitpoints -> vitality, ranged -> archery), Prayer
+ *         removed, and the experience curve recapped from 99 to 50.
+ */
+const SAVE_VERSION = 2;
+
+/** Skills that changed id in version 2. */
+const RENAMED_SKILLS: Readonly<Record<string, SkillId>> = {
+  hitpoints: 'vitality',
+  ranged: 'archery'
+};
+
+/**
+ * Tools that did not exist in version 1.
+ *
+ * A returning player's saved inventory REPLACES the one the constructor deals
+ * out, so without this they load in with no pickaxe and no hammer. Neither
+ * drops from anything and neither can be bought, which would leave the entire
+ * mining and smithing loop permanently unreachable on that save -- the one
+ * thing a migration must never do.
+ */
+const V2_TOOLS: readonly string[] = ['bronze_pickaxe', 'hammer'];
+
+/** Ticks between bars at a furnace, and between items at an anvil. */
+const SMELT_TICKS = 3;
+const SMITH_TICKS = 3;
 
 interface SaveData {
   v: number;
@@ -43,6 +86,7 @@ interface SaveData {
   running: boolean;
   slots: unknown;
   equipment: unknown;
+  quests?: unknown;
 }
 
 export class Game implements World {
@@ -51,9 +95,11 @@ export class Game implements World {
   readonly objects = new WorldObjects();
   readonly player: Player;
   readonly npcs: Npc[] = [];
+  readonly quests = new Quests();
 
   private readonly renderer: Renderer;
   private readonly ui: UI;
+  private readonly dialogue = new Dialogue();
   private autosaveCounter = 0;
 
   constructor(canvas: HTMLCanvasElement, minimap: HTMLCanvasElement) {
@@ -63,6 +109,8 @@ export class Game implements World {
     this.player.inventory.add('wooden_shield', 1);
     this.player.inventory.add('bronze_axe', 1);
     this.player.inventory.add('tinderbox', 1);
+    this.player.inventory.add('bronze_pickaxe', 1);
+    this.player.inventory.add('hammer', 1);
     this.player.inventory.add('cooked_chicken', 3);
 
     for (const spawn of this.map.spawns) {
@@ -85,6 +133,10 @@ export class Game implements World {
     this.ui.message('Chickens are north-west, goblins south-west, guards south-east.', 'sys');
     this.ui.message('Click a tree to chop it. Right-click logs to light a fire, ' +
                     'then click the fire to cook.', 'sys');
+    this.ui.message('The quarry and smithy are due west: mine ore, smelt it at ' +
+                    'the furnace, then hammer bars at the anvil.', 'sys');
+    this.ui.message('Maren Ashfall is sitting just east of here and looks like ' +
+                    'she wants a word. Click her to talk.', 'sys');
   }
 
   // ----------------------------------------------------------------------
@@ -206,9 +258,50 @@ export class Game implements World {
     } else if (action.type === 'chop') {
       this.resolveChop(action.x, action.y);
 
-    } else {
+    } else if (action.type === 'cook') {
       this.resolveCook(action.x, action.y);
+
+    } else if (action.type === 'mine') {
+      this.resolveMine(action.x, action.y);
+
+    } else if (action.type === 'use-station') {
+      this.resolveStation(action.x, action.y, action.station);
+
+    } else if (action.type === 'smelt') {
+      this.resolveSmelt(action.x, action.y, action.barId);
+
+    } else if (action.type === 'smith') {
+      this.resolveSmith(action.x, action.y, action.productId);
+
+    } else {
+      this.resolveTalk(action.target);
     }
+  }
+
+  /**
+   * Walk into interaction range of a tile, pathing around whatever is in the
+   * way. Returns true once the player is standing next to it; every skilling
+   * action begins with this, so it is worth having in one place.
+   *
+   * The action is cleared and a message shown if the tile cannot be reached.
+   */
+  private approach(tx: number, ty: number): boolean {
+    const p = this.player;
+
+    if (tileDist(p.x, p.y, tx, ty) > 1) {
+      if (!p.path.length) {
+        p.setPath(pathfind.findAdjacent(this.map, p.x, p.y, tx, ty));
+        if (!p.path.length) {
+          this.ui.message("I can't reach that.");
+          p.clearAction();
+        }
+      }
+      return false;
+    }
+
+    p.clearPath();
+    p.faceTowards(tx, ty);
+    return true;
   }
 
   /**
@@ -235,20 +328,7 @@ export class Game implements World {
       return;
     }
 
-    // Walk into range first.
-    if (tileDist(p.x, p.y, tx, ty) > 1) {
-      if (!p.path.length) {
-        p.setPath(pathfind.findAdjacent(this.map, p.x, p.y, tx, ty));
-        if (!p.path.length) {
-          this.ui.message("I can't reach that.");
-          p.clearAction();
-        }
-      }
-      return;
-    }
-
-    p.clearPath();
-    p.faceTowards(tx, ty);
+    if (!this.approach(tx, ty)) return;
 
     const level = p.skills.level('woodcutting');
     if (level < def.level) {
@@ -290,19 +370,7 @@ export class Game implements World {
     }
 
     // Stand next to the fire (or on its tile) before cooking.
-    if (tileDist(p.x, p.y, tx, ty) > 1) {
-      if (!p.path.length) {
-        p.setPath(pathfind.findAdjacent(this.map, p.x, p.y, tx, ty));
-        if (!p.path.length) {
-          this.ui.message("I can't reach that.");
-          p.clearAction();
-        }
-      }
-      return;
-    }
-
-    p.clearPath();
-    p.faceTowards(tx, ty);
+    if (!this.approach(tx, ty)) return;
 
     // Find the next raw item that has a recipe.
     const index = p.inventory.slots.findIndex(
@@ -337,6 +405,496 @@ export class Game implements World {
     }
 
     this.ui.dirty = true;
+  }
+
+  /**
+   * One tick of mining. The same repeated-roll shape as woodcutting, with two
+   * differences: a pickaxe is required, and a successful swing always empties
+   * the vein -- which is what makes mining a circuit between rocks rather than
+   * a stand-still skill.
+   */
+  private resolveMine(tx: number, ty: number): void {
+    const p = this.player;
+
+    const scenery = this.map.sceneryAt(tx, ty);
+    if (!scenery || scenery.kind !== 'rock' || !scenery.resource) {
+      p.clearAction();
+      return;
+    }
+
+    const def = getRock(scenery.resource);
+    if (!def) { p.clearAction(); return; }
+
+    const tileIndex = this.map.idx(tx, ty);
+    if (this.objects.isDepleted(tileIndex)) {
+      this.ui.message('There is no ore left in this rock.');
+      p.clearAction();
+      return;
+    }
+
+    if (!this.hasTool(PICKAXE_IDS)) {
+      this.ui.message('You need a pickaxe to mine this rock.', 'bad');
+      p.clearAction();
+      return;
+    }
+
+    if (!this.approach(tx, ty)) return;
+
+    const level = p.skills.level('mining');
+    if (level < def.level) {
+      this.ui.message(
+        `You need a Mining level of ${def.level} to mine this rock.`, 'bad'
+      );
+      p.clearAction();
+      return;
+    }
+
+    if (!rollGather(def.low, def.high, level)) return; // swing glanced off
+
+    if (p.inventory.isFull()) {
+      this.ui.message('Your inventory is too full to hold any more ore.', 'bad');
+      p.clearAction();
+      return;
+    }
+
+    p.inventory.add(def.oreId, 1);
+    this.announceXp('mining', def.xp);
+    this.ui.message(`You manage to mine some ${getItem(def.oreId)?.name.toLowerCase() ?? 'ore'}.`);
+    this.ui.dirty = true;
+
+    this.objects.deplete(tileIndex, def.respawnTicks);
+    p.clearAction();
+  }
+
+  /** Walk to a furnace or anvil, then hand over to its interface. */
+  private resolveStation(tx: number, ty: number, station: StationKind): void {
+    const p = this.player;
+
+    if (this.map.sceneryAt(tx, ty)?.kind !== station) {
+      p.clearAction();
+      return;
+    }
+
+    if (!this.approach(tx, ty)) return;
+
+    // Arriving is the whole action; the menu decides what happens next.
+    p.clearAction();
+
+    const at = this.renderer.canvasToClient(this.renderer.worldToScreen(tx, ty));
+    if (station === 'furnace') this.openSmeltMenu(at, tx, ty);
+    else this.openSmithMenu(at, tx, ty);
+  }
+
+  /** One item of smelting, repeating until the ore runs out. */
+  private resolveSmelt(tx: number, ty: number, barId: string): void {
+    const p = this.player;
+
+    const bar = getBar(barId);
+    if (!bar || this.map.sceneryAt(tx, ty)?.kind !== 'furnace') {
+      p.clearAction();
+      return;
+    }
+
+    if (!this.approach(tx, ty)) return;
+
+    const level = p.skills.level('smithing');
+    if (level < bar.level) {
+      this.ui.message(
+        `You need a Smithing level of ${bar.level} to smelt a ${bar.name.toLowerCase()}.`,
+        'bad'
+      );
+      p.clearAction();
+      return;
+    }
+
+    if (!this.hasIngredients(bar.ingredients)) {
+      this.ui.message(
+        `You need ${this.ingredientText(bar.ingredients)} to smelt a ${bar.name.toLowerCase()}.`
+      );
+      p.clearAction();
+      return;
+    }
+
+    if (p.actionDelay > 0) { p.actionDelay--; return; }
+    p.actionDelay = SMELT_TICKS;
+
+    // The ore is consumed whether or not the pour succeeds. Taking at least
+    // one item out first guarantees the bar has somewhere to go.
+    for (const ing of bar.ingredients) this.consume(ing.id, ing.qty);
+
+    if (Math.random() >= bar.successChance) {
+      this.ui.message(
+        'The ore is too impure and you fail to refine it.', 'bad'
+      );
+    } else {
+      p.inventory.add(bar.id, 1);
+      this.announceXp('smithing', bar.xp);
+      this.ui.message(`You retrieve a ${bar.name.toLowerCase()} from the furnace.`);
+    }
+
+    this.ui.dirty = true;
+  }
+
+  /** One item of smithing at an anvil, repeating until the bars run out. */
+  private resolveSmith(tx: number, ty: number, productId: string): void {
+    const p = this.player;
+
+    const def = getSmithable(productId);
+    const product = def ? getItem(def.id) : undefined;
+    if (!def || !product || this.map.sceneryAt(tx, ty)?.kind !== 'anvil') {
+      p.clearAction();
+      return;
+    }
+
+    if (!this.hasTool(HAMMER_IDS)) {
+      this.ui.message('You need a hammer to work the metal with.', 'bad');
+      p.clearAction();
+      return;
+    }
+
+    if (!this.approach(tx, ty)) return;
+
+    const level = p.skills.level('smithing');
+    if (level < def.level) {
+      this.ui.message(
+        `You need a Smithing level of ${def.level} to make a ${product.name.toLowerCase()}.`,
+        'bad'
+      );
+      p.clearAction();
+      return;
+    }
+
+    if (p.inventory.count(def.barId) < def.bars) {
+      const barName = getItem(def.barId)?.name.toLowerCase() ?? 'bars';
+      this.ui.message(`You need ${def.bars} ${barName} to make that.`);
+      p.clearAction();
+      return;
+    }
+
+    if (p.actionDelay > 0) { p.actionDelay--; return; }
+    p.actionDelay = this.smithTicks();
+
+    this.consume(def.barId, def.bars);
+    p.inventory.add(def.id, 1);
+    this.announceXp('smithing', SMITH_XP_PER_BAR * def.bars);
+    this.ui.message(`You hammer the metal into a ${product.name.toLowerCase()}.`);
+    this.ui.dirty = true;
+  }
+
+  // ----------------------------------------------------------------------
+  // Quests
+  // ----------------------------------------------------------------------
+  /**
+   * Walk to an NPC and hold a conversation.
+   *
+   * All the quest logic hangs off this one entry point, because talking is the
+   * only way a quest ever moves. Nothing advances on a timer or behind the
+   * player's back -- if the journal changed, it is because somebody said so.
+   */
+  private resolveTalk(npc: Npc): void {
+    const p = this.player;
+
+    if (npc.dead || !npc.def.talkable) { p.clearAction(); return; }
+    if (this.dialogue.isOpen()) return;
+
+    if (p.distanceTo(npc) > 1) {
+      if (!p.path.length) {
+        p.setPath(pathfind.findAdjacent(this.map, p.x, p.y, npc.x, npc.y));
+        if (!p.path.length) {
+          this.ui.message("I can't reach that.");
+          p.clearAction();
+        }
+      }
+      return;
+    }
+
+    p.clearPath();
+    p.faceTowards(npc.x, npc.y);
+    npc.faceTowards(p.x, p.y);
+    p.clearAction();
+
+    this.converse(npc);
+  }
+
+  /** Pick what this NPC has to say right now, and say it. */
+  private converse(npc: Npc): void {
+    const id = npc.def.id;
+
+    // A quest already under way at this NPC takes precedence over starting
+    // another, so a character can never be mid-errand and be handed a second.
+    for (const def of questsForNpc(id)) {
+      const stage = this.quests.activeStage(def);
+      if (stage && stage.npc === id) {
+        this.playStage(npc, def, stage);
+        return;
+      }
+    }
+
+    for (const def of questsForNpc(id)) {
+      if (this.quests.isStarted(def.id)) continue;
+      if (def.stages[0]?.npc !== id) continue;
+
+      if (!this.questRequirementsMet(def)) {
+        this.dialogue.open(npc.name, def.blocked ?? [
+          { who: 'npc', text: 'Not just now. Come back another time.' }
+        ]);
+        return;
+      }
+
+      this.quests.setStage(def.id, 1);
+      const first = def.stages[0]!;
+      this.playStage(npc, def, first);
+      return;
+    }
+
+    // Nothing outstanding: say the after-the-fact line, or shrug.
+    const finished = questsForNpc(id).find((d) => this.quests.isComplete(d));
+    this.dialogue.open(npc.name, finished?.afterwards ?? [
+      { who: 'npc', text: 'Good day to you.' }
+    ]);
+  }
+
+  /**
+   * Say the right half of a stage: the nudge if its goal is unmet, otherwise
+   * the pay-off, and then move the quest on once the last line is read.
+   */
+  private playStage(npc: Npc, def: QuestDef, stage: QuestStage): void {
+    if (!this.questGoalMet(npc, stage)) {
+      this.dialogue.open(npc.name, stage.waiting ?? [
+        { who: 'npc', text: 'Not yet. Come back when it is done.' }
+      ]);
+      return;
+    }
+
+    // Items change hands as the stage resolves, not as the dialogue ends --
+    // otherwise a player could be shown the thanks and keep the goods by
+    // walking away mid-sentence.
+    if (stage.goal.type === 'give') {
+      for (const need of stage.goal.items) this.consume(need.id, need.qty);
+      this.ui.dirty = true;
+    }
+
+    this.quests.advance(def);
+
+    this.dialogue.open(npc.name, stage.done, () => {
+      this.onStageAdvanced(def, stage);
+    });
+  }
+
+  /** Fires once the dialogue that completed a stage has been read to the end. */
+  private onStageAdvanced(def: QuestDef, stage: QuestStage): void {
+    // Maren undertakes to keep her fire alight, so it stops burning down.
+    if (stage.goal.type === 'fire-near') {
+      const fire = this.fireNearStageNpc(stage);
+      if (fire) fire.permanent = true;
+    }
+
+    if (this.quests.isComplete(def)) this.completeQuest(def);
+    this.ui.dirty = true;
+  }
+
+  private questGoalMet(npc: Npc, stage: QuestStage): boolean {
+    const goal = stage.goal;
+
+    if (goal.type === 'talk') return true;
+    if (goal.type === 'give') {
+      return goal.items.every((i) => this.player.inventory.count(i.id) >= i.qty);
+    }
+    return this.objects.fireNear(npc.x, npc.y) !== null;
+  }
+
+  private fireNearStageNpc(stage: QuestStage) {
+    const npc = this.npcs.find((n) => n.def.id === stage.npc);
+    return npc ? this.objects.fireNear(npc.x, npc.y) : null;
+  }
+
+  private questRequirementsMet(def: QuestDef): boolean {
+    const req = def.requires;
+    if (!req) return true;
+
+    for (const id of req.quests ?? []) {
+      const other = getQuest(id);
+      if (!other || !this.quests.isComplete(other)) return false;
+    }
+
+    for (const [skill, level] of Object.entries(req.skills ?? {})) {
+      if (this.player.skills.level(skill as SkillId) < (level ?? 0)) return false;
+    }
+
+    return true;
+  }
+
+  private completeQuest(def: QuestDef): void {
+    const reward = def.reward;
+
+    this.ui.message(`Quest complete: ${def.name}!`, 'levelup');
+    this.ui.message(
+      `You have ${this.quests.points()} quest point` +
+      `${this.quests.points() === 1 ? '' : 's'}.`, 'good'
+    );
+
+    for (const [skill, amount] of Object.entries(reward.xp ?? {})) {
+      if (amount) this.announceXp(skill as SkillId, amount);
+    }
+
+    for (const item of reward.items ?? []) this.giveQuestItem(item);
+
+    this.ui.message(reward.unlock, 'good');
+    this.ui.dirty = true;
+  }
+
+  /** A reward the player has no room for goes at their feet, never nowhere. */
+  private giveQuestItem(item: QuestItem): void {
+    const name = getItem(item.id)?.name ?? item.id;
+
+    if (this.player.inventory.add(item.id, item.qty)) {
+      this.ui.message(`You are given: ${name}.`, 'good');
+    } else {
+      this.ground.drop(item.id, item.qty, this.player.x, this.player.y);
+      this.ui.message(
+        `Your pack is full, so your ${name.toLowerCase()} is at your feet.`, 'bad'
+      );
+    }
+  }
+
+  /**
+   * Reapply the world changes that finished quests are responsible for.
+   *
+   * Fires are not saved -- they are transient world state -- so Maren's would
+   * be missing after a reload even though the quest that lit it is complete.
+   * Anything a quest promised to leave behind has to be re-established here.
+   */
+  private restoreQuestUnlocks(): void {
+    const coldHearth = getQuest('cold_hearth');
+    if (!coldHearth || !this.quests.isComplete(coldHearth)) return;
+
+    const maren = this.npcs.find((n) => n.def.id === 'maren');
+    if (!maren || this.objects.fireNear(maren.x, maren.y)) return;
+
+    const spot = this.freeTileBeside(maren.x, maren.y);
+    if (spot) this.objects.addFire(spot.x, spot.y, 0, true);
+  }
+
+  private freeTileBeside(x: number, y: number): Point | null {
+    for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]] as const) {
+      const tx = x + dx;
+      const ty = y + dy;
+      if (this.map.isWalkable(tx, ty) && !this.objects.fireAt(tx, ty)) {
+        return { x: tx, y: ty };
+      }
+    }
+    return null;
+  }
+
+  // ----------------------------------------------------------------------
+  // Crafting helpers
+  // ----------------------------------------------------------------------
+  /** Anvil pace, set by the best hammer to hand. */
+  private smithTicks(): number {
+    let ticks = SMITH_TICKS;
+    for (const [id, speed] of Object.entries(HAMMER_SPEED)) {
+      if (this.carries(id)) ticks = Math.min(ticks, speed);
+    }
+    return ticks;
+  }
+
+  /** True if this exact item is carried or worn. */
+  private carries(id: string): boolean {
+    const inv = this.player.inventory;
+    return inv.count(id) > 0 ||
+      Object.values(inv.equipment).some((eq) => eq?.id === id);
+  }
+
+  /** True if any of these tool ids is carried or worn. */
+  private hasTool(ids: readonly string[]): boolean {
+    return ids.some((id) => this.carries(id));
+  }
+
+  private hasIngredients(list: readonly { id: string; qty: number }[]): boolean {
+    return list.every((i) => this.player.inventory.count(i.id) >= i.qty);
+  }
+
+  /** Remove `qty` of an item, spanning slots for non-stackables. */
+  private consume(id: string, qty: number): void {
+    const inv = this.player.inventory;
+    let left = qty;
+
+    for (let i = 0; i < inv.slots.length && left > 0; i++) {
+      const slot = inv.slots[i];
+      if (!slot || slot.id !== id) continue;
+      const taken = inv.removeSlot(i, left);
+      left -= taken?.qty ?? 0;
+    }
+  }
+
+  private ingredientText(list: readonly { id: string; qty: number }[]): string {
+    return list
+      .map((i) => `${i.qty} ${getItem(i.id)?.name.toLowerCase() ?? i.id}`)
+      .join(' and ');
+  }
+
+  // ----------------------------------------------------------------------
+  // Station interfaces
+  // ----------------------------------------------------------------------
+  private openSmeltMenu(at: Point, tx: number, ty: number): void {
+    const p = this.player;
+
+    const opts = bars.map((bar: BarDef) => ({
+      verb: 'Smelt',
+      noun: `${bar.name} (${this.ingredientText(bar.ingredients)})`,
+      action: () => {
+        p.clearPath();
+        p.setAction({ type: 'smelt', x: tx, y: ty, barId: bar.id });
+      }
+    }));
+
+    this.ui.openMenu(at.x, at.y, 'Smelting', opts);
+  }
+
+  /**
+   * The anvil offers whatever the bars in your inventory can become. Holding
+   * more than one metal asks which first, rather than listing eighteen items.
+   */
+  private openSmithMenu(at: Point, tx: number, ty: number): void {
+    const held = bars.filter((b) => this.player.inventory.count(b.id) > 0);
+
+    if (!held.length) {
+      this.ui.message('You need a bar of metal to work with.');
+      return;
+    }
+
+    if (held.length === 1) {
+      this.openSmithProductMenu(at, tx, ty, held[0]!);
+      return;
+    }
+
+    this.ui.openMenu(at.x, at.y, 'Smithing', held.map((bar) => ({
+      verb: 'Work',
+      noun: bar.name,
+      action: () => this.openSmithProductMenu(at, tx, ty, bar)
+    })));
+  }
+
+  private openSmithProductMenu(at: Point, tx: number, ty: number, bar: BarDef): void {
+    const p = this.player;
+
+    const opts = smithablesFor(bar.id).map((def: SmithDef) => {
+      const name = getItem(def.id)?.name ?? def.id;
+      const locked = p.skills.level('smithing') < def.level;
+
+      return {
+        verb: 'Smith',
+        noun: locked
+          ? `${name} (requires level ${def.level})`
+          : `${name} (${def.bars} ${def.bars === 1 ? 'bar' : 'bars'})`,
+        action: () => {
+          p.clearPath();
+          p.setAction({ type: 'smith', x: tx, y: ty, productId: def.id });
+        }
+      };
+    });
+
+    this.ui.openMenu(at.x, at.y, bar.name, opts);
   }
 
   /** Award experience and announce any level-ups in the chat log. */
@@ -504,11 +1062,15 @@ export class Game implements World {
   }
 
   equipItem(index: number): void {
+    // Read the slot before equipping; afterwards the item has moved.
+    const stack = this.player.inventory.slots[index];
+    const worn = stack ? getItem(stack.id)?.slot !== 'weapon' : false;
+
     const result = this.player.inventory.equip(index);
     if (!result.ok) return;
 
     this.player.attackSpeed = this.player.inventory.attackSpeed();
-    this.ui.message(`You wield the ${result.name}.`);
+    this.ui.message(`You ${worn ? 'wear' : 'wield'} the ${result.name}.`);
     this.ui.dirty = true;
   }
 
@@ -587,12 +1149,14 @@ export class Game implements World {
     });
 
     window.addEventListener('keydown', (e) => {
+      if (this.dialogue.isOpen()) return;
+
       if (e.code === 'Space') {
         e.preventDefault();
         this.player.running = !this.player.running;
         this.ui.message(`Run mode ${this.player.running ? 'enabled' : 'disabled'}.`);
-      } else if (e.key >= '1' && e.key <= '4') {
-        const tabs = ['inventory', 'equipment', 'skills', 'combat'] as const;
+      } else if (e.key >= '1' && e.key <= '5') {
+        const tabs = ['inventory', 'equipment', 'skills', 'combat', 'quests'] as const;
         const tab = tabs[Number(e.key) - 1];
         if (tab) this.ui.setTab(tab);
       }
@@ -603,15 +1167,21 @@ export class Game implements World {
 
   private handleClick(sx: number, sy: number): void {
     const p = this.player;
-    if (p.dead) return;
+    if (p.dead || this.dialogue.isOpen()) return;
 
     const mob = this.pickMob(sx, sy, loop.alpha);
     if (mob) {
       p.clearPath();
-      p.setAction({ type: 'attack', target: mob });
-      p.target = mob;
-      this.renderer.setClickMarker(mob.x, mob.y, 'attack');
-      this.ui.message(`You attack the ${mob.name}.`);
+
+      if (mob.def.talkable) {
+        p.setAction({ type: 'talk', target: mob });
+        this.renderer.setClickMarker(mob.x, mob.y, 'move');
+      } else if (mob.def.attackable) {
+        p.setAction({ type: 'attack', target: mob });
+        p.target = mob;
+        this.renderer.setClickMarker(mob.x, mob.y, 'attack');
+        this.ui.message(`You attack the ${mob.name}.`);
+      }
       return;
     }
 
@@ -626,12 +1196,27 @@ export class Game implements World {
       return;
     }
 
-    // A standing tree is a woodcutting node.
+    // Interactive scenery: trees, ore veins, and the smithy stations.
     const scenery = this.map.sceneryAt(tile.x, tile.y);
-    if (scenery?.kind === 'tree' && scenery.resource &&
-        !this.objects.isDepleted(this.map.idx(tile.x, tile.y))) {
+    const spent = this.objects.isDepleted(this.map.idx(tile.x, tile.y));
+
+    if (scenery?.kind === 'tree' && scenery.resource && !spent) {
       p.clearPath();
       p.setAction({ type: 'chop', x: tile.x, y: tile.y });
+      this.renderer.setClickMarker(tile.x, tile.y, 'move');
+      return;
+    }
+
+    if (scenery?.kind === 'rock' && scenery.resource && !spent) {
+      p.clearPath();
+      p.setAction({ type: 'mine', x: tile.x, y: tile.y });
+      this.renderer.setClickMarker(tile.x, tile.y, 'move');
+      return;
+    }
+
+    if (scenery?.kind === 'furnace' || scenery?.kind === 'anvil') {
+      p.clearPath();
+      p.setAction({ type: 'use-station', x: tile.x, y: tile.y, station: scenery.kind });
       this.renderer.setClickMarker(tile.x, tile.y, 'move');
       return;
     }
@@ -665,29 +1250,49 @@ export class Game implements World {
 
   private handleRightClick(sx: number, sy: number, clientX: number, clientY: number): void {
     const p = this.player;
+    if (this.dialogue.isOpen()) return;
     const opts: { verb: string; noun: string; action: () => void }[] = [];
 
     const mob = this.pickMob(sx, sy, loop.alpha);
     if (mob) {
-      opts.push({
-        verb: 'Attack',
-        noun: mob.displayName,
-        action: () => {
-          p.clearPath();
-          const action: PlayerAction = { type: 'attack', target: mob };
-          p.setAction(action);
-          p.target = mob;
-          this.renderer.setClickMarker(mob.x, mob.y, 'attack');
-        }
-      });
+      if (mob.def.talkable) {
+        opts.push({
+          verb: 'Talk to',
+          noun: mob.name,
+          action: () => {
+            p.clearPath();
+            p.setAction({ type: 'talk', target: mob });
+            this.renderer.setClickMarker(mob.x, mob.y, 'move');
+          }
+        });
+      }
+
+      if (mob.def.attackable) {
+        opts.push({
+          verb: 'Attack',
+          noun: mob.displayName,
+          action: () => {
+            p.clearPath();
+            const action: PlayerAction = { type: 'attack', target: mob };
+            p.setAction(action);
+            p.target = mob;
+            this.renderer.setClickMarker(mob.x, mob.y, 'attack');
+          }
+        });
+      }
+
       opts.push({
         verb: 'Examine',
         noun: mob.name,
         action: () => {
+          if (!mob.def.attackable) {
+            this.ui.message(`${mob.name}. They look like they have something to say.`);
+            return;
+          }
           const acc = combat.previewAccuracy(p, mob);
           this.ui.message(
             `It's a ${mob.name.toLowerCase()}. Combat level ${mob.def.level}, ` +
-            `${mob.maxHp} hitpoints. Your accuracy: ${Math.round(acc * 100)}%.`
+            `${mob.maxHp} health. Your accuracy: ${Math.round(acc * 100)}%.`
           );
         }
       });
@@ -731,6 +1336,52 @@ export class Game implements World {
         }
       }
 
+      if (scenery?.kind === 'rock' && scenery.resource) {
+        const rockDef = getRock(scenery.resource);
+        const spent = this.objects.isDepleted(this.map.idx(tile.x, tile.y));
+
+        if (rockDef && !spent) {
+          opts.push({
+            verb: 'Mine', noun: rockDef.name,
+            action: () => {
+              p.clearPath();
+              p.setAction({ type: 'mine', x: tile.x, y: tile.y });
+            }
+          });
+        }
+        if (rockDef) {
+          opts.push({
+            verb: 'Examine', noun: rockDef.name,
+            action: () => {
+              this.ui.message(spent
+                ? 'The ore has been mined out. It will reform shortly.'
+                : `${rockDef.name}. Requires Mining ${rockDef.level}.`);
+            }
+          });
+        }
+      }
+
+      if (scenery?.kind === 'furnace' || scenery?.kind === 'anvil') {
+        const station = scenery.kind;
+        opts.push({
+          verb: station === 'furnace' ? 'Smelt at' : 'Smith at',
+          noun: station === 'furnace' ? 'Furnace' : 'Anvil',
+          action: () => {
+            p.clearPath();
+            p.setAction({ type: 'use-station', x: tile.x, y: tile.y, station });
+          }
+        });
+        opts.push({
+          verb: 'Examine',
+          noun: station === 'furnace' ? 'Furnace' : 'Anvil',
+          action: () => {
+            this.ui.message(station === 'furnace'
+              ? 'A furnace hot enough to smelt ore into bars.'
+              : 'A sturdy anvil. Bring bars and a hammer.');
+          }
+        });
+      }
+
       for (const it of this.ground.at(tile.x, tile.y)) {
         const def = getItem(it.id);
         if (!def) continue;
@@ -768,14 +1419,15 @@ export class Game implements World {
     try {
       const p = this.player;
       const data: SaveData = {
-        v: 1,
+        v: SAVE_VERSION,
         x: p.x, y: p.y,
         hp: p.hp,
         xp: p.skills.xp,
         style: p.attackStyle,
         running: p.running,
         slots: p.inventory.slots,
-        equipment: p.inventory.equipment
+        equipment: p.inventory.equipment,
+        quests: this.quests.stages
       };
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     } catch (err) {
@@ -797,24 +1449,28 @@ export class Game implements World {
       const data = JSON.parse(raw) as Partial<SaveData>;
       const p = this.player;
 
+      const xp = this.migrateXp(data.xp ?? {}, data.v ?? 1);
+
       // Merge rather than replace. A save written before a skill existed has
       // no key for it, and assigning the object wholesale would leave that
       // skill permanently unable to gain experience (addXp ignores unknown
       // ids). Merging keeps old saves working every time a skill is added.
-      if (data.xp) {
-        for (const s of SKILL_LIST) {
-          const value = data.xp[s.id];
-          if (typeof value === 'number' && Number.isFinite(value)) {
-            p.skills.xp[s.id] = value;
-          }
+      for (const s of SKILL_LIST) {
+        const value = xp[s.id];
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          p.skills.xp[s.id] = value;
         }
       }
-      if (data.slots) p.inventory.slots = data.slots as typeof p.inventory.slots;
+
+      this.quests.restore(data.quests);
+      this.restoreQuestUnlocks();
+
+      if (data.slots) p.inventory.slots = this.migrateSlots(data.slots);
       if (data.equipment) p.inventory.equipment = data.equipment as typeof p.inventory.equipment;
       if (data.style) p.attackStyle = data.style as typeof p.attackStyle;
       if (typeof data.running === 'boolean') p.running = data.running;
 
-      p.maxHp = p.skills.level('hitpoints');
+      p.maxHp = p.skills.level('vitality');
       p.hp = Math.min(data.hp ?? p.maxHp, p.maxHp);
 
       if (typeof data.x === 'number' && typeof data.y === 'number' &&
@@ -824,9 +1480,95 @@ export class Game implements World {
       }
 
       this.ui.message('Welcome back. Your progress was restored.', 'sys');
+
+      if ((data.v ?? 1) < SAVE_VERSION) {
+        this.ui.message(
+          'Your save was made in an older version and has been converted.', 'sys'
+        );
+        this.grantNewTools();
+        this.save();
+      }
     } catch (err) {
       console.warn('Save file was corrupt, starting fresh:', err);
     }
+  }
+
+  /**
+   * Bring a saved experience table up to the current version.
+   *
+   * The hard part is the curve change. A stored total is meaningless without
+   * the curve it was earned on -- 13,363 experience was level 30 under the old
+   * 99-cap table and would silently become something else under the new one.
+   * So the conversion goes through LEVELS, which are what the player actually
+   * earned, and re-derives the total from the current table.
+   */
+  private migrateXp(
+    saved: Record<string, number>, version: number
+  ): Record<string, number> {
+    if (version >= SAVE_VERSION) return saved;
+
+    const out: Record<string, number> = {};
+
+    for (const [oldId, value] of Object.entries(saved)) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) continue;
+
+      // Prayer has no successor skill; its experience is dropped.
+      const id = RENAMED_SKILLS[oldId] ?? oldId;
+      if (!SKILL_LIST.some((s) => s.id === id)) continue;
+
+      const level = Math.min(XP.legacyLevelFor(value), XP.MAX_LEVEL);
+      out[id] = XP.forLevel(level);
+    }
+
+    return out;
+  }
+
+  /**
+   * Hand a migrated character the tools its save predates, so that loading an
+   * old game is never worse than starting a new one.
+   *
+   * There is always room for them: a version-1 inventory held at most 28
+   * items and capacity is now 30, so migrateSlots() leaves two free slots at
+   * minimum. The ground-drop fallback covers hand-edited saves, not anything
+   * the game itself can produce.
+   */
+  private grantNewTools(): void {
+    const p = this.player;
+    const granted: string[] = [];
+
+    for (const id of V2_TOOLS) {
+      if (this.carries(id)) continue;
+
+      const name = getItem(id)?.name ?? id;
+
+      if (p.inventory.add(id, 1)) {
+        granted.push(name);
+      } else {
+        this.ground.drop(id, 1, p.x, p.y);
+        this.ui.message(
+          `Your pack is full, so your ${name.toLowerCase()} is at your feet.`, 'bad'
+        );
+      }
+    }
+
+    if (granted.length) {
+      this.ui.message(`You have been given: ${granted.join(' and ')}.`, 'good');
+      this.ui.dirty = true;
+    }
+  }
+
+  /**
+   * Fit a saved inventory to the current capacity. Without this, a save made
+   * when the inventory was smaller leaves trailing holes that read as
+   * `undefined` rather than `null` -- and `firstFree()` looks for `null`, so
+   * every one of those slots would be invisible and unusable.
+   */
+  private migrateSlots(saved: unknown): (ItemStack | null)[] {
+    const list = Array.isArray(saved) ? (saved as (ItemStack | null)[]) : [];
+    return Array.from(
+      { length: INVENTORY_CAPACITY },
+      (_, i) => list[i] ?? null
+    );
   }
 
   reset(): void {
