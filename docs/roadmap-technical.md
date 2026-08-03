@@ -293,9 +293,21 @@ blank screen that gets reported as "worked locally, broken on itch".
 everywhere. Verified by extracting the zip and diffing every file against
 `dist/`, then serving the extracted copy through the cross-origin harness.
 
-*The remaining items need a person: they need itch.io credentials, and browsers
-this environment does not have. The Safari and private-browsing passes are the
-ones that matter most, since they are where the storage tiers earn their keep.*
+**Ship order: Pages first, then itch.io.** `.github/workflows/pages.yml` builds
+and publishes to GitHub Pages on every push to `main`, or on demand from any
+branch via the Actions tab. That is not a second distribution channel — it is
+the testing venue. A real HTTPS origin is the only honest way to run the
+cross-browser and private-browsing passes, because `file://` gets stingy
+storage in Firefox and Safari and a local server is awkward to reach from a
+phone. Test there, then upload the same zip to itch.io.
+
+`dist/` stays gitignored and the site is built in CI, so the published game
+cannot drift from the source it claims to be.
+
+*The remaining items need a person: they need itch.io credentials, a GitHub
+setting only the owner can flip, and browsers this environment does not have.
+The Safari and private-browsing passes matter most, since they are where the
+storage tiers earn their keep.*
 
 ---
 
