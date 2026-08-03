@@ -129,6 +129,11 @@ export const npcs = {
     colour: '#3c5a63', accent: '#e0c9a6', size: 1.0
   }),
 
+  sella: npc('sella', 'Sella Quist', {
+    talkable: true, attackable: false, wanderRadius: 0,
+    colour: '#4a3f5a', accent: '#d8c9a0', size: 1.0
+  }),
+
   corbin: npc('corbin', 'Corbin Vayle', {
     talkable: true, attackable: false, wanderRadius: 0,
     colour: '#6b4a2f', accent: '#d8c08a', size: 1.05

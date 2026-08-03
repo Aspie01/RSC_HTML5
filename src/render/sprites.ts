@@ -458,6 +458,28 @@ export function rubble(ctx: CanvasRenderingContext2D, x: number, y: number): voi
   }
 }
 
+/** A low drift of sand. Flattens once picked over, so a spent bank reads as spent. */
+export function sandBank(
+  ctx: CanvasRenderingContext2D, x: number, y: number, spent: boolean
+): void {
+  const h = spent ? 3 : 7;
+  ctx.fillStyle = spent ? '#b3a071' : '#d8c48b';
+  ctx.strokeStyle = '#8b7a54';
+  ctx.lineWidth = 1;
+
+  ctx.beginPath();
+  ctx.ellipse(x, y - h * 0.4, 14, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  if (!spent) {
+    ctx.fillStyle = '#e6d4a2';
+    ctx.beginPath();
+    ctx.ellipse(x - 2, y - h * 0.9, 7, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 export const scenerySprites = { bush, fence, furnace, anvil, well, rubble } as const;
 
 // --------------------------------------------------------------------------
@@ -653,6 +675,24 @@ export function item(
       ctx.moveTo(-s * 0.28, s * 0.26);
       ctx.lineTo(-s * 0.3, s * 0.1);
       ctx.stroke();
+      break;
+
+    case 'vial':
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.12, -s * 0.3);
+      ctx.lineTo(-s * 0.12, -s * 0.12);
+      ctx.lineTo(-s * 0.2, s * 0.1);
+      ctx.lineTo(-s * 0.2, s * 0.28);
+      ctx.lineTo(s * 0.2, s * 0.28);
+      ctx.lineTo(s * 0.2, s * 0.1);
+      ctx.lineTo(s * 0.12, -s * 0.12);
+      ctx.lineTo(s * 0.12, -s * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // Stopper.
+      ctx.fillStyle = '#8a6a3a';
+      ctx.fillRect(-s * 0.15, -s * 0.36, s * 0.3, s * 0.09);
       break;
 
     case 'blade':

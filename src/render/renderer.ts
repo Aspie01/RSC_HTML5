@@ -315,6 +315,10 @@ export class Renderer {
             sprites.rock(ctx, s.x, s.y, def?.colour);
           }
 
+        } else if (e.obj.kind === 'sand_bank') {
+          // Drawn low and flat: a rise in the beach, not a thing standing on it.
+          sprites.sandBank(ctx, s.x, s.y, spent);
+
         } else if (e.obj.kind === 'fishing_spot') {
           // Ripples animate, and stop entirely once the shoal has moved on --
           // so a spent spot is readable from across the water.

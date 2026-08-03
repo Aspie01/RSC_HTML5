@@ -168,6 +168,22 @@ export const gatherables = {
     noTool: 'You need a fishing rod to fish here.',
     colour: '#6f97b5'
   },
+  // Sand off the shore. No tool and no level, because it is the first half of
+  // a chain the player meets before they have any Crafting at all -- the gate
+  // on glass is Firemaking, which is the other half.
+  sand: {
+    id: 'sand', name: 'Sand bank', skill: 'crafting',
+    level: 1, xp: 5, outputId: 'sand',
+    low: 120, high: 240,
+    depleteChance: 0.15, respawnTicks: 10,
+    cue: 'mine',
+    success: 'You scoop up some {item}.',
+    depleted: 'You have picked this bank over. Try another.',
+    full: 'Your inventory is too full to hold any more sand.',
+    noTool: '',
+    colour: '#c2ad78'
+  },
+
   bream: {
     id: 'bream', name: 'Deep water', skill: 'fishing',
     level: 10, xp: 40, outputId: 'raw_bream',
@@ -265,6 +281,12 @@ export interface BarDef {
   /** Item id of the bar produced. */
   readonly id: string;
   readonly name: string;
+  /**
+   * Which skill the furnace is being used for. A furnace is a hot box, not a
+   * smithy: glass is made in the same one, and saying so here is what stops
+   * the engine assuming everything poured out of it is Smithing.
+   */
+  readonly skill: SkillId;
   readonly level: number;
   readonly xp: number;
   readonly ingredients: readonly Ingredient[];
@@ -277,19 +299,33 @@ export interface BarDef {
 
 export const bars: readonly BarDef[] = [
   {
-    id: 'bronze_bar', name: 'Bronze bar',
+    id: 'bronze_bar', name: 'Bronze bar', skill: 'smithing',
     level: 1, xp: 6.2, successChance: 1,
     ingredients: [{ id: 'copper_ore', qty: 1 }, { id: 'tin_ore', qty: 1 }]
   },
   {
-    id: 'iron_bar', name: 'Iron bar',
+    id: 'iron_bar', name: 'Iron bar', skill: 'smithing',
     level: 10, xp: 12.5, successChance: 0.5,
     ingredients: [{ id: 'iron_ore', qty: 1 }]
   },
   {
-    id: 'steel_bar', name: 'Steel bar',
+    id: 'steel_bar', name: 'Steel bar', skill: 'smithing',
     level: 20, xp: 17.5, successChance: 1,
     ingredients: [{ id: 'iron_ore', qty: 1 }, { id: 'coal', qty: 2 }]
+  },
+
+  // Glass. Sand off the shore and ash out of a dead fire, which is why the
+  // quest that teaches this is gated on Firemaking: you cannot make glass
+  // without having burnt something first.
+  {
+    id: 'molten_glass', name: 'Molten glass', skill: 'crafting',
+    level: 1, xp: 12, successChance: 1,
+    ingredients: [{ id: 'sand', qty: 1 }, { id: 'ash', qty: 1 }]
+  },
+  {
+    id: 'glass_vial', name: 'Glass vial', skill: 'crafting',
+    level: 5, xp: 20, successChance: 1,
+    ingredients: [{ id: 'molten_glass', qty: 1 }]
   }
 ];
 
@@ -358,3 +394,4 @@ export const WOODCUTTING: SkillId = 'woodcutting';
 export const COOKING: SkillId = 'cooking';
 export const MINING: SkillId = 'mining';
 export const SMITHING: SkillId = 'smithing';
+export const CRAFTING: SkillId = 'crafting';

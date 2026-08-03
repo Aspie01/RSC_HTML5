@@ -181,6 +181,68 @@ export const quests: readonly QuestDef[] = [
     ]
   },
 
+  // Quest 11. Introduces Crafting, and does it through glass because glass is
+  // the one material that needs a skill the player already has: ash only comes
+  // from fires that have burnt out, which is why the gate is Firemaking rather
+  // than anything to do with Crafting itself. Nobody can make glass without
+  // having burnt something first.
+  {
+    id: 'glass_and_ash',
+    name: 'Glass and Ash',
+    requires: { skills: { firemaking: 20 } },
+    blocked: [
+      { who: 'npc', text: 'Come back when you have kept a fire going longer than an afternoon. I can tell by the hands.' }
+    ],
+    reward: {
+      points: 2,
+      xp: { crafting: 250, firemaking: 100 },
+      items: [{ id: 'coins', qty: 80 }],
+      unlock: 'Sand and ash make glass, and glass makes anything that has to hold something.'
+    },
+    stages: [
+      {
+        journal: 'Sella Quist works glass on the shore, and has run out of the makings.',
+        npc: 'sella',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Mind the bench, it is hotter than it looks and so is everything on it.' },
+          { who: 'npc', text: 'You want to know what glass is. Everyone does, and nobody believes it: sand, and ash, and enough heat to make them stop being either.' },
+          { who: 'player', text: 'That is all?' },
+          { who: 'npc', text: 'That is all. The sand is under your feet and the ash is whatever you burned last night. The difficulty was never the ingredients.' },
+          { who: 'npc', text: 'Bring me four sand and four ash. Scoop the sand off the banks along the shore; for the ash, burn something and come back once it has gone out.' }
+        ]
+      },
+      {
+        journal: 'Bring Sella Quist 4 sand and 4 ash. Ash is left behind when a fire burns out.',
+        npc: 'sella',
+        goal: { type: 'give', items: [{ id: 'sand', qty: 4 }, { id: 'ash', qty: 4 }] },
+        waiting: [
+          { who: 'npc', text: 'Sand from the banks, ash from a dead fire. A fire you are still standing over is no use to me -- let it finish.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Good. Now watch, because I will only be slow about it once.' },
+          { who: 'npc', text: 'Both into the furnace together. It comes out as a lump that is still deciding what it wants to be, and while it is deciding you can make it into anything.' },
+          { who: 'npc', text: 'Vials, mostly. Everything worth carrying in this world is a liquid and every liquid needs something to be carried in.' }
+        ]
+      },
+      {
+        journal: 'Melt sand and ash into molten glass at the furnace, then work it into a vial. Bring the vial to Sella.',
+        npc: 'sella',
+        goal: { type: 'give', items: [{ id: 'glass_vial', qty: 1 }] },
+        waiting: [
+          { who: 'npc', text: 'The furnace west of the crossroads. Sand and ash for the melt, then the melt again for the vial.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Hm. Thin at the shoulder and it will crack if you look at it in winter. But it holds, and it is yours, and the first one always is.' },
+          { who: 'npc', text: 'Keep at it. There is more than vials in glass, and I will show you when there is more than sand in this village.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Sand, ash, heat. Still the only three things I know.' }
+    ]
+  },
+
   // Quest 7. The reward is a place, not an item: the only coal in the world is
   // behind this, which is what stops the lower mine being an optional detour.
   // Gated on Mining 10 because the quest asks for iron, and a player who

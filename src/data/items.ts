@@ -174,6 +174,29 @@ export const items = {
     examine: 'Iron-tipped, and noticeably heavier.'
   }),
 
+  // ------------------------------------------------------------------------
+  // Crafting: glass
+  // ------------------------------------------------------------------------
+  sand: item('sand', 'Sand', { value: 2,
+    stackable: true, colour: '#c2ad78', shape: 'ore',
+    examine: 'Fine, pale, and everywhere along the shore.'
+  }),
+
+  ash: item('ash', 'Ash', { value: 3,
+    stackable: true, colour: '#54504a', shape: 'ore',
+    examine: 'What a fire leaves once it has finished with the wood.'
+  }),
+
+  molten_glass: item('molten_glass', 'Molten glass', { value: 18,
+    colour: '#9fd8d0', shape: 'blob',
+    examine: 'Still glowing. Best worked before it sets.'
+  }),
+
+  glass_vial: item('glass_vial', 'Glass vial', { value: 30,
+    colour: '#bfe6e0', shape: 'vial',
+    examine: 'Empty, stoppered, and worth more than the sand it came from.'
+  }),
+
   smiths_hammer: item('smiths_hammer', "Smith's hammer", {
     colour: '#b0782f', shape: 'hammer',
     examine: 'Heavier than it looks, and better balanced than it has any right to be.'

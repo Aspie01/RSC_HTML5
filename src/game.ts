@@ -244,7 +244,12 @@ export class Game implements World {
     this.player.inCombatTicks++;
     for (const npc of this.npcs) npc.inCombatTicks++;
     this.ground.tick();
-    this.objects.tick();
+    // A dead fire leaves ash, which is half of what glass is made from. This
+    // is Firemaking's outbound arrow into Crafting: burning logs stops being
+    // only a means to cook and becomes a source of a material.
+    for (const spot of this.objects.tick()) {
+      this.ground.drop('ash', 1, spot.x, spot.y);
+    }
     this.shops.tick();
     this.player.regenTick();
 
@@ -520,10 +525,11 @@ export class Game implements World {
 
     if (!this.approach(tx, ty)) return;
 
-    const level = p.skills.level('smithing');
+    const level = p.skills.level(bar.skill);
     if (level < bar.level) {
+      const skill = SKILL_LIST.find((s) => s.id === bar.skill)?.name ?? bar.skill;
       this.ui.message(
-        `You need a Smithing level of ${bar.level} to smelt a ${bar.name.toLowerCase()}.`,
+        `You need a ${skill} level of ${bar.level} to make a ${bar.name.toLowerCase()}.`,
         'bad'
       );
       p.clearAction();
@@ -552,7 +558,7 @@ export class Game implements World {
     } else {
       p.inventory.add(bar.id, 1);
       audio.play('smelt');
-      this.announceXp('smithing', bar.xp);
+      this.announceXp(bar.skill, bar.xp);
       this.ui.message(`You retrieve a ${bar.name.toLowerCase()} from the furnace.`);
     }
 
@@ -919,6 +925,11 @@ export class Game implements World {
       Object.values(inv.equipment).some((eq) => tagged(eq?.id));
   }
 
+  /** True if the player holds any part of this recipe. Used to filter menus. */
+  private hasAnyIngredient(bar: BarDef): boolean {
+    return bar.ingredients.some((i) => this.player.inventory.count(i.id) > 0);
+  }
+
   private hasIngredients(list: readonly { id: string; qty: number }[]): boolean {
     return list.every((i) => this.player.inventory.count(i.id) >= i.qty);
   }
@@ -968,16 +979,21 @@ export class Game implements World {
   private openSmeltMenu(at: Point, tx: number, ty: number): void {
     const p = this.player;
 
-    const opts = bars.map((bar: BarDef) => ({
-      verb: 'Smelt',
-      noun: `${bar.name} (${this.ingredientText(bar.ingredients)})`,
-      action: () => {
-        p.clearPath();
-        p.setAction({ type: 'smelt', x: tx, y: ty, barId: bar.id });
-      }
-    }));
+    // Only offer what the player has the makings of, plus everything they
+    // already know how to make. A furnace that lists glass to someone who has
+    // never seen sand is just a longer menu.
+    const opts = bars
+      .filter((bar) => bar.skill === 'smithing' || this.hasAnyIngredient(bar))
+      .map((bar: BarDef) => ({
+        verb: 'Make',
+        noun: `${bar.name} (${this.ingredientText(bar.ingredients)})`,
+        action: () => {
+          p.clearPath();
+          p.setAction({ type: 'smelt', x: tx, y: ty, barId: bar.id });
+        }
+      }));
 
-    this.ui.openMenu(at.x, at.y, 'Smelting', opts);
+    this.ui.openMenu(at.x, at.y, 'Furnace', opts);
   }
 
   /**

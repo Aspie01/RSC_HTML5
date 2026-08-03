@@ -23,7 +23,7 @@ export interface TerrainInfo {
 
 export type SceneryKind =
   | 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil' | 'fishing_spot'
-  | 'well' | 'rubble';
+  | 'well' | 'rubble' | 'sand_bank';
 
 export interface Scenery {
   readonly kind: SceneryKind;
@@ -230,7 +230,9 @@ const QUEST_GIVERS: ReadonlyArray<{ npcId: string; x: number; y: number }> = [
   { npcId: 'iselle', x: 44, y: 23 },
   // On the crossroads verge, beside the path but never on it -- see the note
   // above about stationary NPCs and chokepoints.
-  { npcId: 'corbin', x: 27, y: 25 }
+  { npcId: 'corbin', x: 27, y: 25 },
+  // On the sand, between the banks and the furnace road.
+  { npcId: 'sella', x: 42, y: 21 }
 ];
 
 function spawnCluster(
@@ -312,6 +314,12 @@ export function generateMap(): GameMap {
     map.setScenery(spot.x, spot.y, {
       kind: 'fishing_spot', blocks: false, resource: spot.spot
     });
+  }
+
+  // Sand banks along the shore, either side of the pier. Non-blocking, because
+  // they are a feature of the beach rather than an object standing on it.
+  for (const y of [19, 20, 21, 28, 29, 30]) {
+    map.setScenery(43, y, { kind: 'sand_bank', blocks: false, resource: 'sand' });
   }
 
   // Scatter trees and rocks on open grass, keeping the paths clear.

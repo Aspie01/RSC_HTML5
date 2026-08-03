@@ -34,7 +34,7 @@ export type ItemShape =
   | 'meat' | 'blade' | 'shield' | 'plate'
   | 'log' | 'axe' | 'tinderbox'
   | 'ore' | 'bar' | 'pickaxe' | 'hammer' | 'helm' | 'legs' | 'fish'
-  | 'bow' | 'arrow';
+  | 'bow' | 'arrow' | 'vial';
 
 export interface Bonuses {
   attack: number;
