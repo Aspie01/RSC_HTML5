@@ -36,7 +36,16 @@ export type QuestGoal =
   | { readonly type: 'talk' }
   | { readonly type: 'give'; readonly items: readonly QuestItem[] }
   /** Light a fire on or beside this stage's NPC. */
-  | { readonly type: 'fire-near' };
+  | { readonly type: 'fire-near' }
+  /**
+   * Go and look at a specific thing in the world.
+   *
+   * Unlike the others, this stage does not end at an NPC -- it ends where the
+   * thing is, and the `done` lines are the player thinking rather than someone
+   * talking. That is what makes an investigation feel like one: the discovery
+   * happens at the well, not in a report afterwards.
+   */
+  | { readonly type: 'inspect'; readonly x: number; readonly y: number };
 
 export interface QuestStage {
   /** Shown in the quest journal while this stage is the active one. */
@@ -169,6 +178,88 @@ export const quests: readonly QuestDef[] = [
     ],
     afterwards: [
       { who: 'npc', text: 'Mind the edge on that axe. I never did get round to blunting it.' }
+    ]
+  },
+
+  // Quest 5. The first thread of the flood, and the first quest that is not
+  // about acquiring anything: the reward is knowing something is wrong.
+  //
+  // Nothing here explains itself. A well uphill of the river has gone salt,
+  // the water at the pier is dropping, and the one explanation anyone offers
+  // does not survive being looked at. Deliberately no payoff -- the register
+  // of the whole flood thread is still open, and every line below reads the
+  // same whichever way it is eventually settled.
+  {
+    id: 'salt_in_the_well',
+    name: 'Salt in the Well',
+    requires: { quests: ['cold_hearth'] },
+    blocked: [
+      { who: 'npc', text: 'Get my hearth lit first. I cannot think about anything else while I am cold.' }
+    ],
+    reward: {
+      points: 2,
+      xp: { fishing: 80 },
+      items: [{ id: 'coins', qty: 40 }],
+      unlock: 'Nobody upriver is answering. Maren thinks that is the interesting part.'
+    },
+    stages: [
+      {
+        journal: 'Maren Ashfall says the village well has turned. She wants someone to look.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Sit down a moment. You have been up and down this road all week and I want to ask you something that is going to sound foolish.' },
+          { who: 'npc', text: 'The well has gone salt. Not brackish -- salt, like the sea, and we are nowhere near the sea.' },
+          { who: 'player', text: 'Could something have got into it?' },
+          { who: 'npc', text: 'That is what Halder said. A dead thing down the shaft, he said, and told everyone to stop drawing from it and go to the river instead.' },
+          { who: 'npc', text: 'Only the well sits above the river. Whatever is in the water should be going down to it, not up from it.' },
+          { who: 'npc', text: 'Go and look for yourself. I would rather be told I am imagining it than keep thinking about it alone.' }
+        ]
+      },
+      {
+        journal: 'Look into the village well, south-west of the crossroads.',
+        npc: 'maren',
+        goal: { type: 'inspect', x: 21, y: 27 },
+        waiting: [
+          { who: 'npc', text: 'South-west of the crossroads, past the rats. You will smell it before you reach it.' }
+        ],
+        // Spoken by the player, at the well. Everything is observation; none
+        // of it is conclusion.
+        done: [
+          { who: 'player', text: 'The stones around the rim are furred white. It comes away on a finger and it is salt, not lime.' },
+          { who: 'player', text: 'The water is a long way down. Further than a well this old should have to reach.' },
+          { who: 'player', text: 'There is no dead thing down there. There is no smell of one at all -- only cold, and salt, and something faintly like weed.' },
+          { who: 'player', text: 'Halder told them to drink from the river instead. He must have looked down here to say that. So he knows there is nothing in it.' }
+        ]
+      },
+      {
+        journal: 'Ask Iselle Marrow at the pier whether the lake has done anything strange.',
+        npc: 'iselle',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'player', text: 'The village well has gone salt. You said the water here keeps dropping.' },
+          { who: 'npc', text: 'Third time this season. I have been keeping a mark on the third post, which everybody finds very funny.' },
+          { who: 'npc', text: 'It is not funny. It goes down, it comes back a little short, and it goes down again. Whatever is doing it is patient.' },
+          { who: 'player', text: 'And salt in a well above the river?' },
+          { who: 'npc', text: '...Then it is not the river doing it. Go and tell Maren that, and tell her I said she was right to ask.' }
+        ]
+      },
+      {
+        journal: 'Tell Maren Ashfall what you found.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'player', text: 'There is nothing down the well. The rim is crusted with salt and the water has dropped, and Iselle says the lake has been doing the same all season.' },
+          { who: 'npc', text: 'Then Halder was not wrong by accident. You do not send a village to the river without looking down the well first.' },
+          { who: 'player', text: 'So why say it?' },
+          { who: 'npc', text: 'Because the true answer would have frightened them, or because it would have frightened him. I have known him forty years and I could not tell you which.' },
+          { who: 'npc', text: 'He went upriver the day after. Nobody has had word since, and nobody seems to think that is worth remarking on but me.' },
+          { who: 'npc', text: 'Take this and keep it to yourself for now. If the water drops again I will want someone who already knows why I am asking.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Still no word from upriver. Still salt on the stones.' }
     ]
   },
 

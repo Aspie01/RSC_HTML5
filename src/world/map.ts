@@ -22,7 +22,8 @@ export interface TerrainInfo {
 }
 
 export type SceneryKind =
-  | 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil' | 'fishing_spot';
+  | 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil' | 'fishing_spot'
+  | 'well';
 
 export interface Scenery {
   readonly kind: SceneryKind;
@@ -323,6 +324,15 @@ export function generateMap(): GameMap {
   // sees, so one of each type.
   map.setScenery(21, 21, { kind: 'tree', blocks: true, variant: 0, resource: 'tree' });
   map.setScenery(26, 26, { kind: 'tree', blocks: true, variant: 1, resource: 'oak' });
+
+  // The village well. Placed after the scatter pass, and its surroundings
+  // cleared, because a tree dropped against it would leave the one thing a
+  // quest sends you to look at awkward to walk up to.
+  for (let y = 26; y <= 28; y++) {
+    for (let x = 20; x <= 22; x++) map.scenery[map.idx(x, y)] = null;
+  }
+  map.setTerrain(21, 27, Terrain.Stone);
+  map.setScenery(21, 27, { kind: 'well', blocks: true });
 
   // Persistent spawn points: each becomes one NPC that respawns at this exact
   // tile after its timer, exactly like RuneScape.

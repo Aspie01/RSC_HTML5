@@ -202,6 +202,8 @@ export type PlayerAction =
   | { type: 'gather'; x: number; y: number }
   /** Cook raw food on the fire at this tile, one item per successful tick. */
   | { type: 'cook'; x: number; y: number }
+  /** Walk to a thing and look at it closely. Advances `inspect` quest stages. */
+  | { type: 'inspect'; x: number; y: number }
   /**
    * Walk to a furnace or an anvil and open its interface on arrival. The
    * interface is what turns this into a `smelt` or `smith` action -- clicking

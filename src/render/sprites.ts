@@ -400,7 +400,46 @@ export function fishingSpot(
   ctx.restore();
 }
 
-export const scenerySprites = { bush, fence, furnace, anvil } as const;
+/** A low stone ring with a roof on two posts. */
+export function well(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  shadow(ctx, x, y, 15, 7);
+
+  // Stone ring.
+  ctx.fillStyle = '#7d7776';
+  ctx.strokeStyle = '#4a4640';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.ellipse(x, y - 4, 13, 6.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // The dark of the shaft, which is the whole point of the object.
+  ctx.fillStyle = '#14100c';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 5, 9, 4.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Posts and roof.
+  ctx.strokeStyle = '#5a4028';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(x - 10, y - 7); ctx.lineTo(x - 10, y - 24);
+  ctx.moveTo(x + 10, y - 7); ctx.lineTo(x + 10, y - 24);
+  ctx.stroke();
+
+  ctx.fillStyle = '#6b4a24';
+  ctx.strokeStyle = '#3d2a14';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x - 14, y - 23);
+  ctx.lineTo(x, y - 32);
+  ctx.lineTo(x + 14, y - 23);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+}
+
+export const scenerySprites = { bush, fence, furnace, anvil, well } as const;
 
 // --------------------------------------------------------------------------
 // Creatures

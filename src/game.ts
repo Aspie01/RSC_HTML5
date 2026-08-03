@@ -36,7 +36,7 @@ import { Shops } from './systems/shop';
 import type { TradeResult } from './systems/shop';
 import { shopForNpc } from './data/shops';
 import type { ShopDef } from './data/shops';
-import { getQuest, questsForNpc } from './data/quests';
+import { getQuest, questsForNpc, quests } from './data/quests';
 import type { QuestDef, QuestItem, QuestStage } from './data/quests';
 import { Dialogue } from './ui/dialogue';
 import { INVENTORY_CAPACITY } from './systems/inventory';
@@ -56,6 +56,11 @@ const AUTOSAVE_TICKS = 50; // every 30 seconds
  * The right-click verb for each gathering skill. Data rather than a `switch`,
  * so adding Foraging is a row here and a row in `resources.ts`.
  */
+/** What looking closely at a piece of scenery tells you, absent a quest. */
+const INSPECT_TEXT: Readonly<Record<string, string>> = {
+  well: 'The village well. The water is a long way down, and further than it used to be.'
+};
+
 const GATHER_VERBS: Readonly<Partial<Record<SkillId, string>>> = {
   woodcutting: 'Chop down',
   mining: 'Mine',
@@ -293,6 +298,9 @@ export class Game implements World {
     } else if (action.type === 'cook') {
       this.resolveCook(action.x, action.y);
 
+    } else if (action.type === 'inspect') {
+      this.resolveInspect(action.x, action.y);
+
     } else if (action.type === 'use-station') {
       this.resolveStation(action.x, action.y, action.station);
 
@@ -444,6 +452,38 @@ export class Game implements World {
     }
 
     this.ui.dirty = true;
+  }
+
+  /**
+   * Look closely at something, and let any quest waiting on it move.
+   *
+   * The discovery happens here rather than in a report to an NPC afterwards,
+   * which is what separates investigating from fetching. The lines are the
+   * player's own, so the dialogue opens with no speaker.
+   */
+  private resolveInspect(tx: number, ty: number): void {
+    const p = this.player;
+
+    const scenery = this.map.sceneryAt(tx, ty);
+    if (!scenery) { p.clearAction(); return; }
+    if (!this.approach(tx, ty)) return;
+
+    p.clearAction();
+    if (this.dialogue.isOpen()) return;
+
+    for (const def of quests) {
+      const stage = this.quests.activeStage(def);
+      if (stage?.goal.type !== 'inspect') continue;
+      if (stage.goal.x !== tx || stage.goal.y !== ty) continue;
+
+      this.dialogue.open('', stage.done, () => {
+        this.quests.advance(def);
+        this.onStageAdvanced(def, stage);
+      });
+      return;
+    }
+
+    this.ui.message(INSPECT_TEXT[scenery.kind] ?? 'You see nothing unusual.');
   }
 
   /** Walk to a furnace or anvil, then hand over to its interface. */
@@ -735,6 +775,9 @@ export class Game implements World {
     if (goal.type === 'give') {
       return goal.items.every((i) => this.player.inventory.count(i.id) >= i.qty);
     }
+    // An inspect stage never ends at an NPC, so talking to one can only ever
+    // produce the nudge. It is the looking that advances it.
+    if (goal.type === 'inspect') return false;
     return this.objects.fireNear(npc.x, npc.y) !== null;
   }
 
@@ -1268,6 +1311,13 @@ export class Game implements World {
     if (scenery?.resource && !spent) {
       p.clearPath();
       p.setAction({ type: 'gather', x: tile.x, y: tile.y });
+      this.renderer.setClickMarker(tile.x, tile.y, 'move');
+      return;
+    }
+
+    if (scenery?.kind === 'well') {
+      p.clearPath();
+      p.setAction({ type: 'inspect', x: tile.x, y: tile.y });
       this.renderer.setClickMarker(tile.x, tile.y, 'move');
       return;
     }
