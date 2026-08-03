@@ -1,0 +1,65 @@
+# Build the game and publish it to GitHub Pages.
+#
+# Pages is the testing venue before an itch.io upload, not a replacement for
+# it. What it buys is a real HTTPS origin: `file://` gets stingy storage in
+# Firefox and Safari, and a local server is awkward to reach from a phone or
+# another machine. The cross-browser and private-browsing passes are far easier
+# against a URL.
+#
+# `dist/` is gitignored on purpose, so the deployed site is built here rather
+# than committed. That is the point of doing it this way -- there is no way for
+# the published game to drift from the source it claims to be.
+
+name: Deploy to Pages
+
+on:
+  push:
+    branches: [main]
+  # Lets you publish from any branch without merging first: pick the ref in the
+  # Actions tab. Useful while the work is still on a feature branch.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race. Queue rather than cancel, so a run that is
+# already publishing is allowed to finish writing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Runs tsc --noEmit first, then vite build, then the inline step. With no
+      # test suite yet, the typecheck is the only gate -- so a red build here
+      # means a broken deploy was stopped, and it is worth looking at.
+      - run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

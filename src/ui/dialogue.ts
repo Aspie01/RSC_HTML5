@@ -98,4 +98,19 @@ export class Dialogue {
 
     done?.();
   }
+
+  /**
+   * Drop the conversation on the floor without running its callback.
+   *
+   * The opposite of finish(): used when the character being spoken to is no
+   * longer the character who will receive the outcome, as after importing a
+   * save. Firing onFinish there would advance a quest on someone who never
+   * held the conversation.
+   */
+  abandon(): void {
+    this.lines = [];
+    this.index = 0;
+    this.onFinish = null;
+    this.box.style.display = 'none';
+  }
 }

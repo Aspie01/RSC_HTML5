@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Untitled RuneScape-like</title>
+<title>Thalren Vale</title>
+<!-- Inlined rather than a file: one less request, and nothing to go missing
+     when the build is served from an itch.io subpath. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23241e16'/%3E%3Cpath d='M8 2 L13 5 v6 L8 14 L3 11 V5 Z' fill='%23f2d33c'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
@@ -12,7 +15,14 @@
 
   <!-- World view + chat -->
   <div id="stage">
-    <canvas id="game"></canvas>
+    <canvas id="game" tabindex="0"></canvas>
+
+    <!-- Start gate. Also the user gesture that lets audio exist at all. -->
+    <div id="start-overlay" tabindex="0" role="button">
+      <div id="start-title">Thalren Vale</div>
+      <div id="start-hint">Click to play</div>
+      <div id="start-note">Sound on. Use the toggle in the panel header to silence it.</div>
+    </div>
 
     <!-- Conversation overlay. Sits above the world, hidden until someone speaks. -->
     <div id="dialogue">
@@ -51,6 +61,8 @@
 
     <div id="panel-head">
       <span id="panel-title">Inventory</span>
+      <button id="btn-mute" title="Turn sound off">sound on</button>
+      <button id="btn-save" title="Export or import a save code">save</button>
       <button id="btn-reset" title="Delete save and restart">reset</button>
     </div>
 
@@ -60,6 +72,22 @@
 </div>
 
 <div id="context-menu"></div>
+
+<!-- Manual save export/import. The way out when browser storage is blocked. -->
+<div id="save-modal">
+  <div id="save-panel">
+    <div id="save-head">
+      <span>Save code</span>
+      <button id="btn-save-close" title="Close">x</button>
+    </div>
+    <textarea id="save-code" spellcheck="false" autocomplete="off"></textarea>
+    <div id="save-status"></div>
+    <div id="save-actions">
+      <button id="btn-save-copy">Copy</button>
+      <button id="btn-save-load">Load this code</button>
+    </div>
+  </div>
+</div>
 
 <script type="module" src="/src/main.ts"></script>
 

@@ -42,18 +42,26 @@ import * as combat from './systems/combat';
 import * as iso from './world/iso';
 import { lerp, tileDist } from './core/util';
 import { loop } from './core/loop';
+import { audio } from './audio/audio';
+import type { SaveStore } from './persist/storage';
+import { SAVE_VERSION, type SaveData, encodeSaveCode, decodeSaveCode, parseSave } from './persist/save';
 
-const SAVE_KEY = 'rs_html5_save_v1';
 const AUTOSAVE_TICKS = 50; // every 30 seconds
 
+/** Keys whose default action scrolls the page the game is embedded in. */
+const SCROLL_KEYS: ReadonlySet<string> = new Set([
+  'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  'PageUp', 'PageDown', 'Home', 'End'
+]);
+
 /**
- * Bump when the save format changes in a way old data cannot survive
- * unaltered, and add a step to migrate(). Never silently discard progress.
- *
- * 1 -> 2: skills renamed (hitpoints -> vitality, ranged -> archery), Prayer
- *         removed, and the experience curve recapped from 99 to 50.
+ * True when the key is going into a text field, where those same keys mean
+ * caret movement. Only the save-code textarea qualifies today, but suppressing
+ * Home and End inside it would be maddening.
  */
-const SAVE_VERSION = 2;
+function isTyping(target: EventTarget | null): boolean {
+  return target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement;
+}
 
 /** Skills that changed id in version 2. */
 const RENAMED_SKILLS: Readonly<Record<string, SkillId>> = {
@@ -76,19 +84,6 @@ const V2_TOOLS: readonly string[] = ['bronze_pickaxe', 'hammer'];
 const SMELT_TICKS = 3;
 const SMITH_TICKS = 3;
 
-interface SaveData {
-  v: number;
-  x: number;
-  y: number;
-  hp: number;
-  xp: Record<string, number>;
-  style: string;
-  running: boolean;
-  slots: unknown;
-  equipment: unknown;
-  quests?: unknown;
-}
-
 export class Game implements World {
   readonly map: GameMap = generateMap();
   readonly ground = new GroundItems();
@@ -100,9 +95,21 @@ export class Game implements World {
   private readonly renderer: Renderer;
   private readonly ui: UI;
   private readonly dialogue = new Dialogue();
+  private readonly store: SaveStore;
   private autosaveCounter = 0;
 
-  constructor(canvas: HTMLCanvasElement, minimap: HTMLCanvasElement) {
+  /**
+   * The save arrives already read, rather than being fetched here.
+   *
+   * IndexedDB is asynchronous and a constructor cannot await, so the read has
+   * to happen before the game exists. Doing it any other way means the world
+   * boots at starting position and the player's real state lands on top of it
+   * some frames later -- visible as a teleport, and a race with any input in
+   * between.
+   */
+  constructor(canvas: HTMLCanvasElement, minimap: HTMLCanvasElement,
+              store: SaveStore, saved: string | null) {
+    this.store = store;
     // Start on the crossroads at the centre of the map.
     this.player = new Player(24, 24);
     this.player.inventory.add('bronze_scimitar', 1);
@@ -120,11 +127,20 @@ export class Game implements World {
     this.renderer = new Renderer(canvas, minimap);
     this.ui = new UI(this);
 
-    this.load();
+    if (saved !== null) this.load(saved);
     this.player.attackSpeed = this.player.inventory.attackSpeed();
 
     this.bindInput(canvas);
     this.greet();
+
+    if (store.kind === 'memory') {
+      this.ui.message(
+        'This browser is blocking storage, so progress will NOT be saved.', 'bad'
+      );
+      this.ui.message(
+        'Use the save button to copy a save code before you close the tab.', 'bad'
+      );
+    }
   }
 
   private greet(): void {
@@ -348,6 +364,7 @@ export class Game implements World {
     }
 
     p.inventory.add(def.logId, 1);
+    audio.play('chop');
     this.announceXp('woodcutting', def.xp);
     this.ui.message(`You get some ${getItem(def.logId)?.name.toLowerCase() ?? 'logs'}.`);
     this.ui.dirty = true;
@@ -400,6 +417,7 @@ export class Game implements World {
       this.ui.message('You accidentally burn the food.', 'bad');
     } else {
       p.inventory.add(recipe.cookedId, 1);
+      audio.play('cook');
       this.announceXp('cooking', recipe.xp);
       this.ui.message(`You cook the ${getItem(recipe.rawId)?.name.toLowerCase() ?? 'food'}.`);
     }
@@ -458,6 +476,7 @@ export class Game implements World {
     }
 
     p.inventory.add(def.oreId, 1);
+    audio.play('mine');
     this.announceXp('mining', def.xp);
     this.ui.message(`You manage to mine some ${getItem(def.oreId)?.name.toLowerCase() ?? 'ore'}.`);
     this.ui.dirty = true;
@@ -528,6 +547,7 @@ export class Game implements World {
       );
     } else {
       p.inventory.add(bar.id, 1);
+      audio.play('smelt');
       this.announceXp('smithing', bar.xp);
       this.ui.message(`You retrieve a ${bar.name.toLowerCase()} from the furnace.`);
     }
@@ -576,6 +596,7 @@ export class Game implements World {
 
     this.consume(def.barId, def.bars);
     p.inventory.add(def.id, 1);
+    audio.play('smith');
     this.announceXp('smithing', SMITH_XP_PER_BAR * def.bars);
     this.ui.message(`You hammer the metal into a ${product.name.toLowerCase()}.`);
     this.ui.dirty = true;
@@ -740,6 +761,7 @@ export class Game implements World {
     for (const item of reward.items ?? []) this.giveQuestItem(item);
 
     this.ui.message(reward.unlock, 'good');
+    audio.play('quest');
     this.ui.dirty = true;
   }
 
@@ -900,6 +922,7 @@ export class Game implements World {
   /** Award experience and announce any level-ups in the chat log. */
   private announceXp(skill: SkillId, amount: number): void {
     if (this.player.skills.addXp(skill, amount) > 0) {
+      audio.play('levelup');
       this.ui.message(
         `Congratulations, you just advanced a ${skill} level! ` +
         `You are now level ${this.player.skills.level(skill)}.`,
@@ -940,6 +963,7 @@ export class Game implements World {
     p.clearPath();
     p.inventory.removeSlot(index, 1);
     this.objects.addFire(p.x, p.y, burnable.burnTicks);
+    audio.play('fire');
     this.announceXp('firemaking', burnable.xp);
     this.ui.message('The fire catches and the logs begin to burn.', 'good');
     this.ui.dirty = true;
@@ -964,6 +988,10 @@ export class Game implements World {
     const result = combat.resolve(mob, target);
     target.addHitsplat(result.damage);
     target.damage(result.damage);
+
+    // Two cues, because who is being hit is the thing a player needs to hear
+    // without looking. A miss is a zero-damage hit and stays silent.
+    if (result.damage > 0) audio.play(target instanceof Player ? 'hurt' : 'hit');
 
     if (mob instanceof Player) {
       const levelUps = combat.awardXp(mob, result.damage);
@@ -1009,6 +1037,8 @@ export class Game implements World {
 
   private handlePlayerDeath(): void {
     const p = this.player;
+    audio.play('die');
+    audio.play('die');
     this.ui.message('Oh dear, you are dead!', 'bad');
 
     // Drop everything except equipment -- a light version of RuneScape's death
@@ -1041,6 +1071,7 @@ export class Game implements World {
     }
 
     this.ground.remove(item);
+    audio.play('pickup');
     const prefix = def.stackable && item.qty > 1 ? `${item.qty} x ` : '';
     this.ui.message(`You pick up ${prefix}${def.name}.`);
     this.ui.dirty = true;
@@ -1105,6 +1136,7 @@ export class Game implements World {
 
     this.player.inventory.removeSlot(index, 1);
     this.player.heal(def.heals);
+    audio.play('eat');
     this.ui.message(`You eat the ${def.name}. It heals some health.`);
     this.ui.dirty = true;
   }
@@ -1114,6 +1146,7 @@ export class Game implements World {
     if (!taken) return;
 
     this.ground.drop(taken.id, taken.qty, this.player.x, this.player.y);
+    audio.play('drop');
     this.ui.message(`You drop the ${getItem(taken.id)?.name ?? taken.id}.`);
     this.ui.dirty = true;
   }
@@ -1149,10 +1182,16 @@ export class Game implements World {
     });
 
     window.addEventListener('keydown', (e) => {
+      // Swallow anything that scrolls the host page. On itch.io the game runs
+      // in an iframe partway down a listing, so an arrow key or Page Down
+      // scrolls the shop out from under it -- the game appears to vanish
+      // mid-fight. Done before the dialogue check because it holds whether or
+      // not the key means anything to the game.
+      if (SCROLL_KEYS.has(e.code) && !isTyping(e.target)) e.preventDefault();
+
       if (this.dialogue.isOpen()) return;
 
       if (e.code === 'Space') {
-        e.preventDefault();
         this.player.running = !this.player.running;
         this.ui.message(`Run mode ${this.player.running ? 'enabled' : 'disabled'}.`);
       } else if (e.key >= '1' && e.key <= '5') {
@@ -1415,41 +1454,55 @@ export class Game implements World {
   // ----------------------------------------------------------------------
   // Persistence
   // ----------------------------------------------------------------------
-  save(): void {
-    try {
-      const p = this.player;
-      const data: SaveData = {
-        v: SAVE_VERSION,
-        x: p.x, y: p.y,
-        hp: p.hp,
-        xp: p.skills.xp,
-        style: p.attackStyle,
-        running: p.running,
-        slots: p.inventory.slots,
-        equipment: p.inventory.equipment,
-        quests: this.quests.stages
-      };
-      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-    } catch (err) {
-      // Private browsing or a full quota; not worth interrupting play over.
-      console.warn('Save failed:', err);
-    }
+  /** Serialise the live state. Shared by autosave and by manual export. */
+  private serialise(): string {
+    const p = this.player;
+    const data: SaveData = {
+      v: SAVE_VERSION,
+      x: p.x, y: p.y,
+      hp: p.hp,
+      xp: p.skills.xp,
+      style: p.attackStyle,
+      running: p.running,
+      slots: p.inventory.slots,
+      equipment: p.inventory.equipment,
+      quests: this.quests.stages
+    };
+    return JSON.stringify(data);
   }
 
-  load(): void {
-    let raw: string | null;
+  /**
+   * Write the current state out.
+   *
+   * Deliberately not async, and deliberately not awaited: this is called from
+   * the tick loop, which is synchronous and must stay that way. The snapshot
+   * is taken synchronously so it cannot tear against a later tick, and only
+   * the write itself is left to settle on its own.
+   */
+  save(): void {
+    let raw: string;
     try {
-      raw = localStorage.getItem(SAVE_KEY);
-    } catch {
+      raw = this.serialise();
+    } catch (err) {
+      console.warn('Save failed:', err);
       return;
     }
-    if (!raw) return;
 
+    void this.store.write(raw).catch((err: unknown) => {
+      // Private browsing, a revoked permission, or a full quota. Not worth
+      // interrupting play over -- the export button remains the way out.
+      console.warn('Save failed:', err);
+    });
+  }
+
+  load(raw: string): void {
     try {
-      const data = JSON.parse(raw) as Partial<SaveData>;
+      const data = parseSave(raw);
+      if (!data) throw new Error('not a save');
+
       const p = this.player;
 
-      const xp = this.migrateXp(data.xp ?? {}, data.v ?? 1);
+      const xp = this.migrateXp(data.xp ?? {}, data.v);
 
       // Merge rather than replace. A save written before a skill existed has
       // no key for it, and assigning the object wholesale would leave that
@@ -1481,7 +1534,7 @@ export class Game implements World {
 
       this.ui.message('Welcome back. Your progress was restored.', 'sys');
 
-      if ((data.v ?? 1) < SAVE_VERSION) {
+      if (data.v < SAVE_VERSION) {
         this.ui.message(
           'Your save was made in an older version and has been converted.', 'sys'
         );
@@ -1571,9 +1624,81 @@ export class Game implements World {
     );
   }
 
-  reset(): void {
-    try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
+  async reset(): Promise<void> {
+    await this.store.clear();
     location.reload();
+  }
+
+  // ----------------------------------------------------------------------
+  // Manual export / import
+  // ----------------------------------------------------------------------
+
+  /**
+   * A save code the player can copy somewhere safe.
+   *
+   * This is the escape hatch for every storage failure at once: blocked
+   * cookies, private browsing, an itch.io iframe that partitions the origin,
+   * or simply moving to another machine. It reads live state rather than
+   * whatever is on disk, so a code is never staler than the moment it was
+   * asked for.
+   */
+  exportSave(): string {
+    return encodeSaveCode(this.serialise());
+  }
+
+  /**
+   * Take a pasted save code, replacing the current character with it.
+   *
+   * Committed to storage before the reload rather than applied in place:
+   * loading a save over a running world would have to unwind every piece of
+   * live state -- current action, path, combat target, open dialogue -- and
+   * booting from scratch is the same code path a returning player already
+   * takes, so it is the one that stays tested.
+   *
+   * Throws with a player-readable message if the code is not usable.
+   */
+  async importSave(code: string): Promise<void> {
+    const raw = decodeSaveCode(code);
+    await this.store.write(raw);
+
+    // On the memory tier that write does not outlive the page, so reloading
+    // would boot from an empty store and throw the import away -- silently
+    // failing in exactly the situation import exists to rescue. Those players
+    // get the in-place path instead.
+    if (this.store.kind === 'memory') {
+      this.applyInPlace(raw);
+      return;
+    }
+
+    location.reload();
+  }
+
+  /**
+   * Swap the running character for a saved one without a page reload.
+   *
+   * Only used when storage cannot survive a refresh. Everything cleared here
+   * refers to the character being replaced: an action mid-swing, a path to
+   * somewhere the new character never was, and anything already fighting the
+   * old one. This mirrors respawn()'s reset for the same reason.
+   */
+  private applyInPlace(raw: string): void {
+    const p = this.player;
+
+    p.clearPath();
+    p.clearAction();
+    p.attackCooldown = 0;
+    p.hitsplats.length = 0;
+    for (const npc of this.npcs) {
+      if (npc.target === p) npc.target = null;
+    }
+    this.dialogue.abandon();
+
+    this.load(raw);
+
+    p.maxHp = p.skills.level('vitality');
+    p.hp = Math.min(p.hp, p.maxHp);
+    p.attackSpeed = p.inventory.attackSpeed();
+    this.ui.dirty = true;
   }
 
   // ----------------------------------------------------------------------
