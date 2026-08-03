@@ -129,6 +129,23 @@ export const npcs = {
     colour: '#3c5a63', accent: '#e0c9a6', size: 1.0
   }),
 
+  // Not aggressive, deliberately. The grove is a Woodcutting reward gated on
+  // Woodcutting, so what lives there must be a choice rather than a toll --
+  // the same correction the goblins in the Cut needed.
+  boar: npc('boar', 'Thornback boar', {
+    level: 9, hitpoints: 22,
+    attack: 8, strength: 9, defence: 7,
+    attackBonus: 4, strengthBonus: 6, defenceBonus: 5,
+    speed: 5, wanderRadius: 3,
+    colour: '#4a3b2c', accent: '#2a2119', size: 1.15,
+    drops: [
+      { id: 'bones', qty: 1, weight: 100 },
+      { id: 'cowhide', qty: 1, weight: 45 },
+      { id: 'coins', qty: [8, 40], weight: 40 },
+      { id: null, weight: 30 }
+    ]
+  }),
+
   hesk: npc('hesk', 'Hesk Ardley', {
     talkable: true, attackable: false, wanderRadius: 0,
     colour: '#5a4630', accent: '#cbb489', size: 1.08

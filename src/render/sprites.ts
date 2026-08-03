@@ -480,7 +480,39 @@ export function sandBank(
   }
 }
 
-export const scenerySprites = { bush, fence, furnace, anvil, well, rubble } as const;
+/** Dense, thorny undergrowth. Taller and darker than a bush, and impassable. */
+export function thicket(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  shadow(ctx, x, y, 15, 7);
+
+  const clumps: ReadonlyArray<readonly [number, number, number, string]> = [
+    [-8, -6, 9, '#243b1e'], [8, -6, 9, '#243b1e'],
+    [0, -13, 11, '#2f4a26'], [-4, -3, 8, '#1d3018'], [5, -3, 8, '#1d3018']
+  ];
+
+  ctx.strokeStyle = '#14210f';
+  ctx.lineWidth = 1.5;
+  for (const [dx, dy, r, fill] of clumps) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.ellipse(x + dx, y + dy, r, r * 0.85, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // A few thorns, so it reads as hostile rather than merely leafy.
+  ctx.strokeStyle = '#5c6b3a';
+  ctx.lineWidth = 1;
+  for (const [dx, dy] of [[-10, -14], [-2, -20], [7, -15], [12, -8]] as const) {
+    ctx.beginPath();
+    ctx.moveTo(x + dx, y + dy);
+    ctx.lineTo(x + dx + 3, y + dy - 4);
+    ctx.stroke();
+  }
+}
+
+export const scenerySprites = {
+  bush, fence, furnace, anvil, well, rubble, thicket
+} as const;
 
 // --------------------------------------------------------------------------
 // Creatures

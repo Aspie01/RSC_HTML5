@@ -14,7 +14,7 @@ import type {
   EquipSlot, ItemStack, PlayerAction, Point, SkillId, StationKind, World
 } from './types';
 import type { GroundItem } from './systems/ground';
-import { GameMap, generateMap, CUT_ENTRANCE } from './world/map';
+import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE } from './world/map';
 import { GroundItems } from './systems/ground';
 import { WorldObjects } from './systems/objects';
 import { Player } from './entities/player';
@@ -822,6 +822,7 @@ export class Game implements World {
     // the inventory. Kept beside the quest that earns it, and mirrored in
     // restoreQuestUnlocks so a reload does not bury it again.
     if (def.id === 'deepcut') this.openTheCut();
+    if (def.id === 'quiet_grove') this.openTheGrove();
 
     this.ui.message(`Quest complete: ${def.name}!`, 'levelup');
     this.ui.message(
@@ -868,6 +869,9 @@ export class Game implements World {
     const deepcut = getQuest('deepcut');
     if (deepcut && this.quests.isComplete(deepcut)) this.openTheCut();
 
+    const grove = getQuest('quiet_grove');
+    if (grove && this.quests.isComplete(grove)) this.openTheGrove();
+
     const coldHearth = getQuest('cold_hearth');
     if (!coldHearth || !this.quests.isComplete(coldHearth)) return;
 
@@ -881,6 +885,11 @@ export class Game implements World {
   /** Clear the fall that buries the way into the lower mine. */
   private openTheCut(): void {
     this.map.scenery[this.map.idx(CUT_ENTRANCE.x, CUT_ENTRANCE.y)] = null;
+  }
+
+  /** Cut back the thicket across the grove path. */
+  private openTheGrove(): void {
+    this.map.scenery[this.map.idx(GROVE_ENTRANCE.x, GROVE_ENTRANCE.y)] = null;
   }
 
   private freeTileBeside(x: number, y: number): Point | null {

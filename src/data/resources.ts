@@ -98,6 +98,23 @@ export const gatherables = {
     colour: '#4a6b22', scale: 1.22
   },
 
+  // Hardwood. The third Woodcutting tier, and the one that teaches respawn:
+  // it almost never falls, but when it does it is gone for a very long time,
+  // so a grove is worked by rotating between trees rather than camping one.
+  ironbark: {
+    id: 'ironbark', name: 'Ironbark tree', skill: 'woodcutting',
+    level: 20, xp: 62.5, outputId: 'ironbark_logs',
+    low: 20, high: 95,
+    tool: 'axe',
+    depleteChance: 0.2, respawnTicks: 120,
+    cue: 'chop',
+    success: 'You lever off a length of {item}.',
+    depleted: 'This one is cut out. It will be a long while coming back.',
+    full: 'Your inventory is too full to hold any more logs.',
+    noTool: 'You need an axe to chop this tree.',
+    colour: '#3d4a30', scale: 1.45
+  },
+
   // Rocks. Always empty on a success -- that is why mining is a walk between
   // veins rather than a stand-still skill.
   copper: {
@@ -218,7 +235,10 @@ export interface BurnableDef {
 
 export const burnables: Record<string, BurnableDef> = {
   logs: { logId: 'logs', level: 1, xp: 40, burnTicks: 120 },
-  oak_logs: { logId: 'oak_logs', level: 10, xp: 60, burnTicks: 200 }
+  oak_logs: { logId: 'oak_logs', level: 10, xp: 60, burnTicks: 200 },
+  // Burns a long time, which matters now that a dead fire leaves ash: one
+  // ironbark is a cooking fire that outlasts a whole inventory of fish.
+  ironbark_logs: { logId: 'ironbark_logs', level: 20, xp: 95, burnTicks: 340 }
 };
 
 // --------------------------------------------------------------------------

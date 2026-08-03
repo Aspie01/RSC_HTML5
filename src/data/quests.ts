@@ -190,6 +190,55 @@ export const quests: readonly QuestDef[] = [
     ]
   },
 
+  // Quest 10. Teaches the third Woodcutting tier and, through it, respawn:
+  // ironbark almost never falls, and when it does it is gone for a very long
+  // time, so a grove is worked by rotating between trees rather than camping
+  // one. Tobin gives it because he gave the first Woodcutting quest, and the
+  // shape of this one is his opinion of what has changed since.
+  {
+    id: 'quiet_grove',
+    name: 'The Quiet Grove',
+    requires: { quests: ['green_timber'], skills: { woodcutting: 20 } },
+    blocked: [
+      { who: 'npc', text: 'Not with that arm. Twenty levels of woodcutting before I send you at ironbark, and I will know if you have fudged it.' }
+    ],
+    reward: {
+      points: 2,
+      xp: { woodcutting: 500, firemaking: 150 },
+      unlock: 'The grove is open. Ironbark takes an age to come back -- work them in turn.'
+    },
+    stages: [
+      {
+        journal: 'Tobin Reeve wants back into a grove that has grown over.',
+        npc: 'tobin',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'There is a grove south of here. Ironbark, the whole stand of it, and I have not been able to get at it in six years.' },
+          { who: 'player', text: 'Why not?' },
+          { who: 'npc', text: 'Thorn grew across the path and I got old. Those two happened at about the same speed and only one of them was reversible.' },
+          { who: 'npc', text: 'Ironbark is not oak. You will swing at one for a quarter of an hour and get nothing, and then it will give, and then it is finished for the rest of the day.' },
+          { who: 'npc', text: 'So you work them in turn. Five trees, five in rotation, and you never wait on any of them. That is the whole trick and nobody believes it until they have stood there.' },
+          { who: 'npc', text: 'Bring me fifteen oak logs. Not for the wood -- I want to see you can keep going back to a tree that has nothing left to give yet.' }
+        ]
+      },
+      {
+        journal: 'Bring Tobin Reeve 15 oak logs. Oaks do not always fall, which is the point.',
+        npc: 'tobin',
+        goal: { type: 'give', items: [{ id: 'oak_logs', qty: 15 }] },
+        waiting: [
+          { who: 'npc', text: 'Fifteen. An oak stands more often than it falls, so you will be walking between them. Get used to it.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Fifteen, and you did not stand there sulking at one stump for an hour. Good.' },
+          { who: 'npc', text: 'The thorn is south, where the road runs out. Take an axe to it and the grove is yours -- I have no more use for it and it should not go to waste.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Ironbark burns half the night, mind. It is worth the wait on both counts.' }
+    ]
+  },
+
   // Quest 8. The first quest that expects a fight, and it teaches the thing
   // that actually keeps people alive in one: food. Gated on Cooking 10 rather
   // than on any combat level, because the lesson is that you bring supper.

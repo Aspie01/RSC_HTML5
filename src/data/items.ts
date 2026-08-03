@@ -77,6 +77,11 @@ export const items = {
     examine: 'Logs cut from an oak tree.'
   }),
 
+  ironbark_logs: item('ironbark_logs', 'Ironbark logs', { value: 38,
+    colour: '#4a4a32', shape: 'log',
+    examine: 'Dense, dark, and heavier than wood has any right to be.'
+  }),
+
   bronze_axe: item('bronze_axe', 'Bronze axe', { value: 16,
     slot: 'weapon', speed: 5, colour: '#a97142', shape: 'axe', tags: ['axe'],
     bonuses: { attack: 3, strength: 4 },

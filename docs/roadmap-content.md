@@ -251,7 +251,7 @@ Six regions, unlocked by quest rather than level where possible.
 |---|---|---|---|
 | **A** *[done]* | 0.1 — first public build | WC, Firemaking, Cooking. Quests 1–3. The Landing only. | Engine M0–M10 |
 | **B** *[done]* | 0.3 | Mining, Smithing, Fishing. Quests 4–7. Kettle Ridge, The Cut. | — |
-| **C** | 0.5 | Full combat suite + Vitality. Quests 8–11. Wrackwood. | Combat system |
+| **C** *[done]* | 0.5 | Full combat suite + Vitality. Quests 8–11. Wrackwood. | Combat system |
 | **D** | 0.7 | Magic, Crafting, Foraging. Quests 12–16. | Spell system |
 | **E** | 0.9 | Drowned Interior. Quests 17–21. Tiers 5–6 equipment. | Boss framework |
 | **F** | 1.0 | Capstone quests 22–24. Balance pass. Mastery cap. | — |
@@ -277,7 +277,24 @@ Two deviations worth knowing:
   Well plants the flood thread instead, which is what §5.2 actually says it is
   for; the hook stays for Phase D.
 
-Phase C is next: the full combat suite plus Vitality, quests 8–11, Wrackwood.
+**Phase C is built too.** Melee, Vitality and the accuracy and damage formulas
+were already in place from the engine work, so the gap was Archery: bows,
+arrows in their own slot, and weapon reach. Crafting arrived with it, through
+glass and then fletching.
+
+Three deviations:
+
+- **Crafting came before quest 9, not with quest 11.** Fletching is folded into
+  Crafting per §3.2, so building arrows before the skill that owns them existed
+  was backwards. Glass and Ash was implemented first and quest 9 sits on it.
+- **Quest stages can require kills.** Quest 8 asks for four goblins and the
+  goal schema could not express it, which would have left the dialogue claiming
+  a requirement nothing checked.
+- **The grove is guarded by boars, not goblins.** Aggressive spawns killed a
+  test woodcutter mid-chop. A Woodcutting reward gated on Woodcutting cannot
+  charge a combat toll, which the Cut had already taught once.
+
+Phase D is next: Magic, Foraging, quests 12–16. Crafting is done.
 
 ---
 
