@@ -14,7 +14,7 @@ import type {
   EquipSlot, ItemStack, PlayerAction, Point, SkillId, StationKind, World
 } from './types.ts';
 import type { GroundItem } from './systems/ground.ts';
-import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE } from './world/map.ts';
+import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE, SALLOWS_ENTRANCE, ROAD_ENTRANCE } from './world/map.ts';
 import { GroundItems } from './systems/ground.ts';
 import { WorldObjects } from './systems/objects.ts';
 import { Player } from './entities/player.ts';
@@ -37,6 +37,8 @@ import type { TradeResult } from './systems/shop.ts';
 import { shopForNpc } from './data/shops.ts';
 import type { ShopDef } from './data/shops.ts';
 import { getQuest, questsForNpc, quests } from './data/quests.ts';
+import { combinationFor } from './data/combinations.ts';
+import { INSPECT_TEXT, inspectable } from './data/inspect.ts';
 import type { QuestDef, QuestItem, QuestStage } from './data/quests.ts';
 import { Dialogue } from './ui/dialogue.ts';
 import { INVENTORY_CAPACITY } from './systems/inventory.ts';
@@ -66,11 +68,6 @@ const BLOCKED_GRACE_TICKS = 3;
  * The right-click verb for each gathering skill. Data rather than a `switch`,
  * so adding Foraging is a row here and a row in `resources.ts`.
  */
-/** What looking closely at a piece of scenery tells you, absent a quest. */
-const INSPECT_TEXT: Readonly<Record<string, string>> = {
-  well: 'The village well. The water is a long way down, and further than it used to be.'
-};
-
 const GATHER_VERBS: Readonly<Partial<Record<SkillId, string>>> = {
   woodcutting: 'Chop down',
   mining: 'Mine',
@@ -241,6 +238,7 @@ export class Game implements World {
     // 2. Movement
     this.player.stepMovement(this);
     this.unstickPlayer();
+    this.applyHazard();
     for (const npc of this.npcs) {
       if (!npc.dead) npc.stepMovement(this);
     }
@@ -333,6 +331,37 @@ export class Game implements World {
       this.resolveTalk(action.target);
     }
   }
+
+  /**
+   * Bleed health for standing somewhere that hurts.
+   *
+   * Applied after movement, so a tile crossed in a single tick still costs --
+   * the road is priced by how far you walk through it, not by where you stop.
+   * Dying here is a real outcome: it is why the quest that opens it says to
+   * bring food, and why it is the last thing in the phase.
+   */
+  private applyHazard(): void {
+    const p = this.player;
+    if (p.dead) return;
+
+    const hazard = this.map.terrainInfo(p.x, p.y).hazard;
+    if (!hazard) { this.hazardWarned = false; return; }
+
+    if (!this.hazardWarned) {
+      this.ui.message('The water is bitterly cold. You cannot stay in it long.', 'bad');
+      this.hazardWarned = true;
+    }
+
+    p.addHitsplat(hazard);
+    p.damage(hazard);
+    audio.play('hurt');
+
+    if (!p.isAlive()) this.handlePlayerDeath();
+    this.ui.dirty = true;
+  }
+
+  /** So the cold-water warning is said once per wade, not once per tick. */
+  private hazardWarned = false;
 
   /** Tiles that are walkable but currently have somebody standing on them. */
   private readonly occupiedByMob = (x: number, y: number): boolean =>
@@ -564,8 +593,10 @@ export class Game implements World {
   private resolveSmelt(tx: number, ty: number, barId: string): void {
     const p = this.player;
 
+    // The menu already filters these out; the resolver checks again because an
+    // action can outlive the menu that created it.
     const bar = getBar(barId);
-    if (!bar || this.map.sceneryAt(tx, ty)?.kind !== 'furnace') {
+    if (!bar || !this.recipeKnown(bar) || this.map.sceneryAt(tx, ty)?.kind !== 'furnace') {
       p.clearAction();
       return;
     }
@@ -618,7 +649,8 @@ export class Game implements World {
 
     const def = getSmithable(productId);
     const product = def ? getItem(def.id) : undefined;
-    if (!def || !product || this.map.sceneryAt(tx, ty)?.kind !== 'anvil') {
+    if (!def || !product || !this.recipeKnown(def) ||
+        this.map.sceneryAt(tx, ty)?.kind !== 'anvil') {
       p.clearAction();
       return;
     }
@@ -816,6 +848,22 @@ export class Game implements World {
       if (fire) fire.permanent = true;
     }
 
+    // The reeds come down when they are cut, not when the report is filed:
+    // the stage after this one sends the player into the fen to measure it,
+    // and it has to be walkable by then.
+    if (def.id === 'cartographers_error' && stage.goal.type === 'inspect') {
+      this.openTheSallows();
+    }
+
+    // Same shape at the road head: the reeds come down when they are cut, and
+    // the stage straight after asks the player to walk the causeway. Matched on
+    // the tile as well as the type, because this quest has two inspect stages
+    // and only the first one is a gate.
+    if (def.id === 'sunken_road' && stage.goal.type === 'inspect' &&
+        stage.goal.x === ROAD_ENTRANCE.x && stage.goal.y === ROAD_ENTRANCE.y) {
+      this.openTheRoad();
+    }
+
     // Handed over before the next stage is set, so a stage that supplies the
     // tool for the one after it cannot leave the player unable to continue.
     for (const item of stage.gives ?? []) this.giveQuestItem(item);
@@ -870,6 +918,9 @@ export class Game implements World {
     // restoreQuestUnlocks so a reload does not bury it again.
     if (def.id === 'deepcut') this.openTheCut();
     if (def.id === 'quiet_grove') this.openTheGrove();
+    // Vigil is the only source of the book; there is no other way to learn one.
+    if (def.id === 'vigil') this.learnSpells();
+
 
     this.ui.message(`Quest complete: ${def.name}!`, 'levelup');
     this.ui.message(
@@ -919,6 +970,16 @@ export class Game implements World {
     const grove = getQuest('quiet_grove');
     if (grove && this.quests.isComplete(grove)) this.openTheGrove();
 
+    // Keyed to the stage, not to completion. The reeds come down partway
+    // through, and the stage after that sends the player into the fen --
+    // waiting for completion here would re-seal it under someone standing
+    // in it.
+    if (this.quests.stageOf('cartographers_error') >= 3) this.openTheSallows();
+    if (this.quests.stageOf('sunken_road') >= 3) this.openTheRoad();
+
+    const vigil = getQuest('vigil');
+    if (vigil && this.quests.isComplete(vigil)) this.player.knowsSpells = true;
+
     const coldHearth = getQuest('cold_hearth');
     if (!coldHearth || !this.quests.isComplete(coldHearth)) return;
 
@@ -932,6 +993,23 @@ export class Game implements World {
   /** Clear the fall that buries the way into the lower mine. */
   private openTheCut(): void {
     this.map.scenery[this.map.idx(CUT_ENTRANCE.x, CUT_ENTRANCE.y)] = null;
+  }
+
+  /** Open the spellbook, and default to the one spell anybody can cast. */
+  private learnSpells(): void {
+    this.player.knowsSpells = true;
+    this.player.selectedSpell ??= 'ember_spark';
+    this.ui.dirty = true;
+  }
+
+  /** Cut the reed at the head of the causeway. */
+  private openTheRoad(): void {
+    this.map.scenery[this.map.idx(ROAD_ENTRANCE.x, ROAD_ENTRANCE.y)] = null;
+  }
+
+  /** Cut back the dead reed across the fen path. */
+  private openTheSallows(): void {
+    this.map.scenery[this.map.idx(SALLOWS_ENTRANCE.x, SALLOWS_ENTRANCE.y)] = null;
   }
 
   /** Cut back the thicket across the grove path. */
@@ -1023,6 +1101,64 @@ export class Game implements World {
     this.ui.dirty = true;
   }
 
+  /**
+   * Use one inventory item on another.
+   *
+   * Returns false when the pair means nothing, so the interface can say so
+   * without this method knowing what a message looks like. Both slots are read
+   * before anything is consumed, because removing the first would shift the
+   * second's index out from under us.
+   */
+  combineItems(firstIndex: number, secondIndex: number): boolean {
+    const p = this.player;
+    if (firstIndex === secondIndex) return false;
+
+    const a = p.inventory.slots[firstIndex];
+    const b = p.inventory.slots[secondIndex];
+    if (!a || !b) return false;
+
+    const recipe = combinationFor(a.id, b.id);
+    if (!recipe) return false;
+
+    if (recipe.skill && recipe.level) {
+      if (p.skills.level(recipe.skill) < recipe.level) {
+        this.ui.message(recipe.tooLow ?? 'You are not skilled enough for that.', 'bad');
+        return true;   // handled: the pair was right, the player was not
+      }
+    }
+
+    this.consume(a.id, 1);
+    this.consume(b.id, 1);
+
+    if (!p.inventory.add(recipe.output, recipe.outputQty)) {
+      // Cannot happen from a two-for-one, but a future many-for-many could.
+      p.inventory.add(a.id, 1);
+      p.inventory.add(b.id, 1);
+      this.ui.message('Your inventory is too full.', 'bad');
+      return true;
+    }
+
+    audio.play('smith');
+    if (recipe.skill && recipe.xp) this.announceXp(recipe.skill, recipe.xp);
+    this.ui.message(recipe.message, 'good');
+    this.ui.dirty = true;
+    return true;
+  }
+
+  /**
+   * Whether a recipe has been taught yet.
+   *
+   * A level gate says "not yet"; a quest gate says "nobody has shown you
+   * how". Blackiron is the second kind, so it is hidden entirely rather
+   * than listed greyed-out -- a recipe you have never heard of should not
+   * appear on a menu at all.
+   */
+  private recipeKnown(def: { quest?: string }): boolean {
+    if (!def.quest) return true;
+    const q = getQuest(def.quest);
+    return q ? this.quests.isComplete(q) : false;
+  }
+
   /** True if the player holds any part of this recipe. Used to filter menus. */
   private hasAnyIngredient(bar: BarDef): boolean {
     return bar.ingredients.some((i) => this.player.inventory.count(i.id) > 0);
@@ -1039,14 +1175,14 @@ export class Game implements World {
    * fiddly in a game with no ground-item ownership, and it would turn every
    * fight into a tidying exercise -- the cost is meant to be felt, not undone.
    */
-  private spendAmmo(p: Player, tag: string): boolean {
+  private spendAmmo(p: Player, tag: string, count = 1): boolean {
     const ammo = p.inventory.equipment.ammo;
-    if (!ammo || ammo.qty <= 0) return false;
+    if (!ammo || ammo.qty < count) return false;
 
     // The quiver has to hold the right kind: arrows will not fire a focus.
     if (!getItem(ammo.id)?.tags.includes(tag)) return false;
 
-    ammo.qty--;
+    ammo.qty -= count;
     if (ammo.qty <= 0) {
       const name = getItem(ammo.id)?.name.toLowerCase() ?? 'ammunition';
       p.inventory.equipment.ammo = null;
@@ -1085,6 +1221,7 @@ export class Game implements World {
     // already know how to make. A furnace that lists glass to someone who has
     // never seen sand is just a longer menu.
     const opts = bars
+      .filter((bar) => this.recipeKnown(bar))
       .filter((bar) => bar.skill === 'smithing' || this.hasAnyIngredient(bar))
       .map((bar: BarDef) => ({
         verb: 'Make',
@@ -1125,7 +1262,7 @@ export class Game implements World {
   private openSmithProductMenu(at: Point, tx: number, ty: number, bar: BarDef): void {
     const p = this.player;
 
-    const opts = smithablesFor(bar.id).map((def: SmithDef) => {
+    const opts = smithablesFor(bar.id).filter((def) => this.recipeKnown(def)).map((def: SmithDef) => {
       const name = getItem(def.id)?.name ?? def.id;
       const locked = p.skills.level('smithing') < def.level;
 
@@ -1212,11 +1349,20 @@ export class Game implements World {
     // range, not a fee for succeeding at it.
     if (mob instanceof Player) {
       const tag = mob.ammoTag();
-      if (tag && !this.spendAmmo(mob, tag)) {
+      // A spell decides its own cost; a bow always costs one. Taken as a batch
+      // so a two-reagent spell cannot half-cast on the last leaf in the pouch.
+      const cost = mob.activeSpell()?.reagents ?? 1;
+
+      if (tag && !this.spendAmmo(mob, tag, cost)) {
         this.ui.message(`You have nothing left to ${tag === 'arrow' ? 'shoot' : 'cast'}.`, 'bad');
         mob.clearAction();
         return;
       }
+
+      // Casting trains Magic whether or not the spell lands -- the leaf is
+      // spent either way, and a miss taught you as much as a hit.
+      const spell = mob.activeSpell();
+      if (spell) this.announceXp('magic', spell.xp);
     }
 
     mob.faceTowards(target.x, target.y);
@@ -1498,7 +1644,7 @@ export class Game implements World {
       return;
     }
 
-    if (scenery?.kind === 'well') {
+    if (scenery && inspectable(scenery.kind)) {
       p.clearPath();
       p.setAction({ type: 'inspect', x: tile.x, y: tile.y });
       this.renderer.setClickMarker(tile.x, tile.y, 'move');
@@ -1701,6 +1847,8 @@ export class Game implements World {
       quests: this.quests.stages,
       questKills: this.quests.kills,
       rng: rng.snapshot(),
+      knowsSpells: p.knowsSpells,
+      spell: p.selectedSpell,
       shops: this.shops.snapshot()
     };
     return JSON.stringify(data);
@@ -1753,6 +1901,8 @@ export class Game implements World {
       this.quests.restore(data.quests);
       this.quests.restoreKills(data.questKills);
       rng.restore(data.rng);
+      if (data.knowsSpells === true) p.knowsSpells = true;
+      if (typeof data.spell === 'string') p.selectedSpell = data.spell;
       this.restoreQuestUnlocks();
       this.shops.restore(data.shops);
 

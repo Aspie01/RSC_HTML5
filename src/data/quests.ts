@@ -344,6 +344,381 @@ export const quests: readonly QuestDef[] = [
     ]
   },
 
+  // Quest 16. The one quest in this phase with nothing to do with the Wardens,
+  // and it is better for it -- after four quests of the water going somewhere,
+  // a man who wants to teach you a trade is a change of air.
+  //
+  // It fills tier 4, which CLAUDE.md's table has listed as unimplemented since
+  // the beginning. Blackiron is quest-gated as well as level-gated because the
+  // method is knowledge rather than skill: no amount of hammering discovers it,
+  // which is exactly what makes it worth a bargain.
+  {
+    id: 'ironmongers_bargain',
+    name: "Ironmonger's Bargain",
+    requires: { quests: ['deepcut'], skills: { smithing: 30 } },
+    blocked: [
+      { who: 'npc', text: 'Thirty levels before I waste good coal on you. Come back when the steel stops fighting you.' }
+    ],
+    reward: {
+      points: 2,
+      xp: { smithing: 800 },
+      items: [{ id: 'blackiron_bar', qty: 2 }],
+      unlock: 'Blackiron. Steel, and then a great deal more coal than sense suggests.'
+    },
+    stages: [
+      {
+        journal: 'Garrow Blackfen has a method he has never had the coal to use.',
+        npc: 'garrow',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'You opened the Cut, so you may as well have the other half of what it was for.' },
+          { who: 'npc', text: 'There is a thing past steel. My name is Blackfen and I did not pick it -- three generations of us knew how, and not one of us had the fuel.' },
+          { who: 'player', text: 'What is the method?' },
+          { who: 'npc', text: 'You put the steel back in. That is it. That is the whole secret, and it sounds like nothing until you learn it takes three coal to the bar and gets you one bar for one bar.' },
+          { who: 'npc', text: 'Nobody works it out alone because nobody would try it twice. It looks like ruining good steel, and the first time you do it, it is.' },
+          { who: 'npc', text: 'Bring me four steel and twelve coal. I will show you on two of them and you will spoil the other two yourself, which is how it is learned.' }
+        ]
+      },
+      {
+        journal: 'Bring Garrow Blackfen 4 steel bars and 12 coal.',
+        npc: 'garrow',
+        goal: { type: 'give', items: [{ id: 'steel_bar', qty: 4 }, { id: 'coal', qty: 12 }] },
+        waiting: [
+          { who: 'npc', text: 'Four steel and twelve coal. The coal is the hard half now, which is a sentence I could not have said last year.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Watch the colour. Not the shape -- the colour. When it stops going brighter and starts going darker, that is the whole of it.' },
+          { who: 'npc', text: 'There. Two bars, and they weigh what four did.' },
+          { who: 'player', text: 'And the other two?' },
+          { who: 'npc', text: 'You spoiled those. I said you would. Now you have seen it work and seen it fail, and you will not confuse the two again.' },
+          { who: 'npc', text: 'Take them. The furnace and the anvil will both take blackiron from you now -- you know the method, and knowing it was the only lock there ever was.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Watch the colour. It took me forty years to learn to say it that short.' }
+    ]
+  },
+
+  // Quest 15. The end of Phase D, and the last thing anybody in this valley
+  // can tell you. The ledger has the road drawn; the road goes east and then
+  // down, and what is at the bottom of it is Phase E's problem.
+  //
+  // The mechanic is hazard traversal, which the engine had no concept of.
+  // Floodwater is walkable and costs a hitpoint a tick, so the road is not a
+  // locked door -- it is a crossing you pay for, and the payment is the food
+  // you brought. Blocking it outright would have been a wall wearing a costume.
+  {
+    id: 'sunken_road',
+    name: 'The Sunken Road',
+    requires: { quests: ['what_the_warden_wrote'] },
+    blocked: [
+      { who: 'npc', text: 'Not until the book is whole. I am not sending anybody east on a guess.' }
+    ],
+    reward: {
+      points: 3,
+      xp: { vitality: 500, magic: 300 },
+      unlock: 'The causeway is open. It goes east, and then it goes down.'
+    },
+    stages: [
+      {
+        journal: 'Maren Ashfall has read the road off the ledger, and wants it found.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'The drawing is on the fourth leaf. A causeway, running east out of the fen, dead straight for two hundred yards.' },
+          { who: 'player', text: 'There is nothing east of the fen but the lake.' },
+          { who: 'npc', text: 'There is now.' },
+          { who: 'npc', text: 'Every depth in that book was taken from the far end of it. Two hundred years of somebody walking out along a road that has been under water since before my grandmother, to look at a thing and write a number down.' },
+          { who: 'npc', text: 'The reed has taken the near end. Cut it and go along it, and eat before you do -- that water is cold enough to stop a heart and I am not being poetic.' },
+          { who: 'npc', text: 'Take these. I have no more use for them than you have, and you will have more.' }
+        ],
+        gives: [{ id: 'cooked_bream', qty: 4 }]
+      },
+      {
+        journal: 'Cut the reeds at the east edge of the Sallows and follow the causeway.',
+        npc: 'maren',
+        goal: { type: 'inspect', x: 45, y: 43 },
+        waiting: [
+          { who: 'npc', text: 'The east wall of the fen. The road runs out from it -- you will feel the stone under your feet before you see it.' }
+        ],
+        done: [
+          { who: 'player', text: 'Cut stone under a foot of water, laid flat and true, running away east into the lake.' },
+          { who: 'player', text: 'The water over it is colder than the water either side of it. Not shaded, not deeper -- colder, and only over the road.' },
+          { who: 'player', text: 'Whatever is taking this valley is at the far end, and somebody built a road to it, and then somebody else spent two hundred years walking out to check on it.' }
+        ]
+      },
+      {
+        journal: 'Follow the causeway east to its end. Bring food -- the water is lethal.',
+        npc: 'maren',
+        goal: { type: 'inspect', x: 47, y: 44 },
+        waiting: [
+          { who: 'npc', text: 'To the end of it. Eat as you go, and if you cannot make the end, come back and eat more before you try again.' }
+        ],
+        done: [
+          { who: 'player', text: 'The road stops. It does not run out or break off -- it stops, squared, at a stair.' },
+          { who: 'player', text: 'Steps going down, under the water, cut as cleanly as the day they were made. The cold comes up them.' },
+          { who: 'player', text: 'The last Warden stood here eighty-one years ago and wrote down four feet one inch, and went home, and told nobody because there was nobody left to tell.' },
+          { who: 'player', text: 'I am not going down there today.' }
+        ]
+      },
+      {
+        journal: 'Tell Maren Ashfall what is at the end of the road.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'player', text: 'It ends at a stair. It goes down.' },
+          { who: 'npc', text: 'Of course it does.' },
+          { who: 'npc', text: 'Then that is where the water is going, and that is where every number in that book was pointing, and the whole of it -- the well, the lake, Halder going upriver, the reed dying standing up -- is one thing, and it is down there.' },
+          { who: 'player', text: 'Someone should go down.' },
+          { who: 'npc', text: 'Someone should. Not today, and not without more than you are carrying.' },
+          { who: 'npc', text: 'Keep the light. Keep the count. And when you do go down, come back up, because the last person who kept this ledger did not have anyone to hand it to and I would rather not repeat that.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'The stair is still there. I check the chart most days, which is a foolish thing to do about a stair.' }
+    ]
+  },
+
+  // Quest 14. The arc's hinge. Vigil established that somebody built an
+  // instrument to measure the loss and left instructions to send word; this is
+  // the quest that answers who to, and the answer is the reason the order
+  // stopped existing.
+  //
+  // It also teaches item combination, which the engine had only as a hardcoded
+  // tinderbox-on-logs. Two halves of a book, found a century and four miles
+  // apart, and neither is worth anything alone -- which is the clearest thing
+  // a combination can be.
+  {
+    id: 'what_the_warden_wrote',
+    name: 'What the Warden Wrote',
+    requires: { quests: ['cartographers_error'] },
+    blocked: [
+      { who: 'npc', text: 'Not until you have been out to the fen with Alder. I am not starting this conversation twice.' }
+    ],
+    reward: {
+      points: 3,
+      xp: { magic: 250, foraging: 250 },
+      // Handed straight back. The stage takes it because Maren has to read the
+      // last page herself, and she gives it back in the same breath -- "keep
+      // the book" is the line, so the player must actually keep the book.
+      items: [{ id: 'wardens_ledger', qty: 1 }],
+      unlock: 'The ledger is yours. Two hundred years of it, and one instruction nobody can carry out.'
+    },
+    stages: [
+      {
+        journal: 'Maren Ashfall has been keeping a list, and wants to see the chart.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Alder sent you. He would not come himself because then it would be a thing two people believed.' },
+          { who: 'player', text: 'He measured the fen. Four and a half feet, and still going.' },
+          { who: 'npc', text: 'Then sit down, because I have something and I have never known what it was.' },
+          { who: 'npc', text: 'Book covers. No book in them -- the stitching is cut, clean, not torn. My family has had them since before the well went bad and nobody remembers who from.' },
+          { who: 'npc', text: 'There is a mark pressed into the board. A line with water under it, and the water is below the line.' },
+          { who: 'player', text: 'That is what the lamp shows.' },
+          { who: 'npc', text: 'Is it. Is it indeed.' },
+          { who: 'npc', text: 'Then the pages went somewhere and somebody meant them to be findable. Take the covers. Look where the water is.' }
+        ],
+        gives: [{ id: 'ledger_covers', qty: 1 }]
+      },
+      {
+        journal: 'Search the Sallows for the pages the covers lost.',
+        npc: 'maren',
+        goal: { type: 'inspect', x: 36, y: 43 },
+        waiting: [
+          { who: 'npc', text: 'The fen. If somebody wanted them kept, they put them where nothing rots, and nothing rots in salt.' }
+        ],
+        done: [
+          { who: 'player', text: 'There is a stone box in the pool, a hand under the surface, and it is not old enough to be lost. It was placed.' },
+          { who: 'player', text: 'Pages. Stiff as board, salt all through them, and every word still legible -- the salt that ruined this valley is the only reason they survived it.' },
+          { who: 'player', text: 'Somebody put them in the water on purpose, knowing what the water was doing. They were not hiding them. They were preserving them.' }
+        ],
+        gives: [{ id: 'sodden_pages', qty: 1 }]
+      },
+      {
+        journal: 'Use the pages on the covers to make the ledger whole.',
+        npc: 'maren',
+        goal: { type: 'give', items: [{ id: 'wardens_ledger', qty: 1 }] },
+        waiting: [
+          { who: 'npc', text: 'Put them together. Use the one on the other -- I am not going to do it for you, they are your hands and it is your find.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Read me the last page. Not the first. Nobody ever wants the last page and it is always the one that matters.' },
+          { who: 'player', text: 'It is a column of dates and depths. It runs two hundred and six years. The handwriting changes eleven times.' },
+          { who: 'player', text: 'The last entry is eighty-one years ago. Depth, four feet one inch. Then a different hand, underneath, and only one line.' },
+          { who: 'npc', text: 'Go on.' },
+          { who: 'player', text: '"No one left to send to. Keep the light. Keep the count. Someone will read this."' },
+          { who: 'npc', text: '...' },
+          { who: 'npc', text: 'Eighty-one years. And the last of them sat down and wrote that, and then filled in the depth anyway, because that was the job.' },
+          { who: 'player', text: 'Sella\'s family kept filling in dates. They never knew why either.' },
+          { who: 'npc', text: 'No. But they kept the count, and now somebody has read it.' },
+          { who: 'npc', text: 'Keep the book. I have carried half of it my whole life without knowing, and you have carried it four miles and made it a whole one.' },
+          { who: 'npc', text: 'There is a road under the fen. The ledger has it drawn. It goes east, and it is where every one of those depths was taken from.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Keep the light. Keep the count. It is not much of an instruction and it is the only one we have.' }
+    ]
+  },
+
+  // Quest 13. Magic gets a spellbook, and the arc gets its first Warden
+  // artefact. Sella has been holding the other half of this since Glass and
+  // Ash -- "there is more than vials in glass, and I will show you when there
+  // is more than sand in this village" -- and the fen is the more.
+  //
+  // The vigil in the title is literal: the order kept lights burning at fixed
+  // points and wrote down what they saw. Nobody has kept one in a century, and
+  // the reason nobody stopped is that nobody knows why they started.
+  {
+    id: 'vigil',
+    name: 'Vigil',
+    requires: { quests: ['glass_and_ash', 'cartographers_error'], skills: { crafting: 20 } },
+    blocked: [
+      { who: 'npc', text: 'Not yet. You have made a vial; that is not the same as making something that has to hold a light for a hundred years.' }
+    ],
+    reward: {
+      points: 3,
+      xp: { magic: 400, crafting: 300 },
+      items: [{ id: 'emberglass_focus', qty: 1 }],
+      unlock: 'The book is copied out. Three spells, and a focus that will hold them.'
+    },
+    stages: [
+      {
+        journal: 'Sella Quist has a book she cannot read and a lamp she cannot light.',
+        npc: 'sella',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'You have seen the fen, then. Alder has been at my bench three times about it and he does not visit people.' },
+          { who: 'npc', text: 'So I will show you the thing I have been not showing anyone.' },
+          { who: 'npc', text: 'My grandmother had it off her grandmother. A glass lamp with no oil reservoir and no wick, and a book of instructions for filling it.' },
+          { who: 'player', text: 'Filling it with what?' },
+          { who: 'npc', text: 'It does not say. It says when. Every ninth night, and on any night the water moves wrong.' },
+          { who: 'npc', text: 'I have never had cause to light it. I have had cause four times this season and I have not been able to, because the filling wants emberleaf and emberleaf stopped growing here before I was born.' },
+          { who: 'npc', text: 'It grows in the grove. Bring me eight, and a vial to draw them into, and we will find out together what my family has been keeping.' }
+        ]
+      },
+      {
+        journal: 'Bring Sella Quist 8 emberleaf and 1 glass vial.',
+        npc: 'sella',
+        goal: { type: 'give', items: [{ id: 'emberleaf', qty: 8 }, { id: 'glass_vial', qty: 1 }] },
+        waiting: [
+          { who: 'npc', text: 'Emberleaf from the grove -- the red bushes, and you will want a sickle. The vial you can make yourself; you know how.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Hold it away from you. It takes the leaf faster than it should and I would rather find that out about your sleeve than mine.' },
+          { who: 'npc', text: '...There. That is a light. That is a cold light with no shadow under it, and I have been looking at it for a while now and I do not like it.' },
+          { who: 'player', text: 'What does the book say happens next?' },
+          { who: 'npc', text: 'It says: record the level. That is all. Record the level, every ninth night, and send word if it falls.' },
+          { who: 'npc', text: 'Send word to whom, it does not say. It has not said for a hundred years and my family kept filling in the dates anyway.' }
+        ]
+      },
+      {
+        journal: 'Take the lit lamp to the Sallows and record what it shows.',
+        npc: 'sella',
+        goal: { type: 'inspect', x: 32, y: 44 },
+        waiting: [
+          { who: 'npc', text: 'The fen. Take it to the fen -- that is where the water is doing the thing the book is about.' }
+        ],
+        done: [
+          { who: 'player', text: 'The lamp is brighter here. Not warmer. Brighter, and the light is going down into the pools instead of off them.' },
+          { who: 'player', text: 'It is showing the water level as it was. There is a line of light standing in the air, a good four feet above the pools, flat and level across the whole fen.' },
+          { who: 'player', text: 'That is what the book means. Record the level. It is not asking how deep the water is -- it is showing where the water should be, and asking how far it has gone.' },
+          { who: 'player', text: 'Somebody built this to be read by people who already knew what was taking it.' }
+        ]
+      },
+      {
+        journal: 'Tell Sella Quist what the lamp showed.',
+        npc: 'sella',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'player', text: 'It shows the old level. A line in the air where the water used to stand.' },
+          { who: 'npc', text: 'Four feet.' },
+          { who: 'player', text: 'Four and a half.' },
+          { who: 'npc', text: 'Then my great-grandmother wrote four and a quarter in 1811 and I always assumed she was guessing.' },
+          { who: 'npc', text: 'She was not guessing. She was doing what I have just watched you do, and so was her mother, and none of them knew who they were sending word to either.' },
+          { who: 'npc', text: 'Here. I have copied out the back of the book -- the part that is not dates. Three workings, and the focus to hold them.' },
+          { who: 'npc', text: 'They are not much. A spark, a bolt, and one they called hollowlight that I cannot make sense of and have written down exactly as it stands.' },
+          { who: 'npc', text: 'Take the lamp too. I have kept it eighty years and it has been waiting for something, and I would rather it waited nearer the water.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Every ninth night. I keep the dates now, since you started going out there.' }
+    ]
+  },
+
+  // Quest 12. The Wardens arc opens, and the register turns: up to here every
+  // strange thing has had a mundane reading available. This is where one stops
+  // being available. The error in the title is not the cartographer's -- his
+  // measurements are correct and the land is wrong, and he knows it.
+  {
+    id: 'cartographers_error',
+    name: "The Cartographer's Error",
+    requires: { quests: ['deepcut'] },
+    blocked: [
+      { who: 'npc', text: 'You have not been down the Cut. Come back when you have, because I will need you to believe me and you will not until then.' }
+    ],
+    reward: {
+      points: 3,
+      xp: { foraging: 300, crafting: 200 },
+      items: [{ id: 'sallows_chart', qty: 1 }],
+      unlock: 'The reeds are cut back. The Sallows are open, and they are lower than they were.'
+    },
+    stages: [
+      {
+        journal: 'Alder Finch has surveyed the same ground twice and got two answers.',
+        npc: 'alder',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Do not touch the chain. I have measured with it four hundred times and I need it to keep being the same chain.' },
+          { who: 'npc', text: 'I surveyed this valley eleven years ago. I surveyed it again in the spring. The two do not agree.' },
+          { who: 'player', text: 'Everyone makes mistakes.' },
+          { who: 'npc', text: 'Yes. And a mistake is wrong once. Mine is wrong by the same amount every time, in the same direction, and the amount is getting larger.' },
+          { who: 'npc', text: 'The ground east of here is four feet lower than it was. Not eroded -- lower. The trees are the same height and they are standing in water that has nowhere to come from.' },
+          { who: 'npc', text: 'I cannot get in to measure it. The reed has closed the way and I am sixty-one. Cut it back for me and take the chain -- I want the far side measured before I have to write this down.' }
+        ],
+        gives: [{ id: 'survey_chain', qty: 1 }]
+      },
+      {
+        journal: 'Cut back the reeds south-east of the grove, at the low end of the road.',
+        npc: 'alder',
+        goal: { type: 'inspect', x: 32, y: 44 },
+        waiting: [
+          { who: 'npc', text: 'East. Past where the grove path turns. You will hear it before you see it -- reed does not rustle when there is no wind, and that reed does.' }
+        ],
+        done: [
+          { who: 'player', text: 'The reed is dead and standing. All of it, upright, and none of it rotted -- it died and did not fall down.' },
+          { who: 'player', text: 'It comes apart in the hand like ash. Behind it the ground drops away, and there is standing water in the hollows.' },
+          { who: 'player', text: 'The water is not moving. It is not draining anywhere and nothing is running into it. It is simply sitting in the low places, and the low places are new.' },
+          { who: 'player', text: 'It is salt. Of course it is salt.' }
+        ]
+      },
+      {
+        journal: 'Measure the Sallows with the chain, then take the reading to Alder Finch.',
+        npc: 'alder',
+        goal: { type: 'give', items: [{ id: 'survey_chain', qty: 1 }] },
+        waiting: [
+          { who: 'npc', text: 'Take it across and bring it back. I do not need a number from you -- I need the chain to have been there.' }
+        ],
+        done: [
+          { who: 'player', text: 'Four feet, near enough. Lower than your old survey, across the whole fen.' },
+          { who: 'npc', text: 'Not four. Four and a half now. It was four in the spring.' },
+          { who: 'player', text: 'Then it is still going.' },
+          { who: 'npc', text: 'It is still going. Land does not do this. Land subsides where something beneath it has been taken away, and nothing has been taken from under that fen -- I have the sections, there is nothing under it but clay for ninety feet.' },
+          { who: 'npc', text: 'So either my chain is wrong, or the valley is being drawn down, and I have told you what I think of my chain.' },
+          { who: 'npc', text: 'Take the corrected chart. I have marked what I measured and what I measured before, and I have not written a conclusion on it because I do not have one and I will not invent one.' },
+          { who: 'npc', text: 'Show it to Maren Ashfall. She has been keeping her own list, and I would rather two fools compared notes than one wrote a report.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Still going down. I measure it on Thursdays now, which is a thing I never expected to say.' }
+    ]
+  },
+
   // Quest 11. Introduces Crafting, and does it through glass because glass is
   // the one material that needs a skill the player already has: ash only comes
   // from fires that have burnt out, which is why the gate is Firemaking rather

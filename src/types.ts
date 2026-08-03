@@ -161,6 +161,14 @@ export interface CombatStats {
   styleAttack: number;
   styleStrength: number;
   styleDefence: number;
+  /**
+   * Fixed damage cap, overriding the Strength formula entirely.
+   *
+   * Only spells set this. A spell's damage comes from the spell, never from
+   * the caster's level -- Magic decides whether it can be cast and how often
+   * it lands, which is the whole reason choosing a spell is a decision.
+   */
+  maxHit?: number;
 }
 
 export type AttackStyleId = 'accurate' | 'aggressive' | 'defensive' | 'controlled';

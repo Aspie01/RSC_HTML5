@@ -12,6 +12,8 @@ import { Skills } from '../systems/skills.ts';
 import { Inventory } from '../systems/inventory.ts';
 import { STYLES } from '../systems/combat.ts';
 import { getItem } from '../data/items.ts';
+import { getSpell } from '../data/spells.ts';
+import type { SpellDef } from '../data/spells.ts';
 import type { Bonuses, ItemDef, SkillId } from '../types.ts';
 
 /**
@@ -79,6 +81,25 @@ export class Player extends Mob {
     return this.weapon()?.ammoTag ?? null;
   }
 
+  /**
+   * The spell that would be cast right now, or null.
+   *
+   * Null covers three cases that all mean the same thing to combat: no
+   * spellbook yet, no spell chosen, or a spell the caster has since fallen
+   * below the level for -- which cannot happen by levelling down, but can
+   * happen to a save whose spell was removed from the game.
+   */
+  activeSpell(): SpellDef | null {
+    if (!this.selectedSpell) return null;
+    const spell = getSpell(this.selectedSpell);
+    if (!spell || this.skills.level('magic') < spell.level) return null;
+    return spell;
+  }
+
+  /** Set once Vigil is finished. Until then there is nothing to choose from. */
+  knowsSpells = false;
+  selectedSpell: string | null = null;
+
   /** How far this character can attack from, in tiles. */
   attackRange(): number {
     return this.weapon()?.range ?? 1;
@@ -100,6 +121,8 @@ export class Player extends Mob {
     if (mode) {
       const level = this.skills.level(mode);
       const pair = BONUS_PAIRS[mode];
+      const spell = mode === 'magic' ? this.activeSpell() : null;
+
       return {
         attack: level,
         strength: level,
@@ -109,7 +132,9 @@ export class Player extends Mob {
         defenceBonus: bonus.defence,
         styleAttack: 0,
         styleStrength: 0,
-        styleDefence: style.defence
+        styleDefence: style.defence,
+        // Present only for a spell, so everything else keeps deriving its cap.
+        ...(spell ? { maxHit: spell.maxHit } : {})
       };
     }
 

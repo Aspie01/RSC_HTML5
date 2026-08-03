@@ -126,9 +126,16 @@ Equipment tiers, and the levels they gate:
 | 1 | 1 | Bronze |
 | 2 | 10 | Iron |
 | 3 | 20 | Steel |
-| 4 | 30 | *(unimplemented)* |
+| 4 | 30 | Blackiron |
 | 5 | 40 | *(unimplemented)* |
 | 6 | 50 | *(unimplemented, quest-gated)* |
+
+Blackiron is also **quest-gated**, and that distinction is worth keeping: a
+level gate says "not yet", a quest gate says "nobody has shown you how". A
+recipe carrying a `quest` is hidden from the menus entirely rather than shown
+greyed-out, because a method you have never heard of should not be advertised.
+Both the menu and the resolver check it — an action can outlive the menu that
+created it.
 
 Never use **mithril** — it is Tolkien's coinage and carries real estate risk.
 Item, place, person, and quest names must be original; skill names are generic

@@ -5,25 +5,45 @@
 // (Tiled exports JSON), you replace generate() and nothing else -- the rest of
 // the game only talks to inBounds / isWalkable / terrainAt.
 
-export const enum Terrain {
-  Grass = 0,
-  GrassDark = 1,
-  Dirt = 2,
-  Path = 3,
-  Water = 4,
-  Sand = 5,
-  Stone = 6
-}
+/**
+ * Terrain kinds, as a frozen object rather than a `const enum`.
+ *
+ * An enum cannot be type-stripped, which would make this module -- and so the
+ * whole world -- unimportable from a bare Node script. Rule 1 says the
+ * simulation must be steppable there, and the tests rely on it, so the one
+ * construct that breaks it is not worth the syntax sugar.
+ */
+export const Terrain = {
+  Grass: 0,
+  GrassDark: 1,
+  Dirt: 2,
+  Path: 3,
+  Water: 4,
+  Sand: 5,
+  Stone: 6,
+  /** Walkable, and it costs health every tick you stand in it. */
+  Floodwater: 7
+} as const;
+
+export type Terrain = (typeof Terrain)[keyof typeof Terrain];
 
 export interface TerrainInfo {
   readonly top: string;
   readonly side: string;
   readonly walk: boolean;
+  /**
+   * Health lost per tick spent standing on it. Absent means none.
+   *
+   * A hazard is deliberately not a wall: the whole point of the Sunken Road is
+   * that it can be crossed, at a price, by someone who brought food. Blocking
+   * it would be a locked door wearing a costume.
+   */
+  readonly hazard?: number;
 }
 
 export type SceneryKind =
   | 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil' | 'fishing_spot'
-  | 'well' | 'rubble' | 'sand_bank' | 'thicket';
+  | 'well' | 'rubble' | 'sand_bank' | 'thicket' | 'stone_box' | 'descent';
 
 export interface Scenery {
   readonly kind: SceneryKind;
@@ -52,7 +72,8 @@ export const TERRAIN_INFO: Record<Terrain, TerrainInfo> = {
   [Terrain.Path]:      { top: '#9a8560', side: '#6b5c42', walk: true },
   [Terrain.Water]:     { top: '#2f5f8a', side: '#1e3f5e', walk: false },
   [Terrain.Sand]:      { top: '#c2ad78', side: '#8b7a54', walk: true },
-  [Terrain.Stone]:     { top: '#8a8a8a', side: '#5e5e5e', walk: true }
+  [Terrain.Stone]:     { top: '#8a8a8a', side: '#5e5e5e', walk: true },
+  [Terrain.Floodwater]: { top: '#3f6f7a', side: '#26454e', walk: true, hazard: 1 }
 };
 
 /** Deterministic PRNG (mulberry32), so the generated world never shifts. */
@@ -221,6 +242,43 @@ const GROVE_TREES: ReadonlyArray<{ x: number; y: number; tree: string }> = [
 export const GROVE_ENTRANCE = { x: 23, y: 39 } as const;
 
 /**
+ * The Sallows: low ground in the south-east that has no business being wet.
+ *
+ * Standing water sits in it in pools that do not drain, well above the lake
+ * and nowhere near the river. The way in is choked with dead reed until The
+ * Cartographer's Error is finished.
+ */
+const SALLOW_POOLS: ReadonlyArray<readonly [number, number]> = [
+  [35, 42], [36, 42], [36, 43], [39, 41], [40, 41], [40, 42],
+  [37, 45], [38, 45], [42, 44], [43, 44], [34, 45], [41, 46]
+];
+
+/**
+ * The tile that seals the Sallows. Cleared when The Cartographer's Error
+ * completes. It sits ON the reed wall, not inside it -- a gap one tile in from
+ * the edge is not a gap, it is a cupboard.
+ */
+export const SALLOWS_ENTRANCE = { x: 32, y: 44 } as const;
+
+/**
+ * The Sunken Road: a causeway running east out of the fen and under the lake.
+ *
+ * Every tile of it is floodwater, so crossing costs health the whole way. It is
+ * short on purpose -- a long hazard is not more interesting than a short one,
+ * it is only more food -- and it ends at a descent that goes down rather than
+ * on, which is where the Drowned Interior will be.
+ */
+const SUNKEN_ROAD: ReadonlyArray<readonly [number, number]> = [
+  [45, 43], [46, 43], [46, 44], [47, 44]
+];
+
+/** The tile that seals the road. Cleared when The Sunken Road completes. */
+export const ROAD_ENTRANCE = { x: 45, y: 43 } as const;
+
+/** Where the road stops going east and starts going down. */
+export const ROAD_DESCENT = { x: 47, y: 44 } as const;
+
+/**
  * Fishing spots, all placed so that a pier or shore tile sits beside them.
  * Shallows hug the sand; the deep water is out at the pier head, which is what
  * makes walking to the end of it worth doing at Fishing 10.
@@ -255,7 +313,9 @@ const QUEST_GIVERS: ReadonlyArray<{ npcId: string; x: number; y: number }> = [
   // On the sand, between the banks and the furnace road.
   { npcId: 'sella', x: 42, y: 21 },
   // South-east, on the road out towards the guards -- where the fighting is.
-  { npcId: 'hesk', x: 30, y: 31 }
+  { npcId: 'hesk', x: 30, y: 31 },
+  // On the south road, in sight of the reeds he cannot account for.
+  { npcId: 'alder', x: 30, y: 38 }
 ];
 
 function spawnCluster(
@@ -445,6 +505,39 @@ export function generateMap(): GameMap {
   // here killed a test woodcutter mid-chop, which is precisely the failure the
   // goblins in the Cut already taught.
   spawnCluster(map, 'boar', 24, 42, 28, 44, 3, rng);
+
+  // The Sallows. Reached along the south road, then east through the reeds.
+  map.fillRect(33, 40, 44, 46, Terrain.Dirt);
+  for (const [px, py] of SALLOW_POOLS) map.setTerrain(px, py, Terrain.Water);
+
+  // Reed wall around it, with one gap. The pools inside are not scenery -- they
+  // are terrain, so the fen has to be picked across rather than walked through,
+  // which is the traversal the Sunken Road will ask for in earnest.
+  for (let y = 39; y <= 47; y++) {
+    for (let x = 32; x <= 45; x++) {
+      const edge = x === 32 || x === 45 || y === 39 || y === 47;
+      if (!edge) continue;
+      if (x === SALLOWS_ENTRANCE.x && y === SALLOWS_ENTRANCE.y) continue;
+      if (map.inBounds(x, y)) map.setScenery(x, y, { kind: 'thicket', blocks: true });
+    }
+  }
+  map.setScenery(SALLOWS_ENTRANCE.x, SALLOWS_ENTRANCE.y, { kind: 'thicket', blocks: true });
+
+  // The causeway east. Laid after the reed wall so it cuts through it, and the
+  // wall tile it passes through is put back as thicket -- that is the gate the
+  // quest opens, and until then the road is visible and unreachable.
+  for (const [rx, ry] of SUNKEN_ROAD) map.setTerrain(rx, ry, Terrain.Floodwater);
+  map.setScenery(ROAD_ENTRANCE.x, ROAD_ENTRANCE.y, { kind: 'thicket', blocks: true });
+  map.setScenery(ROAD_DESCENT.x, ROAD_DESCENT.y, { kind: 'descent', blocks: false });
+
+  // Somebody put the ledger pages where nothing rots. The box does not block:
+  // the pool under it already does, and it has to stay clickable from the bank.
+  map.setScenery(36, 43, { kind: 'stone_box', blocks: false });
+
+  // Marshroot likes the wet. A reason to come back that is not the quest.
+  for (const [bx, by] of [[34, 41], [38, 43], [42, 41], [37, 46]] as const) {
+    map.setScenery(bx, by, { kind: 'bush', blocks: false, resource: 'marshroot' });
+  }
 
   // The village well. Placed after the scatter pass, and its surroundings
   // cleared, because a tree dropped against it would leave the one thing a

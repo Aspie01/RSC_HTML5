@@ -351,6 +351,8 @@ export interface BarDef {
    * too impure to use, and the ore is lost either way.
    */
   readonly successChance: number;
+  /** Quest that must be finished first. See SmithDef.quest. */
+  readonly quest?: string;
 }
 
 export const bars: readonly BarDef[] = [
@@ -368,6 +370,15 @@ export const bars: readonly BarDef[] = [
     id: 'steel_bar', name: 'Steel bar', skill: 'smithing',
     level: 20, xp: 17.5, successChance: 1,
     ingredients: [{ id: 'iron_ore', qty: 1 }, { id: 'coal', qty: 2 }]
+  },
+  // Tier 4. Steel taken back into the fire with far more coal than sense
+  // suggests, which is the part nobody works out alone -- hence the quest gate
+  // on top of the level.
+  {
+    id: 'blackiron_bar', name: 'Blackiron bar', skill: 'smithing',
+    level: 30, xp: 30, successChance: 1,
+    ingredients: [{ id: 'steel_bar', qty: 1 }, { id: 'coal', qty: 3 }],
+    quest: 'ironmongers_bargain'
   },
 
   // Glass. Sand off the shore and ash out of a dead fire, which is why the
@@ -466,6 +477,14 @@ export interface SmithDef {
   readonly barId: string;
   readonly bars: number;
   readonly level: number;
+  /**
+   * Quest that must be finished before this can be made at all.
+   *
+   * A level gate says "not yet"; a quest gate says "nobody has shown you how".
+   * Blackiron is the second kind -- the method is a thing Garrow knows and the
+   * player does not, and no amount of hammering discovers it alone.
+   */
+  readonly quest?: string;
 }
 
 /**
@@ -483,7 +502,7 @@ const SMITH_OFFSETS = {
   dagger: 0, med_helm: 1, scimitar: 2, kiteshield: 4, platelegs: 6, platebody: 8
 } as const;
 
-function tier(metal: string, base: number): SmithDef[] {
+function tier(metal: string, base: number, quest?: string): SmithDef[] {
   const barId = `${metal}_bar`;
   const barsFor: Record<keyof typeof SMITH_OFFSETS, number> = {
     dagger: 1, med_helm: 1, scimitar: 2, kiteshield: 3, platelegs: 3, platebody: 5
@@ -494,7 +513,8 @@ function tier(metal: string, base: number): SmithDef[] {
       id: `${metal}_${piece}`,
       barId,
       bars: barsFor[piece],
-      level: base + SMITH_OFFSETS[piece]
+      level: base + SMITH_OFFSETS[piece],
+      ...(quest ? { quest } : {})
     })
   );
 }
@@ -503,6 +523,7 @@ export const smithables: readonly SmithDef[] = [
   ...tier('bronze', 1),
   ...tier('iron', 10),
   ...tier('steel', 20),
+  ...tier('blackiron', 30, 'ironmongers_bargain'),
   // Foraging's inbound arrow. Nothing can be cut from a hedge without one, so
   // the skill that produces reagents starts at a forge, and no skill in the
   // game stands entirely on its own.

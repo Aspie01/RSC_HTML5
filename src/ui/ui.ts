@@ -16,6 +16,8 @@ import { STYLES, previewMaxHit } from '../systems/combat.ts';
 import { getItem } from '../data/items.ts';
 import { burnables, fletchablesFrom } from '../data/resources.ts';
 import { quests, TOTAL_QUEST_POINTS } from '../data/quests.ts';
+import { spells, spellsUpTo } from '../data/spells.ts';
+import { combinable } from '../data/combinations.ts';
 import * as sprites from '../render/sprites.ts';
 import * as XP from '../data/xp.ts';
 
@@ -56,6 +58,14 @@ export class UI {
   private readonly game: Game;
   private activeTab: TabId = 'inventory';
   private menuOpen = false;
+
+  /**
+   * Inventory slot waiting to be used on another, or null.
+   *
+   * Lives in the interface rather than in the player: it is a half-finished
+   * click, not game state, and it should not survive a save.
+   */
+  private pendingUse: number | null = null;
 
   dirty = true;
 
@@ -109,6 +119,9 @@ export class UI {
 
   setTab(id: TabId): void {
     this.activeTab = id;
+    // Leaving the inventory abandons a half-finished "Use", rather than
+    // keeping a selection alive on a panel nobody is looking at.
+    this.pendingUse = null;
     this.dom.panelTitle.textContent = TABS.find((t) => t.id === id)?.title ?? '';
 
     for (const btn of this.dom.tabs.querySelectorAll<HTMLButtonElement>('.tab-btn')) {
@@ -124,7 +137,9 @@ export class UI {
       }
     });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') this.closeMenu();
+      if (e.key !== 'Escape') return;
+      this.closeMenu();
+      if (this.pendingUse !== null) { this.pendingUse = null; this.dirty = true; }
     });
   }
 
@@ -255,7 +270,22 @@ export class UI {
           }
 
           cell.title = def.name;
-          cell.addEventListener('click', () => this.game.defaultItemAction(index));
+          if (this.pendingUse === index) cell.classList.add('selected');
+
+          cell.addEventListener('click', () => {
+            // A pending "Use" turns the next click into the second half of a
+            // combination rather than the item's own action.
+            const first = this.pendingUse;
+            if (first !== null) {
+              this.pendingUse = null;
+              if (first !== index && !this.game.combineItems(first, index)) {
+                this.message('Nothing happens.');
+              }
+              this.dirty = true;
+              return;
+            }
+            this.game.defaultItemAction(index);
+          });
           cell.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             this.openItemMenu(e.clientX, e.clientY, index, def);
@@ -275,6 +305,18 @@ export class UI {
 
     if (burnables[def.id]) {
       opts.push({ verb: 'Light', noun: def.name, action: () => this.game.lightLogs(index) });
+    }
+    // Offered only for items that are half of something, so the menu does not
+    // grow a "Use" on every rock in the game with nothing to use it on.
+    if (combinable(def.id)) {
+      opts.push({
+        verb: 'Use', noun: def.name,
+        action: () => {
+          this.pendingUse = index;
+          this.message(`Use ${def.name} with...`);
+          this.dirty = true;
+        }
+      });
     }
     // Anything that starts a fletching recipe offers it here. Driven by the
     // recipe table, so a new arrow tier needs no change in this file.
@@ -462,6 +504,45 @@ export class UI {
     }
 
     panel.appendChild(wrap);
+
+    // The spellbook lives here rather than in a tab of its own: this panel is
+    // already "how do you fight", and a spell is an answer to that question.
+    // It appears only once Vigil has been finished -- an empty book would be a
+    // UI element that exists to say nothing.
+    if (player.knowsSpells) {
+      const known = spellsUpTo(player.skills.level('magic'));
+
+      const book = document.createElement('div');
+      book.className = 'style-list';
+
+      for (const spell of spells) {
+        const locked = !known.includes(spell);
+        const active = player.selectedSpell === spell.id;
+        const btn = document.createElement('button');
+        btn.className = `style-btn${active ? ' active' : ''}${locked ? ' locked' : ''}`;
+        btn.innerHTML = locked
+          ? `<b>${spell.name}</b><small>Magic ${spell.level}</small>`
+          : `<b>${spell.name}</b><small>Max ${spell.maxHit} &middot; ${spell.reagents} leaf</small>`;
+        btn.title = locked ? `Requires Magic ${spell.level}.` : spell.describe;
+
+        if (!locked) {
+          btn.addEventListener('click', () => {
+            // Clicking the active spell puts the book away, so a caster with a
+            // focus can still choose not to cast.
+            player.selectedSpell = active ? null : spell.id;
+            this.message(active ? 'You put the book away.' : `Spell: ${spell.name}.`);
+            this.dirty = true;
+          });
+        }
+        book.appendChild(btn);
+      }
+
+      const head = document.createElement('div');
+      head.className = 'bonus-head';
+      head.textContent = 'Spellbook';
+      panel.appendChild(head);
+      panel.appendChild(book);
+    }
 
     const info = document.createElement('div');
     info.className = 'equip-bonuses';

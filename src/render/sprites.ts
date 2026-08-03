@@ -527,8 +527,51 @@ export function thicket(ctx: CanvasRenderingContext2D, x: number, y: number): vo
   }
 }
 
+/** A cut stone box sitting in shallow water. Squared edges read as placed. */
+export function stoneBox(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  shadow(ctx, x, y, 12, 6);
+
+  ctx.fillStyle = '#6f6a62';
+  ctx.strokeStyle = '#3a3630';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x - 10, y - 3);
+  ctx.lineTo(x, y - 9);
+  ctx.lineTo(x + 10, y - 3);
+  ctx.lineTo(x, y + 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Waterline across it, so it reads as half submerged.
+  ctx.strokeStyle = 'rgba(180,215,235,0.5)';
+  ctx.beginPath();
+  ctx.moveTo(x - 11, y - 1);
+  ctx.lineTo(x + 11, y - 1);
+  ctx.stroke();
+}
+
+/** A stair going down into water. Mostly an absence, which is the point. */
+export function descent(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  ctx.fillStyle = '#0d1418';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 2, 13, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Three steps catching the light before the dark takes them.
+  ctx.strokeStyle = 'rgba(150,190,205,0.45)';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 3; i++) {
+    const w = 10 - i * 3;
+    ctx.beginPath();
+    ctx.moveTo(x - w, y - 6 + i * 3);
+    ctx.lineTo(x + w, y - 6 + i * 3);
+    ctx.stroke();
+  }
+}
+
 export const scenerySprites = {
-  bush, fence, furnace, anvil, well, rubble, thicket
+  bush, fence, furnace, anvil, well, rubble, thicket, stone_box: stoneBox, descent
 } as const;
 
 // --------------------------------------------------------------------------

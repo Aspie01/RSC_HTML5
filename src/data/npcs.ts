@@ -146,6 +146,11 @@ export const npcs = {
     ]
   }),
 
+  alder: npc('alder', 'Alder Finch', {
+    talkable: true, attackable: false, wanderRadius: 0,
+    colour: '#4f4a3a', accent: '#cfc4a4', size: 1.0
+  }),
+
   hesk: npc('hesk', 'Hesk Ardley', {
     talkable: true, attackable: false, wanderRadius: 0,
     colour: '#5a4630', accent: '#cbb489', size: 1.08

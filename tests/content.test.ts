@@ -14,11 +14,17 @@ import { items, getItem } from '../src/data/items.ts';
 import { npcs } from '../src/data/npcs.ts';
 import { quests, getQuest } from '../src/data/quests.ts';
 import { shops } from '../src/data/shops.ts';
+import { combinations, combinationFor } from '../src/data/combinations.ts';
+import { inspectable } from '../src/data/inspect.ts';
 import {
   gatherables, bars, recipes, burnables, smithables, fletchables
 } from '../src/data/resources.ts';
 import * as XP from '../src/data/xp.ts';
 import { SKILL_LIST } from '../src/systems/skills.ts';
+import { generateMap } from '../src/world/map.ts';
+
+/** One generated world, shared by the tests that need to look at it. */
+const map = generateMap();
 
 const itemIds = new Set(Object.keys(items));
 const npcIds = new Set(Object.keys(npcs));
@@ -142,6 +148,7 @@ test('a quest never asks for an item it does not also make obtainable', () => {
   for (const b of bars) obtainable.add(b.id);
   for (const s of smithables) obtainable.add(s.id);
   for (const f of fletchables) obtainable.add(f.outputId);
+  for (const c of combinations) obtainable.add(c.output);
   for (const r of Object.values(recipes)) { obtainable.add(r.cookedId); obtainable.add(r.burntId); }
   for (const shop of shops) for (const l of shop.stock) obtainable.add(l.id);
   for (const def of Object.values(npcs)) {
@@ -245,9 +252,60 @@ test('rule 2: no unmarked Math.random outside the renderer and the audio synth',
   assert.deepEqual(offenders, [], 'gameplay randomness must go through core/rng');
 });
 
-test('rule 1: the simulation imports under bare Node, with no browser globals', () => {
-  // Reaching this line at all proves it: every import at the top of this file
-  // is simulation or data, and none of it touched document, window or Date.
+test('rule 1: the simulation imports under bare Node, with no browser globals', async () => {
+  // Reaching this line at all proves most of it: every import at the top of
+  // this file is simulation or data, and none of it touched document, window
+  // or Date.
   assert.equal(typeof globalThis.document, 'undefined');
   assert.ok(SKILL_LIST.length === 14, 'expected 14 skills');
+
+  // The world is the real test. Generating the map here means terrain,
+  // scenery, pathfinding and spawns all run headless -- which is the whole
+  // claim rule 1 makes, and it stays true only while nothing in that chain
+  // reaches for a browser or uses syntax Node cannot strip.
+  const { generateMap } = await import('../src/world/map.ts');
+  const map = generateMap();
+
+  assert.equal(map.width, 48);
+  assert.equal(map.height, 48);
+  assert.ok(map.spawns.length > 0, 'the generated world has nobody in it');
+  assert.ok(map.isWalkable(24, 24), 'the starting tile is not walkable');
+
+  const { find } = await import('../src/world/pathfind.ts');
+  assert.ok(find(map, 24, 24, 20, 20).length > 0, 'cannot path across the crossroads');
+});
+
+test('every combination consumes and produces real items', () => {
+  for (const c of combinations) {
+    for (const input of c.inputs) exists(input, `combination making ${c.output}`);
+    exists(c.output, 'combination output');
+    assert.ok(c.outputQty > 0, `${c.output} produces nothing`);
+    assert.notEqual(c.inputs[0], c.inputs[1], `${c.output} combines an item with itself`);
+  }
+});
+
+test('a combination is found whichever way round it is used', () => {
+  for (const c of combinations) {
+    const [a, b] = c.inputs;
+    assert.equal(combinationFor(a, b), c, `${c.output} not found forwards`);
+    assert.equal(combinationFor(b, a), c, `${c.output} not found backwards`);
+  }
+  assert.equal(combinationFor('logs', 'coins'), undefined, 'nonsense pairs must not combine');
+});
+
+test('anything a quest sends you to look at is clickable', () => {
+  // An inspect stage is only reachable if its scenery kind is inspectable --
+  // otherwise clicking the thing does nothing and the quest cannot proceed.
+  // This caught the reed wall, whose stage was only reachable from a test.
+  for (const q of quests) {
+    for (const stage of q.stages) {
+      if (stage.goal.type !== 'inspect') continue;
+      const scenery = map.sceneryAt(stage.goal.x, stage.goal.y);
+      assert.ok(scenery, `${q.id} inspects (${stage.goal.x},${stage.goal.y}) where there is nothing`);
+      assert.ok(
+        inspectable(scenery.kind),
+        `${q.id} inspects a "${scenery.kind}", which cannot be clicked to inspect`
+      );
+    }
+  }
 });
