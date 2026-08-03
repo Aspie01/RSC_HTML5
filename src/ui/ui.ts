@@ -15,10 +15,11 @@ import { SKILL_LIST } from '../systems/skills';
 import { STYLES, previewMaxHit } from '../systems/combat';
 import { getItem } from '../data/items';
 import { burnables } from '../data/resources';
+import { quests, TOTAL_QUEST_POINTS } from '../data/quests';
 import * as sprites from '../render/sprites';
 import * as XP from '../data/xp';
 
-export type TabId = 'inventory' | 'equipment' | 'skills' | 'combat';
+export type TabId = 'inventory' | 'equipment' | 'skills' | 'combat' | 'quests';
 export type ChatClass = '' | 'sys' | 'good' | 'bad' | 'levelup';
 
 interface TabDef {
@@ -31,7 +32,8 @@ const TABS: readonly TabDef[] = [
   { id: 'inventory', label: 'Inv', title: 'Inventory' },
   { id: 'equipment', label: 'Equip', title: 'Worn Equipment' },
   { id: 'skills', label: 'Skills', title: 'Skills' },
-  { id: 'combat', label: 'Combat', title: 'Combat Options' }
+  { id: 'combat', label: 'Combat', title: 'Combat Options' },
+  { id: 'quests', label: 'Quests', title: 'Quest Journal' }
 ];
 
 interface MenuOption {
@@ -206,6 +208,7 @@ export class UI {
       case 'equipment': this.renderEquipment(panel); break;
       case 'skills': this.renderSkills(panel); break;
       case 'combat': this.renderCombat(panel); break;
+      case 'quests': this.renderQuests(panel); break;
     }
   }
 
@@ -370,6 +373,56 @@ export class UI {
 
     panel.appendChild(grid);
     panel.appendChild(this.footer(`Total level: ${skills.totalLevel()}`));
+  }
+
+  // --------------------------------------------------------------------
+  // Quests
+  // --------------------------------------------------------------------
+  private renderQuests(panel: HTMLElement): void {
+    const journal = this.game.quests;
+
+    const list = document.createElement('div');
+    list.className = 'quest-list';
+
+    for (const def of quests) {
+      const complete = journal.isComplete(def);
+      const started = journal.isStarted(def.id);
+      const stage = journal.activeStage(def);
+
+      const row = document.createElement('div');
+      row.className = 'quest-row ' +
+        (complete ? 'done' : started ? 'active' : 'unstarted');
+
+      const head = document.createElement('div');
+      head.className = 'quest-name';
+      head.textContent = def.name;
+
+      const state = document.createElement('span');
+      state.className = 'quest-state';
+      state.textContent = complete
+        ? 'Complete'
+        : started
+          ? `Step ${journal.stageOf(def.id)} of ${def.stages.length}`
+          : 'Not started';
+      head.appendChild(state);
+
+      const body = document.createElement('div');
+      body.className = 'quest-step';
+      body.textContent = complete
+        ? def.reward.unlock
+        : stage
+          ? stage.journal
+          : 'You have not begun this quest.';
+
+      row.append(head, body);
+      list.appendChild(row);
+    }
+
+    panel.appendChild(list);
+    panel.appendChild(this.footer(
+      `${journal.points()} / ${TOTAL_QUEST_POINTS} quest points` +
+      `  ·  ${journal.completedCount()} of ${quests.length} complete`
+    ));
   }
 
   // --------------------------------------------------------------------

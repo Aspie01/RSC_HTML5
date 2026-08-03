@@ -26,11 +26,15 @@ import { getItem } from './data/items';
 import {
   getTree, burnables, recipeFor,
   getRock, getBar, getSmithable, bars, smithablesFor,
-  PICKAXE_IDS, HAMMER_IDS, SMITH_XP_PER_BAR
+  PICKAXE_IDS, HAMMER_IDS, HAMMER_SPEED, SMITH_XP_PER_BAR
 } from './data/resources';
 import type { BarDef, SmithDef } from './data/resources';
 import { rollGather, rollBurn } from './systems/skilling';
 import { SKILL_LIST } from './systems/skills';
+import { Quests } from './systems/quests';
+import { getQuest, questsForNpc } from './data/quests';
+import type { QuestDef, QuestItem, QuestStage } from './data/quests';
+import { Dialogue } from './ui/dialogue';
 import { INVENTORY_CAPACITY } from './systems/inventory';
 import * as XP from './data/xp';
 import * as pathfind from './world/pathfind';
@@ -82,6 +86,7 @@ interface SaveData {
   running: boolean;
   slots: unknown;
   equipment: unknown;
+  quests?: unknown;
 }
 
 export class Game implements World {
@@ -90,9 +95,11 @@ export class Game implements World {
   readonly objects = new WorldObjects();
   readonly player: Player;
   readonly npcs: Npc[] = [];
+  readonly quests = new Quests();
 
   private readonly renderer: Renderer;
   private readonly ui: UI;
+  private readonly dialogue = new Dialogue();
   private autosaveCounter = 0;
 
   constructor(canvas: HTMLCanvasElement, minimap: HTMLCanvasElement) {
@@ -128,6 +135,8 @@ export class Game implements World {
                     'then click the fire to cook.', 'sys');
     this.ui.message('The quarry and smithy are due west: mine ore, smelt it at ' +
                     'the furnace, then hammer bars at the anvil.', 'sys');
+    this.ui.message('Maren Ashfall is sitting just east of here and looks like ' +
+                    'she wants a word. Click her to talk.', 'sys');
   }
 
   // ----------------------------------------------------------------------
@@ -261,8 +270,11 @@ export class Game implements World {
     } else if (action.type === 'smelt') {
       this.resolveSmelt(action.x, action.y, action.barId);
 
-    } else {
+    } else if (action.type === 'smith') {
       this.resolveSmith(action.x, action.y, action.productId);
+
+    } else {
+      this.resolveTalk(action.target);
     }
   }
 
@@ -560,7 +572,7 @@ export class Game implements World {
     }
 
     if (p.actionDelay > 0) { p.actionDelay--; return; }
-    p.actionDelay = SMITH_TICKS;
+    p.actionDelay = this.smithTicks();
 
     this.consume(def.barId, def.bars);
     p.inventory.add(def.id, 1);
@@ -570,8 +582,222 @@ export class Game implements World {
   }
 
   // ----------------------------------------------------------------------
+  // Quests
+  // ----------------------------------------------------------------------
+  /**
+   * Walk to an NPC and hold a conversation.
+   *
+   * All the quest logic hangs off this one entry point, because talking is the
+   * only way a quest ever moves. Nothing advances on a timer or behind the
+   * player's back -- if the journal changed, it is because somebody said so.
+   */
+  private resolveTalk(npc: Npc): void {
+    const p = this.player;
+
+    if (npc.dead || !npc.def.talkable) { p.clearAction(); return; }
+    if (this.dialogue.isOpen()) return;
+
+    if (p.distanceTo(npc) > 1) {
+      if (!p.path.length) {
+        p.setPath(pathfind.findAdjacent(this.map, p.x, p.y, npc.x, npc.y));
+        if (!p.path.length) {
+          this.ui.message("I can't reach that.");
+          p.clearAction();
+        }
+      }
+      return;
+    }
+
+    p.clearPath();
+    p.faceTowards(npc.x, npc.y);
+    npc.faceTowards(p.x, p.y);
+    p.clearAction();
+
+    this.converse(npc);
+  }
+
+  /** Pick what this NPC has to say right now, and say it. */
+  private converse(npc: Npc): void {
+    const id = npc.def.id;
+
+    // A quest already under way at this NPC takes precedence over starting
+    // another, so a character can never be mid-errand and be handed a second.
+    for (const def of questsForNpc(id)) {
+      const stage = this.quests.activeStage(def);
+      if (stage && stage.npc === id) {
+        this.playStage(npc, def, stage);
+        return;
+      }
+    }
+
+    for (const def of questsForNpc(id)) {
+      if (this.quests.isStarted(def.id)) continue;
+      if (def.stages[0]?.npc !== id) continue;
+
+      if (!this.questRequirementsMet(def)) {
+        this.dialogue.open(npc.name, def.blocked ?? [
+          { who: 'npc', text: 'Not just now. Come back another time.' }
+        ]);
+        return;
+      }
+
+      this.quests.setStage(def.id, 1);
+      const first = def.stages[0]!;
+      this.playStage(npc, def, first);
+      return;
+    }
+
+    // Nothing outstanding: say the after-the-fact line, or shrug.
+    const finished = questsForNpc(id).find((d) => this.quests.isComplete(d));
+    this.dialogue.open(npc.name, finished?.afterwards ?? [
+      { who: 'npc', text: 'Good day to you.' }
+    ]);
+  }
+
+  /**
+   * Say the right half of a stage: the nudge if its goal is unmet, otherwise
+   * the pay-off, and then move the quest on once the last line is read.
+   */
+  private playStage(npc: Npc, def: QuestDef, stage: QuestStage): void {
+    if (!this.questGoalMet(npc, stage)) {
+      this.dialogue.open(npc.name, stage.waiting ?? [
+        { who: 'npc', text: 'Not yet. Come back when it is done.' }
+      ]);
+      return;
+    }
+
+    // Items change hands as the stage resolves, not as the dialogue ends --
+    // otherwise a player could be shown the thanks and keep the goods by
+    // walking away mid-sentence.
+    if (stage.goal.type === 'give') {
+      for (const need of stage.goal.items) this.consume(need.id, need.qty);
+      this.ui.dirty = true;
+    }
+
+    this.quests.advance(def);
+
+    this.dialogue.open(npc.name, stage.done, () => {
+      this.onStageAdvanced(def, stage);
+    });
+  }
+
+  /** Fires once the dialogue that completed a stage has been read to the end. */
+  private onStageAdvanced(def: QuestDef, stage: QuestStage): void {
+    // Maren undertakes to keep her fire alight, so it stops burning down.
+    if (stage.goal.type === 'fire-near') {
+      const fire = this.fireNearStageNpc(stage);
+      if (fire) fire.permanent = true;
+    }
+
+    if (this.quests.isComplete(def)) this.completeQuest(def);
+    this.ui.dirty = true;
+  }
+
+  private questGoalMet(npc: Npc, stage: QuestStage): boolean {
+    const goal = stage.goal;
+
+    if (goal.type === 'talk') return true;
+    if (goal.type === 'give') {
+      return goal.items.every((i) => this.player.inventory.count(i.id) >= i.qty);
+    }
+    return this.objects.fireNear(npc.x, npc.y) !== null;
+  }
+
+  private fireNearStageNpc(stage: QuestStage) {
+    const npc = this.npcs.find((n) => n.def.id === stage.npc);
+    return npc ? this.objects.fireNear(npc.x, npc.y) : null;
+  }
+
+  private questRequirementsMet(def: QuestDef): boolean {
+    const req = def.requires;
+    if (!req) return true;
+
+    for (const id of req.quests ?? []) {
+      const other = getQuest(id);
+      if (!other || !this.quests.isComplete(other)) return false;
+    }
+
+    for (const [skill, level] of Object.entries(req.skills ?? {})) {
+      if (this.player.skills.level(skill as SkillId) < (level ?? 0)) return false;
+    }
+
+    return true;
+  }
+
+  private completeQuest(def: QuestDef): void {
+    const reward = def.reward;
+
+    this.ui.message(`Quest complete: ${def.name}!`, 'levelup');
+    this.ui.message(
+      `You have ${this.quests.points()} quest point` +
+      `${this.quests.points() === 1 ? '' : 's'}.`, 'good'
+    );
+
+    for (const [skill, amount] of Object.entries(reward.xp ?? {})) {
+      if (amount) this.announceXp(skill as SkillId, amount);
+    }
+
+    for (const item of reward.items ?? []) this.giveQuestItem(item);
+
+    this.ui.message(reward.unlock, 'good');
+    this.ui.dirty = true;
+  }
+
+  /** A reward the player has no room for goes at their feet, never nowhere. */
+  private giveQuestItem(item: QuestItem): void {
+    const name = getItem(item.id)?.name ?? item.id;
+
+    if (this.player.inventory.add(item.id, item.qty)) {
+      this.ui.message(`You are given: ${name}.`, 'good');
+    } else {
+      this.ground.drop(item.id, item.qty, this.player.x, this.player.y);
+      this.ui.message(
+        `Your pack is full, so your ${name.toLowerCase()} is at your feet.`, 'bad'
+      );
+    }
+  }
+
+  /**
+   * Reapply the world changes that finished quests are responsible for.
+   *
+   * Fires are not saved -- they are transient world state -- so Maren's would
+   * be missing after a reload even though the quest that lit it is complete.
+   * Anything a quest promised to leave behind has to be re-established here.
+   */
+  private restoreQuestUnlocks(): void {
+    const coldHearth = getQuest('cold_hearth');
+    if (!coldHearth || !this.quests.isComplete(coldHearth)) return;
+
+    const maren = this.npcs.find((n) => n.def.id === 'maren');
+    if (!maren || this.objects.fireNear(maren.x, maren.y)) return;
+
+    const spot = this.freeTileBeside(maren.x, maren.y);
+    if (spot) this.objects.addFire(spot.x, spot.y, 0, true);
+  }
+
+  private freeTileBeside(x: number, y: number): Point | null {
+    for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]] as const) {
+      const tx = x + dx;
+      const ty = y + dy;
+      if (this.map.isWalkable(tx, ty) && !this.objects.fireAt(tx, ty)) {
+        return { x: tx, y: ty };
+      }
+    }
+    return null;
+  }
+
+  // ----------------------------------------------------------------------
   // Crafting helpers
   // ----------------------------------------------------------------------
+  /** Anvil pace, set by the best hammer to hand. */
+  private smithTicks(): number {
+    let ticks = SMITH_TICKS;
+    for (const [id, speed] of Object.entries(HAMMER_SPEED)) {
+      if (this.carries(id)) ticks = Math.min(ticks, speed);
+    }
+    return ticks;
+  }
+
   /** True if this exact item is carried or worn. */
   private carries(id: string): boolean {
     const inv = this.player.inventory;
@@ -923,12 +1149,14 @@ export class Game implements World {
     });
 
     window.addEventListener('keydown', (e) => {
+      if (this.dialogue.isOpen()) return;
+
       if (e.code === 'Space') {
         e.preventDefault();
         this.player.running = !this.player.running;
         this.ui.message(`Run mode ${this.player.running ? 'enabled' : 'disabled'}.`);
-      } else if (e.key >= '1' && e.key <= '4') {
-        const tabs = ['inventory', 'equipment', 'skills', 'combat'] as const;
+      } else if (e.key >= '1' && e.key <= '5') {
+        const tabs = ['inventory', 'equipment', 'skills', 'combat', 'quests'] as const;
         const tab = tabs[Number(e.key) - 1];
         if (tab) this.ui.setTab(tab);
       }
@@ -939,15 +1167,21 @@ export class Game implements World {
 
   private handleClick(sx: number, sy: number): void {
     const p = this.player;
-    if (p.dead) return;
+    if (p.dead || this.dialogue.isOpen()) return;
 
     const mob = this.pickMob(sx, sy, loop.alpha);
     if (mob) {
       p.clearPath();
-      p.setAction({ type: 'attack', target: mob });
-      p.target = mob;
-      this.renderer.setClickMarker(mob.x, mob.y, 'attack');
-      this.ui.message(`You attack the ${mob.name}.`);
+
+      if (mob.def.talkable) {
+        p.setAction({ type: 'talk', target: mob });
+        this.renderer.setClickMarker(mob.x, mob.y, 'move');
+      } else if (mob.def.attackable) {
+        p.setAction({ type: 'attack', target: mob });
+        p.target = mob;
+        this.renderer.setClickMarker(mob.x, mob.y, 'attack');
+        this.ui.message(`You attack the ${mob.name}.`);
+      }
       return;
     }
 
@@ -1016,25 +1250,45 @@ export class Game implements World {
 
   private handleRightClick(sx: number, sy: number, clientX: number, clientY: number): void {
     const p = this.player;
+    if (this.dialogue.isOpen()) return;
     const opts: { verb: string; noun: string; action: () => void }[] = [];
 
     const mob = this.pickMob(sx, sy, loop.alpha);
     if (mob) {
-      opts.push({
-        verb: 'Attack',
-        noun: mob.displayName,
-        action: () => {
-          p.clearPath();
-          const action: PlayerAction = { type: 'attack', target: mob };
-          p.setAction(action);
-          p.target = mob;
-          this.renderer.setClickMarker(mob.x, mob.y, 'attack');
-        }
-      });
+      if (mob.def.talkable) {
+        opts.push({
+          verb: 'Talk to',
+          noun: mob.name,
+          action: () => {
+            p.clearPath();
+            p.setAction({ type: 'talk', target: mob });
+            this.renderer.setClickMarker(mob.x, mob.y, 'move');
+          }
+        });
+      }
+
+      if (mob.def.attackable) {
+        opts.push({
+          verb: 'Attack',
+          noun: mob.displayName,
+          action: () => {
+            p.clearPath();
+            const action: PlayerAction = { type: 'attack', target: mob };
+            p.setAction(action);
+            p.target = mob;
+            this.renderer.setClickMarker(mob.x, mob.y, 'attack');
+          }
+        });
+      }
+
       opts.push({
         verb: 'Examine',
         noun: mob.name,
         action: () => {
+          if (!mob.def.attackable) {
+            this.ui.message(`${mob.name}. They look like they have something to say.`);
+            return;
+          }
           const acc = combat.previewAccuracy(p, mob);
           this.ui.message(
             `It's a ${mob.name.toLowerCase()}. Combat level ${mob.def.level}, ` +
@@ -1172,7 +1426,8 @@ export class Game implements World {
         style: p.attackStyle,
         running: p.running,
         slots: p.inventory.slots,
-        equipment: p.inventory.equipment
+        equipment: p.inventory.equipment,
+        quests: this.quests.stages
       };
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     } catch (err) {
@@ -1206,6 +1461,9 @@ export class Game implements World {
           p.skills.xp[s.id] = value;
         }
       }
+
+      this.quests.restore(data.quests);
+      this.restoreQuestUnlocks();
 
       if (data.slots) p.inventory.slots = this.migrateSlots(data.slots);
       if (data.equipment) p.inventory.equipment = data.equipment as typeof p.inventory.equipment;

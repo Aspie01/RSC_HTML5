@@ -75,6 +75,13 @@ export interface DropEntry {
 export interface NpcDef {
   readonly id: string;
   readonly name: string;
+  /**
+   * Quest-givers and shopkeepers are talked to, not fought. Keeping these two
+   * flags separate leaves room for the guard who will both answer a question
+   * and hit you for asking it.
+   */
+  readonly talkable: boolean;
+  readonly attackable: boolean;
   readonly level: number;
   readonly hitpoints: number;
   readonly attack: number;
@@ -185,7 +192,9 @@ export type PlayerAction =
   /** Smelt ore into `barId` at the furnace on this tile, repeating. */
   | { type: 'smelt'; x: number; y: number; barId: string }
   /** Hammer bars into `productId` at the anvil on this tile, repeating. */
-  | { type: 'smith'; x: number; y: number; productId: string };
+  | { type: 'smith'; x: number; y: number; productId: string }
+  /** Walk to this NPC and open the conversation. */
+  | { type: 'talk'; target: Npc };
 
 /** Scenery you interact with through an interface rather than a single verb. */
 export type StationKind = 'furnace' | 'anvil';

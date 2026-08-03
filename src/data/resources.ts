@@ -153,8 +153,17 @@ export function getRock(id: string): RockDef | undefined {
 /** Any one of these in the inventory or equipped lets you mine. */
 export const PICKAXE_IDS: readonly string[] = ['bronze_pickaxe'];
 
-/** Smithing at an anvil needs one of these to hand. */
-export const HAMMER_IDS: readonly string[] = ['hammer'];
+/**
+ * Smithing at an anvil needs one of these to hand, and a better hammer works
+ * the metal faster. Keeping the pace here rather than in the engine means a
+ * new hammer is a data edit, not a special case at the anvil.
+ */
+export const HAMMER_SPEED: Readonly<Record<string, number>> = {
+  hammer: 3,
+  smiths_hammer: 2
+};
+
+export const HAMMER_IDS: readonly string[] = Object.keys(HAMMER_SPEED);
 
 // --------------------------------------------------------------------------
 // Smelting (Smithing, at a furnace)

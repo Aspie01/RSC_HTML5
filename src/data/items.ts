@@ -90,6 +90,18 @@ export const items = {
     examine: 'Good for hitting things. Or smithing.'
   }),
 
+  // Quest rewards. Not obtainable any other way, which is the point of them.
+  woodsmans_axe: item('woodsmans_axe', "Woodsman's axe", {
+    slot: 'weapon', speed: 5, colour: '#8f8f96', shape: 'axe',
+    bonuses: { attack: 7, strength: 9 },
+    examine: 'Tobin kept a better edge on this than he let on.'
+  }),
+
+  smiths_hammer: item('smiths_hammer', "Smith's hammer", {
+    colour: '#b0782f', shape: 'hammer',
+    examine: 'Heavier than it looks, and better balanced than it has any right to be.'
+  }),
+
   // ------------------------------------------------------------------------
   // Ores and bars
   // ------------------------------------------------------------------------

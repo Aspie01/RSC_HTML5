@@ -176,6 +176,17 @@ const ORE_VEINS: ReadonlyArray<{ x: number; y: number; rock: string }> = [
   { x: 10, y: 20, rock: 'coal' }
 ];
 
+/**
+ * Where the quest givers stand. Fixed tiles, chosen so each one is found at
+ * the place their quest is about: Maren on the crossroads you spawn at, Tobin
+ * among the trees, Garrow inside the smithy.
+ */
+const QUEST_GIVERS: ReadonlyArray<{ npcId: string; x: number; y: number }> = [
+  { npcId: 'maren', x: 26, y: 22 },
+  { npcId: 'tobin', x: 19, y: 28 },
+  { npcId: 'garrow', x: 17, y: 20 }
+];
+
 function spawnCluster(
   map: GameMap, npcId: string,
   x0: number, y0: number, x1: number, y1: number,
@@ -282,6 +293,16 @@ export function generateMap(): GameMap {
   spawnCluster(map, 'guard', 32, 32, 38, 38, 3, rng);
   spawnCluster(map, 'rat', 15, 26, 21, 31, 3, rng);
   spawnCluster(map, 'rat', 26, 28, 32, 34, 3, rng);
+
+  // Quest givers stand on fixed tiles rather than being scattered, because a
+  // player has to be able to find them again. Maren sits on the crossroads
+  // where you spawn; the other two stand at the places their quests are about.
+  for (const q of QUEST_GIVERS) {
+    // Clear whatever the scatter pass left here; a quest giver standing inside
+    // a tree is unreachable, and these tiles are not negotiable.
+    map.scenery[map.idx(q.x, q.y)] = null;
+    map.spawns.push({ npcId: q.npcId, x: q.x, y: q.y });
+  }
 
   return map;
 }

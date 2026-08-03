@@ -43,6 +43,52 @@ html, body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* Anchor for the dialogue overlay, which floats over the world. */
+  position: relative;
+}
+
+/* --------------------------------------------------------------------------
+   Dialogue
+   -------------------------------------------------------------------------- */
+#dialogue {
+  display: none;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 148px;
+  width: min(560px, calc(100% - 40px));
+  padding: 10px 14px 8px;
+  background: linear-gradient(#3b3225, #2a231a);
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  z-index: 40;
+}
+
+#dialogue-name {
+  font-weight: bold;
+  font-size: 14px;
+  color: #f5e6a8;
+  margin-bottom: 4px;
+}
+
+#dialogue-name.player {
+  color: #9fd0f0;
+}
+
+#dialogue-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #e8ddc4;
+  min-height: 42px;
+}
+
+#dialogue-hint {
+  margin-top: 6px;
+  text-align: right;
+  font-size: 11px;
+  color: #9a8b6d;
 }
 
 #game {
@@ -201,7 +247,7 @@ html, body {
 /* Tabs ------------------------------------------------------------- */
 #tabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 3px;
 }
 
@@ -456,3 +502,51 @@ html, body {
 
 .ctx-verb { color: #000; }
 .ctx-noun { color: #6b4d00; }
+
+/* --------------------------------------------------------------------------
+   Quest journal
+   -------------------------------------------------------------------------- */
+.quest-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quest-row {
+  padding: 6px 8px;
+  background: #1c1710;
+  border: 1px solid #352d21;
+  border-radius: 3px;
+  border-left-width: 3px;
+}
+
+.quest-row.unstarted { border-left-color: #6b5c42; }
+.quest-row.active    { border-left-color: #d8a13c; }
+.quest-row.done      { border-left-color: #31c04a; }
+
+.quest-name {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: bold;
+  color: #e8ddc4;
+}
+
+.quest-row.done .quest-name { color: #8fd89b; }
+.quest-row.unstarted .quest-name { color: #9a8b6d; }
+
+.quest-state {
+  font-weight: normal;
+  font-size: 10px;
+  color: #9a8b6d;
+  white-space: nowrap;
+}
+
+.quest-step {
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #b8a888;
+}
