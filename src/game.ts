@@ -14,7 +14,7 @@ import type {
   EquipSlot, ItemStack, PlayerAction, Point, SkillId, StationKind, World
 } from './types.ts';
 import type { GroundItem } from './systems/ground.ts';
-import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE } from './world/map.ts';
+import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE, SALLOWS_ENTRANCE } from './world/map.ts';
 import { GroundItems } from './systems/ground.ts';
 import { WorldObjects } from './systems/objects.ts';
 import { Player } from './entities/player.ts';
@@ -816,6 +816,13 @@ export class Game implements World {
       if (fire) fire.permanent = true;
     }
 
+    // The reeds come down when they are cut, not when the report is filed:
+    // the stage after this one sends the player into the fen to measure it,
+    // and it has to be walkable by then.
+    if (def.id === 'cartographers_error' && stage.goal.type === 'inspect') {
+      this.openTheSallows();
+    }
+
     // Handed over before the next stage is set, so a stage that supplies the
     // tool for the one after it cannot leave the player unable to continue.
     for (const item of stage.gives ?? []) this.giveQuestItem(item);
@@ -871,6 +878,7 @@ export class Game implements World {
     if (def.id === 'deepcut') this.openTheCut();
     if (def.id === 'quiet_grove') this.openTheGrove();
 
+
     this.ui.message(`Quest complete: ${def.name}!`, 'levelup');
     this.ui.message(
       `You have ${this.quests.points()} quest point` +
@@ -919,6 +927,12 @@ export class Game implements World {
     const grove = getQuest('quiet_grove');
     if (grove && this.quests.isComplete(grove)) this.openTheGrove();
 
+    // Keyed to the stage, not to completion. The reeds come down partway
+    // through, and the stage after that sends the player into the fen --
+    // waiting for completion here would re-seal it under someone standing
+    // in it.
+    if (this.quests.stageOf('cartographers_error') >= 3) this.openTheSallows();
+
     const coldHearth = getQuest('cold_hearth');
     if (!coldHearth || !this.quests.isComplete(coldHearth)) return;
 
@@ -932,6 +946,11 @@ export class Game implements World {
   /** Clear the fall that buries the way into the lower mine. */
   private openTheCut(): void {
     this.map.scenery[this.map.idx(CUT_ENTRANCE.x, CUT_ENTRANCE.y)] = null;
+  }
+
+  /** Cut back the dead reed across the fen path. */
+  private openTheSallows(): void {
+    this.map.scenery[this.map.idx(SALLOWS_ENTRANCE.x, SALLOWS_ENTRANCE.y)] = null;
   }
 
   /** Cut back the thicket across the grove path. */

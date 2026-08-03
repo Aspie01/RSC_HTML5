@@ -5,15 +5,25 @@
 // (Tiled exports JSON), you replace generate() and nothing else -- the rest of
 // the game only talks to inBounds / isWalkable / terrainAt.
 
-export const enum Terrain {
-  Grass = 0,
-  GrassDark = 1,
-  Dirt = 2,
-  Path = 3,
-  Water = 4,
-  Sand = 5,
-  Stone = 6
-}
+/**
+ * Terrain kinds, as a frozen object rather than a `const enum`.
+ *
+ * An enum cannot be type-stripped, which would make this module -- and so the
+ * whole world -- unimportable from a bare Node script. Rule 1 says the
+ * simulation must be steppable there, and the tests rely on it, so the one
+ * construct that breaks it is not worth the syntax sugar.
+ */
+export const Terrain = {
+  Grass: 0,
+  GrassDark: 1,
+  Dirt: 2,
+  Path: 3,
+  Water: 4,
+  Sand: 5,
+  Stone: 6
+} as const;
+
+export type Terrain = (typeof Terrain)[keyof typeof Terrain];
 
 export interface TerrainInfo {
   readonly top: string;
@@ -221,6 +231,25 @@ const GROVE_TREES: ReadonlyArray<{ x: number; y: number; tree: string }> = [
 export const GROVE_ENTRANCE = { x: 23, y: 39 } as const;
 
 /**
+ * The Sallows: low ground in the south-east that has no business being wet.
+ *
+ * Standing water sits in it in pools that do not drain, well above the lake
+ * and nowhere near the river. The way in is choked with dead reed until The
+ * Cartographer's Error is finished.
+ */
+const SALLOW_POOLS: ReadonlyArray<readonly [number, number]> = [
+  [35, 42], [36, 42], [36, 43], [39, 41], [40, 41], [40, 42],
+  [37, 45], [38, 45], [42, 44], [43, 44], [34, 45], [41, 46]
+];
+
+/**
+ * The tile that seals the Sallows. Cleared when The Cartographer's Error
+ * completes. It sits ON the reed wall, not inside it -- a gap one tile in from
+ * the edge is not a gap, it is a cupboard.
+ */
+export const SALLOWS_ENTRANCE = { x: 32, y: 44 } as const;
+
+/**
  * Fishing spots, all placed so that a pier or shore tile sits beside them.
  * Shallows hug the sand; the deep water is out at the pier head, which is what
  * makes walking to the end of it worth doing at Fishing 10.
@@ -255,7 +284,9 @@ const QUEST_GIVERS: ReadonlyArray<{ npcId: string; x: number; y: number }> = [
   // On the sand, between the banks and the furnace road.
   { npcId: 'sella', x: 42, y: 21 },
   // South-east, on the road out towards the guards -- where the fighting is.
-  { npcId: 'hesk', x: 30, y: 31 }
+  { npcId: 'hesk', x: 30, y: 31 },
+  // On the south road, in sight of the reeds he cannot account for.
+  { npcId: 'alder', x: 30, y: 38 }
 ];
 
 function spawnCluster(
@@ -445,6 +476,28 @@ export function generateMap(): GameMap {
   // here killed a test woodcutter mid-chop, which is precisely the failure the
   // goblins in the Cut already taught.
   spawnCluster(map, 'boar', 24, 42, 28, 44, 3, rng);
+
+  // The Sallows. Reached along the south road, then east through the reeds.
+  map.fillRect(33, 40, 44, 46, Terrain.Dirt);
+  for (const [px, py] of SALLOW_POOLS) map.setTerrain(px, py, Terrain.Water);
+
+  // Reed wall around it, with one gap. The pools inside are not scenery -- they
+  // are terrain, so the fen has to be picked across rather than walked through,
+  // which is the traversal the Sunken Road will ask for in earnest.
+  for (let y = 39; y <= 47; y++) {
+    for (let x = 32; x <= 45; x++) {
+      const edge = x === 32 || x === 45 || y === 39 || y === 47;
+      if (!edge) continue;
+      if (x === SALLOWS_ENTRANCE.x && y === SALLOWS_ENTRANCE.y) continue;
+      if (map.inBounds(x, y)) map.setScenery(x, y, { kind: 'thicket', blocks: true });
+    }
+  }
+  map.setScenery(SALLOWS_ENTRANCE.x, SALLOWS_ENTRANCE.y, { kind: 'thicket', blocks: true });
+
+  // Marshroot likes the wet. A reason to come back that is not the quest.
+  for (const [bx, by] of [[34, 41], [38, 43], [42, 41], [37, 46]] as const) {
+    map.setScenery(bx, by, { kind: 'bush', blocks: false, resource: 'marshroot' });
+  }
 
   // The village well. Placed after the scatter pass, and its surroundings
   // cleared, because a tree dropped against it would leave the one thing a

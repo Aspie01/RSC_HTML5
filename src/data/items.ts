@@ -189,6 +189,17 @@ export const items = {
     examine: 'Iron-tipped, and noticeably heavier.'
   }),
 
+  // Quest key items. Valueless because no shop should ever take them.
+  survey_chain: item('survey_chain', 'Surveyor\'s chain', {
+    colour: '#9a9a86', shape: 'bar',
+    examine: 'Sixty-six feet of it, and it does not lie.'
+  }),
+
+  sallows_chart: item('sallows_chart', 'Corrected chart', {
+    colour: '#d8c9a0', shape: 'blob',
+    examine: 'The old lines in ink, the new ones in pencil. They do not agree.'
+  }),
+
   // ------------------------------------------------------------------------
   // Magic
   //

@@ -245,9 +245,25 @@ test('rule 2: no unmarked Math.random outside the renderer and the audio synth',
   assert.deepEqual(offenders, [], 'gameplay randomness must go through core/rng');
 });
 
-test('rule 1: the simulation imports under bare Node, with no browser globals', () => {
-  // Reaching this line at all proves it: every import at the top of this file
-  // is simulation or data, and none of it touched document, window or Date.
+test('rule 1: the simulation imports under bare Node, with no browser globals', async () => {
+  // Reaching this line at all proves most of it: every import at the top of
+  // this file is simulation or data, and none of it touched document, window
+  // or Date.
   assert.equal(typeof globalThis.document, 'undefined');
   assert.ok(SKILL_LIST.length === 14, 'expected 14 skills');
+
+  // The world is the real test. Generating the map here means terrain,
+  // scenery, pathfinding and spawns all run headless -- which is the whole
+  // claim rule 1 makes, and it stays true only while nothing in that chain
+  // reaches for a browser or uses syntax Node cannot strip.
+  const { generateMap } = await import('../src/world/map.ts');
+  const map = generateMap();
+
+  assert.equal(map.width, 48);
+  assert.equal(map.height, 48);
+  assert.ok(map.spawns.length > 0, 'the generated world has nobody in it');
+  assert.ok(map.isWalkable(24, 24), 'the starting tile is not walkable');
+
+  const { find } = await import('../src/world/pathfind.ts');
+  assert.ok(find(map, 24, 24, 20, 20).length > 0, 'cannot path across the crossroads');
 });

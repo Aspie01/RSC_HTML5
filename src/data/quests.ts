@@ -344,6 +344,75 @@ export const quests: readonly QuestDef[] = [
     ]
   },
 
+  // Quest 12. The Wardens arc opens, and the register turns: up to here every
+  // strange thing has had a mundane reading available. This is where one stops
+  // being available. The error in the title is not the cartographer's -- his
+  // measurements are correct and the land is wrong, and he knows it.
+  {
+    id: 'cartographers_error',
+    name: "The Cartographer's Error",
+    requires: { quests: ['deepcut'] },
+    blocked: [
+      { who: 'npc', text: 'You have not been down the Cut. Come back when you have, because I will need you to believe me and you will not until then.' }
+    ],
+    reward: {
+      points: 3,
+      xp: { foraging: 300, crafting: 200 },
+      items: [{ id: 'sallows_chart', qty: 1 }],
+      unlock: 'The reeds are cut back. The Sallows are open, and they are lower than they were.'
+    },
+    stages: [
+      {
+        journal: 'Alder Finch has surveyed the same ground twice and got two answers.',
+        npc: 'alder',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Do not touch the chain. I have measured with it four hundred times and I need it to keep being the same chain.' },
+          { who: 'npc', text: 'I surveyed this valley eleven years ago. I surveyed it again in the spring. The two do not agree.' },
+          { who: 'player', text: 'Everyone makes mistakes.' },
+          { who: 'npc', text: 'Yes. And a mistake is wrong once. Mine is wrong by the same amount every time, in the same direction, and the amount is getting larger.' },
+          { who: 'npc', text: 'The ground east of here is four feet lower than it was. Not eroded -- lower. The trees are the same height and they are standing in water that has nowhere to come from.' },
+          { who: 'npc', text: 'I cannot get in to measure it. The reed has closed the way and I am sixty-one. Cut it back for me and take the chain -- I want the far side measured before I have to write this down.' }
+        ],
+        gives: [{ id: 'survey_chain', qty: 1 }]
+      },
+      {
+        journal: 'Cut back the reeds south-east of the grove, at the low end of the road.',
+        npc: 'alder',
+        goal: { type: 'inspect', x: 32, y: 44 },
+        waiting: [
+          { who: 'npc', text: 'East. Past where the grove path turns. You will hear it before you see it -- reed does not rustle when there is no wind, and that reed does.' }
+        ],
+        done: [
+          { who: 'player', text: 'The reed is dead and standing. All of it, upright, and none of it rotted -- it died and did not fall down.' },
+          { who: 'player', text: 'It comes apart in the hand like ash. Behind it the ground drops away, and there is standing water in the hollows.' },
+          { who: 'player', text: 'The water is not moving. It is not draining anywhere and nothing is running into it. It is simply sitting in the low places, and the low places are new.' },
+          { who: 'player', text: 'It is salt. Of course it is salt.' }
+        ]
+      },
+      {
+        journal: 'Measure the Sallows with the chain, then take the reading to Alder Finch.',
+        npc: 'alder',
+        goal: { type: 'give', items: [{ id: 'survey_chain', qty: 1 }] },
+        waiting: [
+          { who: 'npc', text: 'Take it across and bring it back. I do not need a number from you -- I need the chain to have been there.' }
+        ],
+        done: [
+          { who: 'player', text: 'Four feet, near enough. Lower than your old survey, across the whole fen.' },
+          { who: 'npc', text: 'Not four. Four and a half now. It was four in the spring.' },
+          { who: 'player', text: 'Then it is still going.' },
+          { who: 'npc', text: 'It is still going. Land does not do this. Land subsides where something beneath it has been taken away, and nothing has been taken from under that fen -- I have the sections, there is nothing under it but clay for ninety feet.' },
+          { who: 'npc', text: 'So either my chain is wrong, or the valley is being drawn down, and I have told you what I think of my chain.' },
+          { who: 'npc', text: 'Take the corrected chart. I have marked what I measured and what I measured before, and I have not written a conclusion on it because I do not have one and I will not invent one.' },
+          { who: 'npc', text: 'Show it to Maren Ashfall. She has been keeping her own list, and I would rather two fools compared notes than one wrote a report.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Still going down. I measure it on Thursdays now, which is a thing I never expected to say.' }
+    ]
+  },
+
   // Quest 11. Introduces Crafting, and does it through glass because glass is
   // the one material that needs a skill the player already has: ash only comes
   // from fires that have burnt out, which is why the gate is Firemaking rather
