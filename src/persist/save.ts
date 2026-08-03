@@ -38,6 +38,9 @@ export interface SaveData {
    * before it existed, which simply get a fresh stream of luck.
    */
   rng?: unknown;
+  /** Spellbook state. Absent means Vigil is unfinished, which is the default. */
+  knowsSpells?: unknown;
+  spell?: unknown;
   /**
    * Shop stock and restock timers. Optional, and absent means every shop is
    * full -- which is why adding shops needed no version bump: a save written

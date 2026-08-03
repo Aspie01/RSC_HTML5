@@ -877,6 +877,8 @@ export class Game implements World {
     // restoreQuestUnlocks so a reload does not bury it again.
     if (def.id === 'deepcut') this.openTheCut();
     if (def.id === 'quiet_grove') this.openTheGrove();
+    // Vigil is the only source of the book; there is no other way to learn one.
+    if (def.id === 'vigil') this.learnSpells();
 
 
     this.ui.message(`Quest complete: ${def.name}!`, 'levelup');
@@ -933,6 +935,9 @@ export class Game implements World {
     // in it.
     if (this.quests.stageOf('cartographers_error') >= 3) this.openTheSallows();
 
+    const vigil = getQuest('vigil');
+    if (vigil && this.quests.isComplete(vigil)) this.player.knowsSpells = true;
+
     const coldHearth = getQuest('cold_hearth');
     if (!coldHearth || !this.quests.isComplete(coldHearth)) return;
 
@@ -946,6 +951,13 @@ export class Game implements World {
   /** Clear the fall that buries the way into the lower mine. */
   private openTheCut(): void {
     this.map.scenery[this.map.idx(CUT_ENTRANCE.x, CUT_ENTRANCE.y)] = null;
+  }
+
+  /** Open the spellbook, and default to the one spell anybody can cast. */
+  private learnSpells(): void {
+    this.player.knowsSpells = true;
+    this.player.selectedSpell ??= 'ember_spark';
+    this.ui.dirty = true;
   }
 
   /** Cut back the dead reed across the fen path. */
@@ -1058,14 +1070,14 @@ export class Game implements World {
    * fiddly in a game with no ground-item ownership, and it would turn every
    * fight into a tidying exercise -- the cost is meant to be felt, not undone.
    */
-  private spendAmmo(p: Player, tag: string): boolean {
+  private spendAmmo(p: Player, tag: string, count = 1): boolean {
     const ammo = p.inventory.equipment.ammo;
-    if (!ammo || ammo.qty <= 0) return false;
+    if (!ammo || ammo.qty < count) return false;
 
     // The quiver has to hold the right kind: arrows will not fire a focus.
     if (!getItem(ammo.id)?.tags.includes(tag)) return false;
 
-    ammo.qty--;
+    ammo.qty -= count;
     if (ammo.qty <= 0) {
       const name = getItem(ammo.id)?.name.toLowerCase() ?? 'ammunition';
       p.inventory.equipment.ammo = null;
@@ -1231,11 +1243,20 @@ export class Game implements World {
     // range, not a fee for succeeding at it.
     if (mob instanceof Player) {
       const tag = mob.ammoTag();
-      if (tag && !this.spendAmmo(mob, tag)) {
+      // A spell decides its own cost; a bow always costs one. Taken as a batch
+      // so a two-reagent spell cannot half-cast on the last leaf in the pouch.
+      const cost = mob.activeSpell()?.reagents ?? 1;
+
+      if (tag && !this.spendAmmo(mob, tag, cost)) {
         this.ui.message(`You have nothing left to ${tag === 'arrow' ? 'shoot' : 'cast'}.`, 'bad');
         mob.clearAction();
         return;
       }
+
+      // Casting trains Magic whether or not the spell lands -- the leaf is
+      // spent either way, and a miss taught you as much as a hit.
+      const spell = mob.activeSpell();
+      if (spell) this.announceXp('magic', spell.xp);
     }
 
     mob.faceTowards(target.x, target.y);
@@ -1720,6 +1741,8 @@ export class Game implements World {
       quests: this.quests.stages,
       questKills: this.quests.kills,
       rng: rng.snapshot(),
+      knowsSpells: p.knowsSpells,
+      spell: p.selectedSpell,
       shops: this.shops.snapshot()
     };
     return JSON.stringify(data);
@@ -1772,6 +1795,8 @@ export class Game implements World {
       this.quests.restore(data.quests);
       this.quests.restoreKills(data.questKills);
       rng.restore(data.rng);
+      if (data.knowsSpells === true) p.knowsSpells = true;
+      if (typeof data.spell === 'string') p.selectedSpell = data.spell;
       this.restoreQuestUnlocks();
       this.shops.restore(data.shops);
 

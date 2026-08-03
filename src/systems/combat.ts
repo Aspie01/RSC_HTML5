@@ -78,7 +78,8 @@ export function resolve(attacker: Mob, defender: Mob, gen: Rng = rng): HitResult
   const defenceRoll = effective(d.defence, d.styleDefence) * (d.defenceBonus + 64);
 
   const chance = hitChance(attackRoll, defenceRoll);
-  const maxHit = maxHitFor(a.strength, a.styleStrength, a.strengthBonus);
+  // A spell brings its own cap; everything else derives one from Strength.
+  const maxHit = a.maxHit ?? maxHitFor(a.strength, a.styleStrength, a.strengthBonus);
 
   if (gen.next() >= chance) {
     return { hit: false, damage: 0, maxHit };

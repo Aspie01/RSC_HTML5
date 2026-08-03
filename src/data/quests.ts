@@ -344,6 +344,92 @@ export const quests: readonly QuestDef[] = [
     ]
   },
 
+  // Quest 13. Magic gets a spellbook, and the arc gets its first Warden
+  // artefact. Sella has been holding the other half of this since Glass and
+  // Ash -- "there is more than vials in glass, and I will show you when there
+  // is more than sand in this village" -- and the fen is the more.
+  //
+  // The vigil in the title is literal: the order kept lights burning at fixed
+  // points and wrote down what they saw. Nobody has kept one in a century, and
+  // the reason nobody stopped is that nobody knows why they started.
+  {
+    id: 'vigil',
+    name: 'Vigil',
+    requires: { quests: ['glass_and_ash', 'cartographers_error'], skills: { crafting: 20 } },
+    blocked: [
+      { who: 'npc', text: 'Not yet. You have made a vial; that is not the same as making something that has to hold a light for a hundred years.' }
+    ],
+    reward: {
+      points: 3,
+      xp: { magic: 400, crafting: 300 },
+      items: [{ id: 'emberglass_focus', qty: 1 }],
+      unlock: 'The book is copied out. Three spells, and a focus that will hold them.'
+    },
+    stages: [
+      {
+        journal: 'Sella Quist has a book she cannot read and a lamp she cannot light.',
+        npc: 'sella',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'You have seen the fen, then. Alder has been at my bench three times about it and he does not visit people.' },
+          { who: 'npc', text: 'So I will show you the thing I have been not showing anyone.' },
+          { who: 'npc', text: 'My grandmother had it off her grandmother. A glass lamp with no oil reservoir and no wick, and a book of instructions for filling it.' },
+          { who: 'player', text: 'Filling it with what?' },
+          { who: 'npc', text: 'It does not say. It says when. Every ninth night, and on any night the water moves wrong.' },
+          { who: 'npc', text: 'I have never had cause to light it. I have had cause four times this season and I have not been able to, because the filling wants emberleaf and emberleaf stopped growing here before I was born.' },
+          { who: 'npc', text: 'It grows in the grove. Bring me eight, and a vial to draw them into, and we will find out together what my family has been keeping.' }
+        ]
+      },
+      {
+        journal: 'Bring Sella Quist 8 emberleaf and 1 glass vial.',
+        npc: 'sella',
+        goal: { type: 'give', items: [{ id: 'emberleaf', qty: 8 }, { id: 'glass_vial', qty: 1 }] },
+        waiting: [
+          { who: 'npc', text: 'Emberleaf from the grove -- the red bushes, and you will want a sickle. The vial you can make yourself; you know how.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Hold it away from you. It takes the leaf faster than it should and I would rather find that out about your sleeve than mine.' },
+          { who: 'npc', text: '...There. That is a light. That is a cold light with no shadow under it, and I have been looking at it for a while now and I do not like it.' },
+          { who: 'player', text: 'What does the book say happens next?' },
+          { who: 'npc', text: 'It says: record the level. That is all. Record the level, every ninth night, and send word if it falls.' },
+          { who: 'npc', text: 'Send word to whom, it does not say. It has not said for a hundred years and my family kept filling in the dates anyway.' }
+        ]
+      },
+      {
+        journal: 'Take the lit lamp to the Sallows and record what it shows.',
+        npc: 'sella',
+        goal: { type: 'inspect', x: 32, y: 44 },
+        waiting: [
+          { who: 'npc', text: 'The fen. Take it to the fen -- that is where the water is doing the thing the book is about.' }
+        ],
+        done: [
+          { who: 'player', text: 'The lamp is brighter here. Not warmer. Brighter, and the light is going down into the pools instead of off them.' },
+          { who: 'player', text: 'It is showing the water level as it was. There is a line of light standing in the air, a good four feet above the pools, flat and level across the whole fen.' },
+          { who: 'player', text: 'That is what the book means. Record the level. It is not asking how deep the water is -- it is showing where the water should be, and asking how far it has gone.' },
+          { who: 'player', text: 'Somebody built this to be read by people who already knew what was taking it.' }
+        ]
+      },
+      {
+        journal: 'Tell Sella Quist what the lamp showed.',
+        npc: 'sella',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'player', text: 'It shows the old level. A line in the air where the water used to stand.' },
+          { who: 'npc', text: 'Four feet.' },
+          { who: 'player', text: 'Four and a half.' },
+          { who: 'npc', text: 'Then my great-grandmother wrote four and a quarter in 1811 and I always assumed she was guessing.' },
+          { who: 'npc', text: 'She was not guessing. She was doing what I have just watched you do, and so was her mother, and none of them knew who they were sending word to either.' },
+          { who: 'npc', text: 'Here. I have copied out the back of the book -- the part that is not dates. Three workings, and the focus to hold them.' },
+          { who: 'npc', text: 'They are not much. A spark, a bolt, and one they called hollowlight that I cannot make sense of and have written down exactly as it stands.' },
+          { who: 'npc', text: 'Take the lamp too. I have kept it eighty years and it has been waiting for something, and I would rather it waited nearer the water.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Every ninth night. I keep the dates now, since you started going out there.' }
+    ]
+  },
+
   // Quest 12. The Wardens arc opens, and the register turns: up to here every
   // strange thing has had a mundane reading available. This is where one stops
   // being available. The error in the title is not the cartographer's -- his

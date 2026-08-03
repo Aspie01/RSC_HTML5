@@ -16,6 +16,7 @@ import { STYLES, previewMaxHit } from '../systems/combat.ts';
 import { getItem } from '../data/items.ts';
 import { burnables, fletchablesFrom } from '../data/resources.ts';
 import { quests, TOTAL_QUEST_POINTS } from '../data/quests.ts';
+import { spells, spellsUpTo } from '../data/spells.ts';
 import * as sprites from '../render/sprites.ts';
 import * as XP from '../data/xp.ts';
 
@@ -462,6 +463,45 @@ export class UI {
     }
 
     panel.appendChild(wrap);
+
+    // The spellbook lives here rather than in a tab of its own: this panel is
+    // already "how do you fight", and a spell is an answer to that question.
+    // It appears only once Vigil has been finished -- an empty book would be a
+    // UI element that exists to say nothing.
+    if (player.knowsSpells) {
+      const known = spellsUpTo(player.skills.level('magic'));
+
+      const book = document.createElement('div');
+      book.className = 'style-list';
+
+      for (const spell of spells) {
+        const locked = !known.includes(spell);
+        const active = player.selectedSpell === spell.id;
+        const btn = document.createElement('button');
+        btn.className = `style-btn${active ? ' active' : ''}${locked ? ' locked' : ''}`;
+        btn.innerHTML = locked
+          ? `<b>${spell.name}</b><small>Magic ${spell.level}</small>`
+          : `<b>${spell.name}</b><small>Max ${spell.maxHit} &middot; ${spell.reagents} leaf</small>`;
+        btn.title = locked ? `Requires Magic ${spell.level}.` : spell.describe;
+
+        if (!locked) {
+          btn.addEventListener('click', () => {
+            // Clicking the active spell puts the book away, so a caster with a
+            // focus can still choose not to cast.
+            player.selectedSpell = active ? null : spell.id;
+            this.message(active ? 'You put the book away.' : `Spell: ${spell.name}.`);
+            this.dirty = true;
+          });
+        }
+        book.appendChild(btn);
+      }
+
+      const head = document.createElement('div');
+      head.className = 'bonus-head';
+      head.textContent = 'Spellbook';
+      panel.appendChild(head);
+      panel.appendChild(book);
+    }
 
     const info = document.createElement('div');
     info.className = 'equip-bonuses';
