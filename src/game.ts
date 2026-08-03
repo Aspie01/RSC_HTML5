@@ -53,6 +53,15 @@ import { SAVE_VERSION, type SaveData, encodeSaveCode, decodeSaveCode, parseSave 
 const AUTOSAVE_TICKS = 50; // every 30 seconds
 
 /**
+ * Ticks to wait for somebody to step out of the way before rerouting.
+ *
+ * Long enough that two people crossing in a doorway sort themselves out
+ * without either recalculating, short enough that walking into a stationary
+ * NPC costs about a second rather than the rest of the session.
+ */
+const BLOCKED_GRACE_TICKS = 3;
+
+/**
  * The right-click verb for each gathering skill. Data rather than a `switch`,
  * so adding Foraging is a row here and a row in `resources.ts`.
  */
@@ -230,6 +239,7 @@ export class Game implements World {
 
     // 2. Movement
     this.player.stepMovement(this);
+    this.unstickPlayer();
     for (const npc of this.npcs) {
       if (!npc.dead) npc.stepMovement(this);
     }
@@ -278,7 +288,7 @@ export class Game implements World {
         p.faceTowards(t.x, t.y);
       } else if (!p.path.length) {
         // The target moved; walk to it again.
-        p.setPath(pathfind.findAdjacent(this.map, p.x, p.y, t.x, t.y));
+        p.setPath(pathfind.findAvoiding(this.map, p.x, p.y, t.x, t.y, this.occupiedByMob, true));
         if (!p.path.length) {
           this.ui.message("I can't reach that.");
           p.clearAction();
@@ -293,7 +303,7 @@ export class Game implements World {
         this.pickUp(item);
         p.clearAction();
       } else if (!p.path.length) {
-        p.setPath(pathfind.find(this.map, p.x, p.y, item.x, item.y));
+        p.setPath(pathfind.findAvoiding(this.map, p.x, p.y, item.x, item.y, this.occupiedByMob, false));
         if (!p.path.length) {
           this.ui.message("I can't reach that.");
           p.clearAction();
@@ -323,6 +333,42 @@ export class Game implements World {
     }
   }
 
+  /** Tiles that are walkable but currently have somebody standing on them. */
+  private readonly occupiedByMob = (x: number, y: number): boolean =>
+    this.isOccupied(x, y, this.player);
+
+  /**
+   * Recover from a path the player cannot walk.
+   *
+   * Waiting a tick or two for someone to step aside is right; waiting forever
+   * is not, and a quest giver never moves. After a short grace period the
+   * route is recomputed around whoever is in the way, and if there genuinely
+   * is no way through the player is told rather than left standing there with
+   * a valid path and no explanation.
+   */
+  private unstickPlayer(): void {
+    const p = this.player;
+    if (p.blockedTicks < BLOCKED_GRACE_TICKS || !p.path.length) return;
+
+    const goal = p.path[p.path.length - 1]!;
+    const route = pathfind.findAvoiding(
+      this.map, p.x, p.y, goal.x, goal.y, this.occupiedByMob, false
+    );
+
+    p.blockedTicks = 0;
+
+    // A route that still runs through the blocker is no better than the one we
+    // already had, so treat matching length as failure and stop.
+    if (route.length && route.length !== p.path.length) {
+      p.setPath(route);
+      return;
+    }
+
+    p.clearPath();
+    p.clearAction();
+    this.ui.message("You can't get past.");
+  }
+
   /**
    * Walk into interaction range of a tile, pathing around whatever is in the
    * way. Returns true once the player is standing next to it; every skilling
@@ -335,7 +381,7 @@ export class Game implements World {
 
     if (tileDist(p.x, p.y, tx, ty) > 1) {
       if (!p.path.length) {
-        p.setPath(pathfind.findAdjacent(this.map, p.x, p.y, tx, ty));
+        p.setPath(pathfind.findAvoiding(this.map, p.x, p.y, tx, ty, this.occupiedByMob, true));
         if (!p.path.length) {
           this.ui.message("I can't reach that.");
           p.clearAction();
@@ -630,7 +676,7 @@ export class Game implements World {
 
     if (p.distanceTo(npc) > 1) {
       if (!p.path.length) {
-        p.setPath(pathfind.findAdjacent(this.map, p.x, p.y, npc.x, npc.y));
+        p.setPath(pathfind.findAvoiding(this.map, p.x, p.y, npc.x, npc.y, this.occupiedByMob, true));
         if (!p.path.length) {
           this.ui.message("I can't reach that.");
           p.clearAction();
@@ -1463,14 +1509,14 @@ export class Game implements World {
     if (top) {
       p.clearAction();
       p.setAction({ type: 'pickup', item: top });
-      p.setPath(pathfind.find(this.map, p.x, p.y, tile.x, tile.y));
+      p.setPath(pathfind.findAvoiding(this.map, p.x, p.y, tile.x, tile.y, this.occupiedByMob, false));
       this.renderer.setClickMarker(tile.x, tile.y, 'move');
       return;
     }
 
     if (!this.map.isWalkable(tile.x, tile.y)) {
       // Clicking a wall walks as close as possible, like RuneScape does.
-      const near = pathfind.findAdjacent(this.map, p.x, p.y, tile.x, tile.y);
+      const near = pathfind.findAvoiding(this.map, p.x, p.y, tile.x, tile.y, this.occupiedByMob, true);
       if (near.length) {
         p.clearAction();
         p.setPath(near);
@@ -1480,7 +1526,7 @@ export class Game implements World {
     }
 
     p.clearAction();
-    p.setPath(pathfind.find(this.map, p.x, p.y, tile.x, tile.y));
+    p.setPath(pathfind.findAvoiding(this.map, p.x, p.y, tile.x, tile.y, this.occupiedByMob, false));
     this.renderer.setClickMarker(tile.x, tile.y, 'move');
   }
 
@@ -1607,7 +1653,7 @@ export class Game implements World {
           action: () => {
             p.clearAction();
             p.setAction({ type: 'pickup', item: it });
-            p.setPath(pathfind.find(this.map, p.x, p.y, it.x, it.y));
+            p.setPath(pathfind.findAvoiding(this.map, p.x, p.y, it.x, it.y, this.occupiedByMob, false));
           }
         });
       }
@@ -1618,7 +1664,7 @@ export class Game implements World {
           noun: '',
           action: () => {
             p.clearAction();
-            p.setPath(pathfind.find(this.map, p.x, p.y, tile.x, tile.y));
+            p.setPath(pathfind.findAvoiding(this.map, p.x, p.y, tile.x, tile.y, this.occupiedByMob, false));
             this.renderer.setClickMarker(tile.x, tile.y, 'move');
           }
         });
