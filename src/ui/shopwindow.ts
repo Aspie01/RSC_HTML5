@@ -11,11 +11,11 @@
  * while a conversation is open.
  */
 
-import type { Game } from '../game';
-import type { ShopDef } from '../data/shops';
-import { getItem } from '../data/items';
-import * as sprites from '../render/sprites';
-import { audio } from '../audio/audio';
+import type { Game } from '../game.ts';
+import type { ShopDef } from '../data/shops.ts';
+import { getItem } from '../data/items.ts';
+import * as sprites from '../render/sprites.ts';
+import { audio } from '../audio/audio.ts';
 
 function el<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;

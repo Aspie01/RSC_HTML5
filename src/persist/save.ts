@@ -33,6 +33,12 @@ export interface SaveData {
   /** Kill tallies for quest stages in progress. Absent means none counted. */
   questKills?: unknown;
   /**
+   * The seeded generator's state. Carrying it is what makes a save replay
+   * identically rather than merely resemble itself. Absent on saves written
+   * before it existed, which simply get a fresh stream of luck.
+   */
+  rng?: unknown;
+  /**
    * Shop stock and restock timers. Optional, and absent means every shop is
    * full -- which is why adding shops needed no version bump: a save written
    * before they existed restores to exactly the state a new game starts in.

@@ -15,7 +15,7 @@
 // that NPC says both before and after it is done. That is the whole grammar --
 // adding a quest never means touching engine code.
 
-import type { SkillId } from '../types';
+import type { SkillId } from '../types.ts';
 
 export interface QuestItem {
   readonly id: string;

@@ -13,17 +13,17 @@
 // Entity positions are interpolated with the tick alpha, so movement is smooth
 // even though the simulation only advances every 600ms.
 
-import type { Point, World } from '../types';
-import type { Mob } from '../entities/mob';
-import type { GroundItem } from '../systems/ground';
-import type { Fire } from '../systems/objects';
-import type { Scenery } from '../world/map';
-import * as iso from '../world/iso';
-import * as sprites from '../render/sprites';
-import { getItem } from '../data/items';
-import { getGatherable } from '../data/resources';
-import { lerp } from '../core/util';
-import { loop } from '../core/loop';
+import type { Point, World } from '../types.ts';
+import type { Mob } from '../entities/mob.ts';
+import type { GroundItem } from '../systems/ground.ts';
+import type { Fire } from '../systems/objects.ts';
+import type { Scenery } from '../world/map.ts';
+import * as iso from '../world/iso.ts';
+import * as sprites from '../render/sprites.ts';
+import { getItem } from '../data/items.ts';
+import { getGatherable } from '../data/resources.ts';
+import { lerp } from '../core/util.ts';
+import { loop } from '../core/loop.ts';
 
 type ClickMarkerType = 'move' | 'attack';
 

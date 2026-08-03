@@ -10,9 +10,9 @@
 //   2. a darker shaded side beneath the main body colour
 //   3. a hard dark outline, as in early RuneScape's low-poly models
 
-import type { Facing } from '../entities/mob';
-import type { ItemDef } from '../types';
-import { clamp } from '../core/util';
+import type { Facing } from '../entities/mob.ts';
+import type { ItemDef } from '../types.ts';
+import { clamp } from '../core/util.ts';
 
 export function shade(hex: string, amount: number): string {
   const n = parseInt(hex.slice(1), 16);

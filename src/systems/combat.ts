@@ -17,10 +17,11 @@
 //                        : attRoll / (2 * (defRoll + 1))
 //   maxHit           = floor(0.5 + effectiveStrength * (strBonus + 64) / 640)
 
-import type { AttackStyle, AttackStyleId, HitResult, SkillId } from '../types';
-import type { Mob } from '../entities/mob';
-import type { Player } from '../entities/player';
-import { rand } from '../core/util';
+import type { AttackStyle, AttackStyleId, HitResult, SkillId } from '../types.ts';
+import type { Mob } from '../entities/mob.ts';
+import type { Player } from '../entities/player.ts';
+import { rand } from '../core/util.ts';
+import { rng, Rng } from '../core/rng.ts';
 
 /** Attack styles mirror the RuneScape combat tab. */
 export const STYLES: Record<AttackStyleId, AttackStyle> = {
@@ -69,7 +70,7 @@ export function previewAccuracy(attacker: Mob, defender: Mob): number {
  * so this function never needs to know whether it is looking at a player or
  * an NPC -- that polymorphism is the whole point of the interface.
  */
-export function resolve(attacker: Mob, defender: Mob): HitResult {
+export function resolve(attacker: Mob, defender: Mob, gen: Rng = rng): HitResult {
   const a = attacker.combatStats();
   const d = defender.combatStats();
 
@@ -79,12 +80,12 @@ export function resolve(attacker: Mob, defender: Mob): HitResult {
   const chance = hitChance(attackRoll, defenceRoll);
   const maxHit = maxHitFor(a.strength, a.styleStrength, a.strengthBonus);
 
-  if (Math.random() >= chance) {
+  if (gen.next() >= chance) {
     return { hit: false, damage: 0, maxHit };
   }
 
   // Inclusive of both 0 and maxHit -- hence maxHit + 1 outcomes.
-  return { hit: true, damage: rand(maxHit + 1), maxHit };
+  return { hit: true, damage: rand(maxHit + 1, gen), maxHit };
 }
 
 /**

@@ -8,16 +8,16 @@
 // Redraws are gated on a dirty flag; there is no reason to rebuild 30 inventory
 // icons at 144fps.
 
-import type { Game } from '../game';
-import type { AttackStyleId, ItemDef, EquipSlot } from '../types';
-import { INVENTORY_CAPACITY, EQUIP_SLOTS } from '../systems/inventory';
-import { SKILL_LIST } from '../systems/skills';
-import { STYLES, previewMaxHit } from '../systems/combat';
-import { getItem } from '../data/items';
-import { burnables, fletchablesFrom } from '../data/resources';
-import { quests, TOTAL_QUEST_POINTS } from '../data/quests';
-import * as sprites from '../render/sprites';
-import * as XP from '../data/xp';
+import type { Game } from '../game.ts';
+import type { AttackStyleId, ItemDef, EquipSlot } from '../types.ts';
+import { INVENTORY_CAPACITY, EQUIP_SLOTS } from '../systems/inventory.ts';
+import { SKILL_LIST } from '../systems/skills.ts';
+import { STYLES, previewMaxHit } from '../systems/combat.ts';
+import { getItem } from '../data/items.ts';
+import { burnables, fletchablesFrom } from '../data/resources.ts';
+import { quests, TOTAL_QUEST_POINTS } from '../data/quests.ts';
+import * as sprites from '../render/sprites.ts';
+import * as XP from '../data/xp.ts';
 
 export type TabId = 'inventory' | 'equipment' | 'skills' | 'combat' | 'quests';
 export type ChatClass = '' | 'sys' | 'good' | 'bad' | 'levelup';

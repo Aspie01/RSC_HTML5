@@ -4,11 +4,11 @@
 // this module importable from anywhere without creating an import cycle, since
 // `import type` is erased entirely at build time.
 
-import type { GameMap } from './world/map';
-import type { Player } from './entities/player';
-import type { Npc } from './entities/npc';
-import type { GroundItems, GroundItem } from './systems/ground';
-import type { WorldObjects } from './systems/objects';
+import type { GameMap } from './world/map.ts';
+import type { Player } from './entities/player.ts';
+import type { Npc } from './entities/npc.ts';
+import type { GroundItems, GroundItem } from './systems/ground.ts';
+import type { WorldObjects } from './systems/objects.ts';
 
 // --------------------------------------------------------------------------
 // Geometry

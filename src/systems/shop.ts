@@ -8,10 +8,10 @@
 // Prices come from `ItemDef.value` scaled by the shop's rates, never from a
 // per-shop price list, so an item is worth the same thing everywhere.
 
-import type { Inventory } from './inventory';
-import type { ShopDef } from '../data/shops';
-import { shops } from '../data/shops';
-import { getItem } from '../data/items';
+import type { Inventory } from './inventory.ts';
+import type { ShopDef } from '../data/shops.ts';
+import { shops } from '../data/shops.ts';
+import { getItem } from '../data/items.ts';
 
 const COINS = 'coins';
 

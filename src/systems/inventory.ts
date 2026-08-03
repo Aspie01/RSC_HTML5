@@ -3,8 +3,8 @@
 //   - non-stackables take one slot each
 //   - equipping moves the item out of the inventory into its slot
 
-import type { Bonuses, EquipSlot, ItemStack } from '../types';
-import { getItem } from '../data/items';
+import type { Bonuses, EquipSlot, ItemStack } from '../types.ts';
+import { getItem } from '../data/items.ts';
 
 /** 30 slots, as in RuneScape Classic. Inventory pressure is a design tool. */
 export const INVENTORY_CAPACITY = 30;

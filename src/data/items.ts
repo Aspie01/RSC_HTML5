@@ -3,7 +3,7 @@
 // Everything about an item lives here so adding content never means touching
 // engine code. New sword = new entry, done.
 
-import type { ItemDef, EquipSlot, ItemShape, Bonuses } from '../types';
+import type { ItemDef, EquipSlot, ItemShape, Bonuses } from '../types.ts';
 
 interface ItemOpts {
   examine?: string;
@@ -13,7 +13,7 @@ interface ItemOpts {
   colour?: string;
   shape?: ItemShape;
   bonuses?: Partial<Bonuses>;
-  combatSkill?: import('../types').SkillId;
+  combatSkill?: import('../types.ts').SkillId;
   ammoTag?: string;
   heals?: number;
   tags?: readonly string[];

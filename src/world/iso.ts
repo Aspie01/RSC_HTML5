@@ -13,7 +13,7 @@
 //       \     /
 //        (1,1)
 
-import type { Point } from '../types';
+import type { Point } from '../types.ts';
 
 export const TILE_W = 64;
 export const TILE_H = 32;

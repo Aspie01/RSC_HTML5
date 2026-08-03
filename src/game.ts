@@ -12,43 +12,44 @@
 
 import type {
   EquipSlot, ItemStack, PlayerAction, Point, SkillId, StationKind, World
-} from './types';
-import type { GroundItem } from './systems/ground';
-import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE } from './world/map';
-import { GroundItems } from './systems/ground';
-import { WorldObjects } from './systems/objects';
-import { Player } from './entities/player';
-import { Npc } from './entities/npc';
-import { Renderer } from './render/renderer';
-import { UI } from './ui/ui';
-import { rollDrops } from './data/npcs';
-import { getItem } from './data/items';
+} from './types.ts';
+import type { GroundItem } from './systems/ground.ts';
+import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE } from './world/map.ts';
+import { GroundItems } from './systems/ground.ts';
+import { WorldObjects } from './systems/objects.ts';
+import { Player } from './entities/player.ts';
+import { Npc } from './entities/npc.ts';
+import { Renderer } from './render/renderer.ts';
+import { UI } from './ui/ui.ts';
+import { rollDrops } from './data/npcs.ts';
+import { getItem } from './data/items.ts';
 import {
   getGatherable, burnables, recipeFor,
   getBar, getSmithable, bars, smithablesFor,
   HAMMER_SPEED, SMITH_XP_PER_BAR
-} from './data/resources';
-import type { BarDef, SmithDef, FletchDef } from './data/resources';
-import { rollGather, rollBurn } from './systems/skilling';
-import { SKILL_LIST } from './systems/skills';
-import { Quests } from './systems/quests';
-import { Shops } from './systems/shop';
-import type { TradeResult } from './systems/shop';
-import { shopForNpc } from './data/shops';
-import type { ShopDef } from './data/shops';
-import { getQuest, questsForNpc, quests } from './data/quests';
-import type { QuestDef, QuestItem, QuestStage } from './data/quests';
-import { Dialogue } from './ui/dialogue';
-import { INVENTORY_CAPACITY } from './systems/inventory';
-import * as XP from './data/xp';
-import * as pathfind from './world/pathfind';
-import * as combat from './systems/combat';
-import * as iso from './world/iso';
-import { lerp, tileDist } from './core/util';
-import { loop } from './core/loop';
-import { audio } from './audio/audio';
-import type { SaveStore } from './persist/storage';
-import { SAVE_VERSION, type SaveData, encodeSaveCode, decodeSaveCode, parseSave } from './persist/save';
+} from './data/resources.ts';
+import type { BarDef, SmithDef, FletchDef } from './data/resources.ts';
+import { rollGather, rollBurn } from './systems/skilling.ts';
+import { SKILL_LIST } from './systems/skills.ts';
+import { Quests } from './systems/quests.ts';
+import { Shops } from './systems/shop.ts';
+import type { TradeResult } from './systems/shop.ts';
+import { shopForNpc } from './data/shops.ts';
+import type { ShopDef } from './data/shops.ts';
+import { getQuest, questsForNpc, quests } from './data/quests.ts';
+import type { QuestDef, QuestItem, QuestStage } from './data/quests.ts';
+import { Dialogue } from './ui/dialogue.ts';
+import { INVENTORY_CAPACITY } from './systems/inventory.ts';
+import * as XP from './data/xp.ts';
+import * as pathfind from './world/pathfind.ts';
+import * as combat from './systems/combat.ts';
+import * as iso from './world/iso.ts';
+import { lerp, tileDist } from './core/util.ts';
+import { loop } from './core/loop.ts';
+import { rng } from './core/rng.ts';
+import { audio } from './audio/audio.ts';
+import type { SaveStore } from './persist/storage.ts';
+import { SAVE_VERSION, type SaveData, encodeSaveCode, decodeSaveCode, parseSave } from './persist/save.ts';
 
 const AUTOSAVE_TICKS = 50; // every 30 seconds
 
@@ -452,7 +453,7 @@ export class Game implements World {
     );
     this.ui.dirty = true;
 
-    if (Math.random() < def.depleteChance) {
+    if (rng.chance(def.depleteChance)) {
       this.objects.deplete(tileIndex, def.respawnTicks);
       p.clearAction();
     }
@@ -597,7 +598,7 @@ export class Game implements World {
     // one item out first guarantees the bar has somewhere to go.
     for (const ing of bar.ingredients) this.consume(ing.id, ing.qty);
 
-    if (Math.random() >= bar.successChance) {
+    if (!rng.chance(bar.successChance)) {
       this.ui.message(
         'The ore is too impure and you fail to refine it.', 'bad'
       );
@@ -1699,6 +1700,7 @@ export class Game implements World {
       equipment: p.inventory.equipment,
       quests: this.quests.stages,
       questKills: this.quests.kills,
+      rng: rng.snapshot(),
       shops: this.shops.snapshot()
     };
     return JSON.stringify(data);
@@ -1750,6 +1752,7 @@ export class Game implements World {
 
       this.quests.restore(data.quests);
       this.quests.restoreKills(data.questKills);
+      rng.restore(data.rng);
       this.restoreQuestUnlocks();
       this.shops.restore(data.shops);
 

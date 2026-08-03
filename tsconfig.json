@@ -21,7 +21,12 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "noEmit": true
+    "noEmit": true,
+
+    /* Imports carry explicit .ts extensions so the simulation can be imported
+       by bare Node -- which is the literal test rule 1 sets, and what the test
+       suite depends on. Vite is happy either way. */
+    "allowImportingTsExtensions": true
   },
   "include": ["src"]
 }

@@ -11,8 +11,8 @@
 // only cares about the common shape. That is what stops `if (isPlayer)`
 // branches from spreading through the codebase.
 
-import type { CombatStats, Hitsplat, HitsplatType, MobAppearance, Tile, World } from '../types';
-import { tileDist } from '../core/util';
+import type { CombatStats, Hitsplat, HitsplatType, MobAppearance, Tile, World } from '../types.ts';
+import { tileDist } from '../core/util.ts';
 
 /** 0 = N, 1 = NE, 2 = E, 3 = SE, 4 = S, 5 = SW, 6 = W, 7 = NW */
 export type Facing = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;

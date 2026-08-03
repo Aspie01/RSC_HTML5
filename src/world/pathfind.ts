@@ -8,8 +8,8 @@
 // Diagonal movement is allowed, but only when BOTH adjacent cardinal tiles are
 // walkable -- otherwise entities clip through the corners of walls.
 
-import type { Tile } from '../types';
-import type { GameMap } from './map';
+import type { Tile } from '../types.ts';
+import type { GameMap } from './map.ts';
 
 /** Cardinals first, so ties resolve to straight lines. Looks better. */
 const DIRS: ReadonlyArray<readonly [number, number]> = [
