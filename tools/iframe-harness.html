@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Embed harness</title>
+<style>
+  body { margin: 0; padding: 16px; background: #14110c; color: #e6dbc2;
+         font: 13px/1.5 system-ui, sans-serif; }
+  h1 { font-size: 15px; color: #f2d33c; margin: 0 0 4px; }
+  p  { margin: 0 0 14px; color: #a8997c; max-width: 70ch; }
+  .row { display: flex; gap: 20px; flex-wrap: wrap; }
+  .case { border: 1px solid #5d5040; border-radius: 4px; padding: 10px; }
+  .case h2 { font-size: 12px; margin: 0 0 2px; color: #f2d33c; }
+  .case code { font-size: 10px; color: #a8997c; display: block; margin-bottom: 8px; }
+  iframe { width: 760px; height: 540px; border: 0; background: #000; display: block; }
+  /* Tall filler so the arrow keys have somewhere to scroll to if the game
+     fails to swallow them -- the itch.io listing page in miniature. */
+  .filler { height: 150vh; }
+</style>
+</head>
+<body>
+
+<h1>Cross-origin embed harness</h1>
+<p>
+  This page is served from a different port, and therefore a different origin,
+  than the game inside the frames. That is the arrangement on itch.io, and it
+  is the one that breaks builds which work when opened directly. The two frames
+  differ only in their <code>sandbox</code> attribute: the first can reach
+  storage, the second cannot, which is how a player with blocked cookies
+  arrives. The second should still be playable and should say so.
+</p>
+
+<div class="row">
+  <div class="case">
+    <h2>1. Sandboxed, storage allowed</h2>
+    <code>sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals"</code>
+    <iframe id="frame-normal"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals"
+            src="http://localhost:4173/"></iframe>
+  </div>
+
+  <div class="case">
+    <h2>2. Sandboxed, storage denied</h2>
+    <code>sandbox="allow-scripts allow-modals" &mdash; no allow-same-origin</code>
+    <iframe id="frame-nostorage"
+            sandbox="allow-scripts allow-modals"
+            src="http://localhost:4173/"></iframe>
+  </div>
+</div>
+
+<div class="filler"></div>
+
+</body>
+</html>

@@ -1,6 +1,6 @@
 # RuneScape Classic-Inspired HTML5 Game — Development Roadmap
 
-**Status:** In development — M0–M8 built, M9 next
+**Status:** In development — M0–M9 built, M10 (ship) next
 **Scope:** Single-player, browser-based, static bundle
 **Targets:** itch.io (primary), blog link-out (secondary)
 **Starter skills:** Woodcutting → Firemaking → Cooking
@@ -223,17 +223,38 @@ testing rather than by reading:
 Migration stays in `game.ts` rather than moving to `persist/`: converting an
 old save needs live skills, inventory and world objects to write into.
 
-### M9 — Presentation *[in progress]*
+### M9 — Presentation *[done]*
 - ~~Sprite atlas (one PNG, not many files).~~ **Superseded.** `render/sprites.ts`
   draws everything from canvas primitives: no files to load, nothing to go
   missing in an iframe, and no atlas to keep in sync while content is still
   moving. Revisit only when committing to a real art style.
-- ~~Chat log / message box.~~ Done — `#chat-log`, written through `ui.message()`.
-- Click-to-start overlay (doubles as canvas focus and audio unlock).
-- `preventDefault` on keys that would scroll the parent page. Partially done:
-  Space is caught in `game.ts`, but the arrow keys and Page Up/Down are not.
-- Audio: ambient loop, action SFX.
+- ~~Chat log / message box.~~ `#chat-log`, written through `ui.message()`.
+- ~~Click-to-start overlay (doubles as canvas focus and audio unlock).~~
+  `ui/startoverlay.ts`. Also holds the tick loop until the player clicks — a
+  fixed-tick world that starts on load means a goblin can reach you while you
+  are still reading the welcome text.
+- ~~`preventDefault` on keys that would scroll the parent page.~~ Arrows,
+  Page Up/Down, Home, End and Space, skipped while typing in a text field.
+- ~~Audio: ambient loop, action SFX.~~ Synthesised, not loaded — see below.
 - **Accept:** loads and plays correctly inside a cross-origin iframe locally.
+  `tools/` has the harness; `tools/README.md` says how to run it.
+
+**Audio ships as `audio/cues.ts` + `audio/audio.ts`, with no audio files.**
+Cues are data — stacks of tone and filtered-noise layers — rendered through
+WebAudio on demand, for the same reasons the art is procedural: nothing to
+fetch, nothing to license, nothing to go missing in a sandboxed iframe, and
+adding a sound stays a data edit. Swap in real files later behind `play()`.
+
+Two things the milestone did not mention but needed doing: cues fired in the
+same tick are de-duplicated, or a hit that also levels a skill flanges; and
+audio is guarded everywhere, so a browser that refuses it costs the player
+sound and nothing else.
+
+*Verified in the harness: both sandboxed frames fetch `index.html` and both
+assets cross-origin with no 404, confirming the relative-path build. The
+storage-denied frame cannot be inspected from outside — an opaque origin is
+the point of it — so that path is covered by stubbing the storage globals to
+throw, which produces the same condition somewhere observable.*
 
 ### M10 — Ship
 - Build to static bundle, verify all paths relative.

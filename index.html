@@ -12,7 +12,14 @@
 
   <!-- World view + chat -->
   <div id="stage">
-    <canvas id="game"></canvas>
+    <canvas id="game" tabindex="0"></canvas>
+
+    <!-- Start gate. Also the user gesture that lets audio exist at all. -->
+    <div id="start-overlay" tabindex="0" role="button">
+      <div id="start-title">Untitled RuneScape-like</div>
+      <div id="start-hint">Click to play</div>
+      <div id="start-note">Sound on. Use the toggle in the panel header to silence it.</div>
+    </div>
 
     <!-- Conversation overlay. Sits above the world, hidden until someone speaks. -->
     <div id="dialogue">
@@ -51,6 +58,7 @@
 
     <div id="panel-head">
       <span id="panel-title">Inventory</span>
+      <button id="btn-mute" title="Turn sound off">sound on</button>
       <button id="btn-save" title="Export or import a save code">save</button>
       <button id="btn-reset" title="Delete save and restart">reset</button>
     </div>

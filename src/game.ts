@@ -42,10 +42,26 @@ import * as combat from './systems/combat';
 import * as iso from './world/iso';
 import { lerp, tileDist } from './core/util';
 import { loop } from './core/loop';
+import { audio } from './audio/audio';
 import type { SaveStore } from './persist/storage';
 import { SAVE_VERSION, type SaveData, encodeSaveCode, decodeSaveCode, parseSave } from './persist/save';
 
 const AUTOSAVE_TICKS = 50; // every 30 seconds
+
+/** Keys whose default action scrolls the page the game is embedded in. */
+const SCROLL_KEYS: ReadonlySet<string> = new Set([
+  'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  'PageUp', 'PageDown', 'Home', 'End'
+]);
+
+/**
+ * True when the key is going into a text field, where those same keys mean
+ * caret movement. Only the save-code textarea qualifies today, but suppressing
+ * Home and End inside it would be maddening.
+ */
+function isTyping(target: EventTarget | null): boolean {
+  return target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement;
+}
 
 /** Skills that changed id in version 2. */
 const RENAMED_SKILLS: Readonly<Record<string, SkillId>> = {
@@ -348,6 +364,7 @@ export class Game implements World {
     }
 
     p.inventory.add(def.logId, 1);
+    audio.play('chop');
     this.announceXp('woodcutting', def.xp);
     this.ui.message(`You get some ${getItem(def.logId)?.name.toLowerCase() ?? 'logs'}.`);
     this.ui.dirty = true;
@@ -400,6 +417,7 @@ export class Game implements World {
       this.ui.message('You accidentally burn the food.', 'bad');
     } else {
       p.inventory.add(recipe.cookedId, 1);
+      audio.play('cook');
       this.announceXp('cooking', recipe.xp);
       this.ui.message(`You cook the ${getItem(recipe.rawId)?.name.toLowerCase() ?? 'food'}.`);
     }
@@ -458,6 +476,7 @@ export class Game implements World {
     }
 
     p.inventory.add(def.oreId, 1);
+    audio.play('mine');
     this.announceXp('mining', def.xp);
     this.ui.message(`You manage to mine some ${getItem(def.oreId)?.name.toLowerCase() ?? 'ore'}.`);
     this.ui.dirty = true;
@@ -528,6 +547,7 @@ export class Game implements World {
       );
     } else {
       p.inventory.add(bar.id, 1);
+      audio.play('smelt');
       this.announceXp('smithing', bar.xp);
       this.ui.message(`You retrieve a ${bar.name.toLowerCase()} from the furnace.`);
     }
@@ -576,6 +596,7 @@ export class Game implements World {
 
     this.consume(def.barId, def.bars);
     p.inventory.add(def.id, 1);
+    audio.play('smith');
     this.announceXp('smithing', SMITH_XP_PER_BAR * def.bars);
     this.ui.message(`You hammer the metal into a ${product.name.toLowerCase()}.`);
     this.ui.dirty = true;
@@ -740,6 +761,7 @@ export class Game implements World {
     for (const item of reward.items ?? []) this.giveQuestItem(item);
 
     this.ui.message(reward.unlock, 'good');
+    audio.play('quest');
     this.ui.dirty = true;
   }
 
@@ -900,6 +922,7 @@ export class Game implements World {
   /** Award experience and announce any level-ups in the chat log. */
   private announceXp(skill: SkillId, amount: number): void {
     if (this.player.skills.addXp(skill, amount) > 0) {
+      audio.play('levelup');
       this.ui.message(
         `Congratulations, you just advanced a ${skill} level! ` +
         `You are now level ${this.player.skills.level(skill)}.`,
@@ -940,6 +963,7 @@ export class Game implements World {
     p.clearPath();
     p.inventory.removeSlot(index, 1);
     this.objects.addFire(p.x, p.y, burnable.burnTicks);
+    audio.play('fire');
     this.announceXp('firemaking', burnable.xp);
     this.ui.message('The fire catches and the logs begin to burn.', 'good');
     this.ui.dirty = true;
@@ -964,6 +988,10 @@ export class Game implements World {
     const result = combat.resolve(mob, target);
     target.addHitsplat(result.damage);
     target.damage(result.damage);
+
+    // Two cues, because who is being hit is the thing a player needs to hear
+    // without looking. A miss is a zero-damage hit and stays silent.
+    if (result.damage > 0) audio.play(target instanceof Player ? 'hurt' : 'hit');
 
     if (mob instanceof Player) {
       const levelUps = combat.awardXp(mob, result.damage);
@@ -1009,6 +1037,8 @@ export class Game implements World {
 
   private handlePlayerDeath(): void {
     const p = this.player;
+    audio.play('die');
+    audio.play('die');
     this.ui.message('Oh dear, you are dead!', 'bad');
 
     // Drop everything except equipment -- a light version of RuneScape's death
@@ -1041,6 +1071,7 @@ export class Game implements World {
     }
 
     this.ground.remove(item);
+    audio.play('pickup');
     const prefix = def.stackable && item.qty > 1 ? `${item.qty} x ` : '';
     this.ui.message(`You pick up ${prefix}${def.name}.`);
     this.ui.dirty = true;
@@ -1105,6 +1136,7 @@ export class Game implements World {
 
     this.player.inventory.removeSlot(index, 1);
     this.player.heal(def.heals);
+    audio.play('eat');
     this.ui.message(`You eat the ${def.name}. It heals some health.`);
     this.ui.dirty = true;
   }
@@ -1114,6 +1146,7 @@ export class Game implements World {
     if (!taken) return;
 
     this.ground.drop(taken.id, taken.qty, this.player.x, this.player.y);
+    audio.play('drop');
     this.ui.message(`You drop the ${getItem(taken.id)?.name ?? taken.id}.`);
     this.ui.dirty = true;
   }
@@ -1149,10 +1182,16 @@ export class Game implements World {
     });
 
     window.addEventListener('keydown', (e) => {
+      // Swallow anything that scrolls the host page. On itch.io the game runs
+      // in an iframe partway down a listing, so an arrow key or Page Down
+      // scrolls the shop out from under it -- the game appears to vanish
+      // mid-fight. Done before the dialogue check because it holds whether or
+      // not the key means anything to the game.
+      if (SCROLL_KEYS.has(e.code) && !isTyping(e.target)) e.preventDefault();
+
       if (this.dialogue.isOpen()) return;
 
       if (e.code === 'Space') {
-        e.preventDefault();
         this.player.running = !this.player.running;
         this.ui.message(`Run mode ${this.player.running ? 'enabled' : 'disabled'}.`);
       } else if (e.key >= '1' && e.key <= '5') {

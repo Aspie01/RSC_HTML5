@@ -3,6 +3,7 @@
 import { Game } from './game';
 import { openSaveStore } from './persist/storage';
 import { bindSaveDialog } from './ui/savedialog';
+import { bindStartOverlay } from './ui/startoverlay';
 
 async function boot(): Promise<void> {
   const canvas = document.getElementById('game');
@@ -24,7 +25,11 @@ async function boot(): Promise<void> {
   }
 
   const game = new Game(canvas, minimap, store, saved);
-  game.start();
+
+  // The loop starts on the player's first click rather than on load. Ticks are
+  // fixed and the world is live, so starting on load means a goblin can reach
+  // you while you are still reading the welcome messages.
+  bindStartOverlay(canvas, () => game.start());
 
   const reset = document.getElementById('btn-reset');
   reset?.addEventListener('click', () => {
