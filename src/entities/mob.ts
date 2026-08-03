@@ -26,6 +26,8 @@ export abstract class Mob {
   facing: Facing = 2;
 
   path: Tile[] = [];
+  /** Consecutive ticks spent waiting for somebody to step out of the way. */
+  blockedTicks = 0;
   /** Two tiles per tick instead of one. */
   running = false;
 
@@ -88,10 +90,16 @@ export abstract class Mob {
     for (let i = 0; i < steps && this.path.length; i++) {
       const next = this.path[0]!;
 
-      // Someone is standing there. Wait rather than stack on the same tile;
-      // they will likely have moved on by next tick.
-      if (world.isOccupied(next.x, next.y, this)) break;
+      // Someone is standing there. Wait rather than stack on the same tile --
+      // but count how long, because "they will move along shortly" is only
+      // true of things that move. A quest giver never does, and waiting on one
+      // forever is a stall with a valid path and no way out of it.
+      if (world.isOccupied(next.x, next.y, this)) {
+        this.blockedTicks++;
+        return;
+      }
 
+      this.blockedTicks = 0;
       this.path.shift();
       this.faceTowards(next.x, next.y);
       this.x = next.x;

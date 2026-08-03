@@ -18,15 +18,29 @@ const DIRS: ReadonlyArray<readonly [number, number]> = [
 ];
 
 /**
+ * Tiles that are walkable terrain but currently have somebody standing on them.
+ *
+ * The map cannot answer this: it describes where a wall is, not where a person
+ * is. Passing it in keeps the pathfinder ignorant of mobs while still letting
+ * callers route around them.
+ */
+export type Occupied = (x: number, y: number) => boolean;
+
+/**
  * Shortest path from start to goal, EXCLUDING the start tile.
  * Returns [] if unreachable. `maxNodes` bounds the search so that clicking an
  * unreachable island cannot stall the tick.
+ *
+ * `occupied` is advisory: a tile someone is standing on is avoided if there is
+ * any other way round, because a stationary NPC would otherwise stall anyone
+ * whose route crosses them. It is not treated as a wall -- see findAvoiding.
  */
 export function find(
   map: GameMap,
   startX: number, startY: number,
   goalX: number, goalY: number,
-  maxNodes = 4096
+  maxNodes = 4096,
+  occupied?: Occupied
 ): Tile[] {
   if (startX === goalX && startY === goalY) return [];
   if (!map.inBounds(goalX, goalY)) return [];
@@ -58,6 +72,11 @@ export function find(
 
       if (!map.inBounds(nx, ny)) continue;
       if (!map.isWalkable(nx, ny)) continue;
+
+      // Somebody is standing here. Route around them -- but never around the
+      // goal itself, or walking up to a person would become impossible the
+      // moment you tried it.
+      if (occupied && (nx !== goalX || ny !== goalY) && occupied(nx, ny)) continue;
 
       // Corner-cutting guard for diagonals.
       if (dx !== 0 && dy !== 0) {
@@ -94,7 +113,8 @@ export function find(
 export function findAdjacent(
   map: GameMap,
   startX: number, startY: number,
-  goalX: number, goalY: number
+  goalX: number, goalY: number,
+  occupied?: Occupied
 ): Tile[] {
   let best: Tile[] | null = null;
   let bestLen = Infinity;
@@ -105,8 +125,10 @@ export function findAdjacent(
 
     if (!map.inBounds(ax, ay) || !map.isWalkable(ax, ay)) continue;
     if (ax === startX && ay === startY) return []; // already adjacent
+    // Standing room only: no use routing to a tile somebody else is on.
+    if (occupied && occupied(ax, ay)) continue;
 
-    const p = find(map, startX, startY, ax, ay);
+    const p = find(map, startX, startY, ax, ay, 4096, occupied);
     if (p.length && p.length < bestLen) {
       bestLen = p.length;
       best = p;
@@ -114,4 +136,30 @@ export function findAdjacent(
   }
 
   return best ?? [];
+}
+
+/**
+ * Route around whoever is standing about, falling back to ignoring them.
+ *
+ * The fallback matters: if the only way through is past a person, a path that
+ * goes through them and waits is better than no path at all. What must never
+ * happen is the third case -- a path that exists, cannot be walked, and is
+ * never reconsidered, which is what a stationary NPC used to cause.
+ */
+export function findAvoiding(
+  map: GameMap,
+  startX: number, startY: number,
+  goalX: number, goalY: number,
+  occupied: Occupied,
+  adjacent: boolean
+): Tile[] {
+  const around = adjacent
+    ? findAdjacent(map, startX, startY, goalX, goalY, occupied)
+    : find(map, startX, startY, goalX, goalY, 4096, occupied);
+
+  if (around.length) return around;
+
+  return adjacent
+    ? findAdjacent(map, startX, startY, goalX, goalY)
+    : find(map, startX, startY, goalX, goalY);
 }
