@@ -274,7 +274,11 @@ export class UI {
       opts.push({ verb: 'Light', noun: def.name, action: () => this.game.lightLogs(index) });
     }
     if (def.slot) {
-      opts.push({ verb: 'Wield', noun: def.name, action: () => this.game.equipItem(index) });
+      opts.push({
+        verb: def.slot === 'weapon' ? 'Wield' : 'Wear',
+        noun: def.name,
+        action: () => this.game.equipItem(index)
+      });
     }
     if (def.heals > 0) {
       opts.push({ verb: 'Eat', noun: def.name, action: () => this.game.eatItem(index) });

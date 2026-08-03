@@ -79,9 +79,64 @@ export const items = {
     examine: 'Useful for lighting a fire.'
   }),
 
+  bronze_pickaxe: item('bronze_pickaxe', 'Bronze pickaxe', {
+    slot: 'weapon', speed: 5, colour: '#a97142', shape: 'pickaxe',
+    bonuses: { attack: 2, strength: 3 },
+    examine: 'Used for mining rocks.'
+  }),
+
+  hammer: item('hammer', 'Hammer', {
+    colour: '#6f6f78', shape: 'hammer',
+    examine: 'Good for hitting things. Or smithing.'
+  }),
+
+  // ------------------------------------------------------------------------
+  // Ores and bars
+  // ------------------------------------------------------------------------
+  copper_ore: item('copper_ore', 'Copper ore', {
+    colour: '#c06a3a', shape: 'ore', examine: 'This needs refining.'
+  }),
+
+  tin_ore: item('tin_ore', 'Tin ore', {
+    colour: '#b6b6c2', shape: 'ore', examine: 'This needs refining.'
+  }),
+
+  iron_ore: item('iron_ore', 'Iron ore', {
+    colour: '#8a5030', shape: 'ore', examine: 'This needs refining.'
+  }),
+
+  coal: item('coal', 'Coal', {
+    colour: '#2c2c31', shape: 'ore', examine: 'Hot stuff.'
+  }),
+
+  bronze_bar: item('bronze_bar', 'Bronze bar', {
+    colour: '#a97142', shape: 'bar', examine: 'It\'s a bar of bronze.'
+  }),
+
+  iron_bar: item('iron_bar', 'Iron bar', {
+    colour: '#8f8f96', shape: 'bar', examine: 'It\'s a bar of iron.'
+  }),
+
+  steel_bar: item('steel_bar', 'Steel bar', {
+    colour: '#c3c8cf', shape: 'bar', examine: 'It\'s a bar of steel.'
+  }),
+
+  // ------------------------------------------------------------------------
+  // Weapons
+  // ------------------------------------------------------------------------
   bronze_dagger: item('bronze_dagger', 'Bronze dagger', {
     slot: 'weapon', speed: 4, colour: '#a97142', shape: 'blade',
     bonuses: { attack: 4, strength: 3 }
+  }),
+
+  iron_dagger: item('iron_dagger', 'Iron dagger', {
+    slot: 'weapon', speed: 4, colour: '#8f8f96', shape: 'blade',
+    bonuses: { attack: 6, strength: 5 }
+  }),
+
+  steel_dagger: item('steel_dagger', 'Steel dagger', {
+    slot: 'weapon', speed: 4, colour: '#c3c8cf', shape: 'blade',
+    bonuses: { attack: 9, strength: 8 }
   }),
 
   bronze_scimitar: item('bronze_scimitar', 'Bronze scimitar', {
@@ -99,14 +154,72 @@ export const items = {
     bonuses: { attack: 15, strength: 14 }
   }),
 
+  // ------------------------------------------------------------------------
+  // Armour
+  // ------------------------------------------------------------------------
   wooden_shield: item('wooden_shield', 'Wooden shield', {
     slot: 'shield', colour: '#7a5230', shape: 'shield',
     bonuses: { defence: 4 }
   }),
 
+  bronze_kiteshield: item('bronze_kiteshield', 'Bronze kiteshield', {
+    slot: 'shield', colour: '#a97142', shape: 'shield',
+    bonuses: { defence: 8 }
+  }),
+
+  iron_kiteshield: item('iron_kiteshield', 'Iron kiteshield', {
+    slot: 'shield', colour: '#8f8f96', shape: 'shield',
+    bonuses: { defence: 12 }
+  }),
+
+  steel_kiteshield: item('steel_kiteshield', 'Steel kiteshield', {
+    slot: 'shield', colour: '#c3c8cf', shape: 'shield',
+    bonuses: { defence: 18 }
+  }),
+
+  bronze_med_helm: item('bronze_med_helm', 'Bronze med helm', {
+    slot: 'head', colour: '#a97142', shape: 'helm',
+    bonuses: { defence: 3 }
+  }),
+
+  iron_med_helm: item('iron_med_helm', 'Iron med helm', {
+    slot: 'head', colour: '#8f8f96', shape: 'helm',
+    bonuses: { defence: 5 }
+  }),
+
+  steel_med_helm: item('steel_med_helm', 'Steel med helm', {
+    slot: 'head', colour: '#c3c8cf', shape: 'helm',
+    bonuses: { defence: 8 }
+  }),
+
+  bronze_platelegs: item('bronze_platelegs', 'Bronze platelegs', {
+    slot: 'legs', colour: '#a97142', shape: 'legs',
+    bonuses: { defence: 7 }
+  }),
+
+  iron_platelegs: item('iron_platelegs', 'Iron platelegs', {
+    slot: 'legs', colour: '#8f8f96', shape: 'legs',
+    bonuses: { defence: 11 }
+  }),
+
+  steel_platelegs: item('steel_platelegs', 'Steel platelegs', {
+    slot: 'legs', colour: '#c3c8cf', shape: 'legs',
+    bonuses: { defence: 16 }
+  }),
+
   bronze_platebody: item('bronze_platebody', 'Bronze platebody', {
     slot: 'body', colour: '#a97142', shape: 'plate',
     bonuses: { defence: 10 }
+  }),
+
+  iron_platebody: item('iron_platebody', 'Iron platebody', {
+    slot: 'body', colour: '#8f8f96', shape: 'plate',
+    bonuses: { defence: 15 }
+  }),
+
+  steel_platebody: item('steel_platebody', 'Steel platebody', {
+    slot: 'body', colour: '#c3c8cf', shape: 'plate',
+    bonuses: { defence: 22 }
   })
 } as const satisfies Record<string, ItemDef>;
 

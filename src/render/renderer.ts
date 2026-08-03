@@ -21,7 +21,7 @@ import type { Scenery } from '../world/map';
 import * as iso from '../world/iso';
 import * as sprites from '../render/sprites';
 import { getItem } from '../data/items';
-import { getTree } from '../data/resources';
+import { getTree, getRock } from '../data/resources';
 import { lerp } from '../core/util';
 import { loop } from '../core/loop';
 
@@ -119,6 +119,16 @@ export class Renderer {
     const wx = sx - this.viewW / 2 + this.camX;
     const wy = sy - this.viewH / 2 + this.camY;
     return iso.pickTile(wx, wy);
+  }
+
+  /**
+   * Canvas-space point -> viewport coordinates. Needed because the DOM context
+   * menu is positioned in client space, but anything anchored to the world
+   * (a furnace, an anvil) is only known in canvas space.
+   */
+  canvasToClient(p: Point): Point {
+    const r = this.canvas.getBoundingClientRect();
+    return { x: p.x + r.left, y: p.y + r.top };
   }
 
   private centerOn(tx: number, ty: number): void {
@@ -295,6 +305,15 @@ export class Renderer {
             const def = e.obj.resource ? getTree(e.obj.resource) : undefined;
             sprites.tree(ctx, s.x, s.y, e.obj.variant ?? 0, def?.colour, def?.scale ?? 1);
           }
+
+        } else if (e.obj.kind === 'rock') {
+          const def = e.obj.resource ? getRock(e.obj.resource) : undefined;
+          if (def && world.objects.isDepleted(world.map.idx(e.tx, e.ty))) {
+            sprites.minedRock(ctx, s.x, s.y);
+          } else {
+            sprites.rock(ctx, s.x, s.y, def?.colour);
+          }
+
         } else {
           sprites.scenerySprites[e.obj.kind](ctx, s.x, s.y);
         }
@@ -449,9 +468,17 @@ export class Renderer {
         ctx.fillStyle = map.terrainInfo(tx, ty).top;
         ctx.fillRect((tx - ox) * scale, (ty - oy) * scale, scale + 0.5, scale + 0.5);
 
+        // Landmarks worth navigating by: trees, ore veins, and the smithy.
         const sc = map.sceneryAt(tx, ty);
-        if (sc && sc.kind === 'tree') {
-          ctx.fillStyle = '#1e3d1a';
+        const marker =
+          sc?.kind === 'tree' ? '#1e3d1a'
+          : sc?.kind === 'rock' && sc.resource ? '#d0c0a0'
+          : sc?.kind === 'furnace' ? '#e2521c'
+          : sc?.kind === 'anvil' ? '#55555c'
+          : null;
+
+        if (marker) {
+          ctx.fillStyle = marker;
           ctx.fillRect((tx - ox) * scale, (ty - oy) * scale, scale, scale);
         }
       }

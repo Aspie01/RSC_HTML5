@@ -10,7 +10,7 @@
 // away from. Resolve intent after movement and targeting lags a tick behind,
 // which makes combat feel sticky.
 
-import type { EquipSlot, PlayerAction, SkillId, World } from './types';
+import type { EquipSlot, PlayerAction, Point, SkillId, StationKind, World } from './types';
 import type { GroundItem } from './systems/ground';
 import { GameMap, generateMap } from './world/map';
 import { GroundItems } from './systems/ground';
@@ -21,7 +21,12 @@ import { Renderer } from './render/renderer';
 import { UI } from './ui/ui';
 import { rollDrops } from './data/npcs';
 import { getItem } from './data/items';
-import { getTree, burnables, recipeFor } from './data/resources';
+import {
+  getTree, burnables, recipeFor,
+  getRock, getBar, getSmithable, bars, smithablesFor,
+  PICKAXE_IDS, HAMMER_IDS, SMITH_XP_PER_BAR
+} from './data/resources';
+import type { BarDef, SmithDef } from './data/resources';
 import { rollGather, rollBurn } from './systems/skilling';
 import { SKILL_LIST } from './systems/skills';
 import * as pathfind from './world/pathfind';
@@ -32,6 +37,10 @@ import { loop } from './core/loop';
 
 const SAVE_KEY = 'rs_html5_save_v1';
 const AUTOSAVE_TICKS = 50; // every 30 seconds
+
+/** Ticks between bars at a furnace, and between items at an anvil. */
+const SMELT_TICKS = 3;
+const SMITH_TICKS = 3;
 
 interface SaveData {
   v: number;
@@ -63,6 +72,8 @@ export class Game implements World {
     this.player.inventory.add('wooden_shield', 1);
     this.player.inventory.add('bronze_axe', 1);
     this.player.inventory.add('tinderbox', 1);
+    this.player.inventory.add('bronze_pickaxe', 1);
+    this.player.inventory.add('hammer', 1);
     this.player.inventory.add('cooked_chicken', 3);
 
     for (const spawn of this.map.spawns) {
@@ -85,6 +96,8 @@ export class Game implements World {
     this.ui.message('Chickens are north-west, goblins south-west, guards south-east.', 'sys');
     this.ui.message('Click a tree to chop it. Right-click logs to light a fire, ' +
                     'then click the fire to cook.', 'sys');
+    this.ui.message('The quarry and smithy are due west: mine ore, smelt it at ' +
+                    'the furnace, then hammer bars at the anvil.', 'sys');
   }
 
   // ----------------------------------------------------------------------
@@ -206,9 +219,47 @@ export class Game implements World {
     } else if (action.type === 'chop') {
       this.resolveChop(action.x, action.y);
 
-    } else {
+    } else if (action.type === 'cook') {
       this.resolveCook(action.x, action.y);
+
+    } else if (action.type === 'mine') {
+      this.resolveMine(action.x, action.y);
+
+    } else if (action.type === 'use-station') {
+      this.resolveStation(action.x, action.y, action.station);
+
+    } else if (action.type === 'smelt') {
+      this.resolveSmelt(action.x, action.y, action.barId);
+
+    } else {
+      this.resolveSmith(action.x, action.y, action.productId);
     }
+  }
+
+  /**
+   * Walk into interaction range of a tile, pathing around whatever is in the
+   * way. Returns true once the player is standing next to it; every skilling
+   * action begins with this, so it is worth having in one place.
+   *
+   * The action is cleared and a message shown if the tile cannot be reached.
+   */
+  private approach(tx: number, ty: number): boolean {
+    const p = this.player;
+
+    if (tileDist(p.x, p.y, tx, ty) > 1) {
+      if (!p.path.length) {
+        p.setPath(pathfind.findAdjacent(this.map, p.x, p.y, tx, ty));
+        if (!p.path.length) {
+          this.ui.message("I can't reach that.");
+          p.clearAction();
+        }
+      }
+      return false;
+    }
+
+    p.clearPath();
+    p.faceTowards(tx, ty);
+    return true;
   }
 
   /**
@@ -235,20 +286,7 @@ export class Game implements World {
       return;
     }
 
-    // Walk into range first.
-    if (tileDist(p.x, p.y, tx, ty) > 1) {
-      if (!p.path.length) {
-        p.setPath(pathfind.findAdjacent(this.map, p.x, p.y, tx, ty));
-        if (!p.path.length) {
-          this.ui.message("I can't reach that.");
-          p.clearAction();
-        }
-      }
-      return;
-    }
-
-    p.clearPath();
-    p.faceTowards(tx, ty);
+    if (!this.approach(tx, ty)) return;
 
     const level = p.skills.level('woodcutting');
     if (level < def.level) {
@@ -290,19 +328,7 @@ export class Game implements World {
     }
 
     // Stand next to the fire (or on its tile) before cooking.
-    if (tileDist(p.x, p.y, tx, ty) > 1) {
-      if (!p.path.length) {
-        p.setPath(pathfind.findAdjacent(this.map, p.x, p.y, tx, ty));
-        if (!p.path.length) {
-          this.ui.message("I can't reach that.");
-          p.clearAction();
-        }
-      }
-      return;
-    }
-
-    p.clearPath();
-    p.faceTowards(tx, ty);
+    if (!this.approach(tx, ty)) return;
 
     // Find the next raw item that has a recipe.
     const index = p.inventory.slots.findIndex(
@@ -337,6 +363,279 @@ export class Game implements World {
     }
 
     this.ui.dirty = true;
+  }
+
+  /**
+   * One tick of mining. The same repeated-roll shape as woodcutting, with two
+   * differences: a pickaxe is required, and a successful swing always empties
+   * the vein -- which is what makes mining a circuit between rocks rather than
+   * a stand-still skill.
+   */
+  private resolveMine(tx: number, ty: number): void {
+    const p = this.player;
+
+    const scenery = this.map.sceneryAt(tx, ty);
+    if (!scenery || scenery.kind !== 'rock' || !scenery.resource) {
+      p.clearAction();
+      return;
+    }
+
+    const def = getRock(scenery.resource);
+    if (!def) { p.clearAction(); return; }
+
+    const tileIndex = this.map.idx(tx, ty);
+    if (this.objects.isDepleted(tileIndex)) {
+      this.ui.message('There is no ore left in this rock.');
+      p.clearAction();
+      return;
+    }
+
+    if (!this.hasTool(PICKAXE_IDS)) {
+      this.ui.message('You need a pickaxe to mine this rock.', 'bad');
+      p.clearAction();
+      return;
+    }
+
+    if (!this.approach(tx, ty)) return;
+
+    const level = p.skills.level('mining');
+    if (level < def.level) {
+      this.ui.message(
+        `You need a Mining level of ${def.level} to mine this rock.`, 'bad'
+      );
+      p.clearAction();
+      return;
+    }
+
+    if (!rollGather(def.low, def.high, level)) return; // swing glanced off
+
+    if (p.inventory.isFull()) {
+      this.ui.message('Your inventory is too full to hold any more ore.', 'bad');
+      p.clearAction();
+      return;
+    }
+
+    p.inventory.add(def.oreId, 1);
+    this.announceXp('mining', def.xp);
+    this.ui.message(`You manage to mine some ${getItem(def.oreId)?.name.toLowerCase() ?? 'ore'}.`);
+    this.ui.dirty = true;
+
+    this.objects.deplete(tileIndex, def.respawnTicks);
+    p.clearAction();
+  }
+
+  /** Walk to a furnace or anvil, then hand over to its interface. */
+  private resolveStation(tx: number, ty: number, station: StationKind): void {
+    const p = this.player;
+
+    if (this.map.sceneryAt(tx, ty)?.kind !== station) {
+      p.clearAction();
+      return;
+    }
+
+    if (!this.approach(tx, ty)) return;
+
+    // Arriving is the whole action; the menu decides what happens next.
+    p.clearAction();
+
+    const at = this.renderer.canvasToClient(this.renderer.worldToScreen(tx, ty));
+    if (station === 'furnace') this.openSmeltMenu(at, tx, ty);
+    else this.openSmithMenu(at, tx, ty);
+  }
+
+  /** One item of smelting, repeating until the ore runs out. */
+  private resolveSmelt(tx: number, ty: number, barId: string): void {
+    const p = this.player;
+
+    const bar = getBar(barId);
+    if (!bar || this.map.sceneryAt(tx, ty)?.kind !== 'furnace') {
+      p.clearAction();
+      return;
+    }
+
+    if (!this.approach(tx, ty)) return;
+
+    const level = p.skills.level('smithing');
+    if (level < bar.level) {
+      this.ui.message(
+        `You need a Smithing level of ${bar.level} to smelt a ${bar.name.toLowerCase()}.`,
+        'bad'
+      );
+      p.clearAction();
+      return;
+    }
+
+    if (!this.hasIngredients(bar.ingredients)) {
+      this.ui.message(
+        `You need ${this.ingredientText(bar.ingredients)} to smelt a ${bar.name.toLowerCase()}.`
+      );
+      p.clearAction();
+      return;
+    }
+
+    if (p.actionDelay > 0) { p.actionDelay--; return; }
+    p.actionDelay = SMELT_TICKS;
+
+    // The ore is consumed whether or not the pour succeeds. Taking at least
+    // one item out first guarantees the bar has somewhere to go.
+    for (const ing of bar.ingredients) this.consume(ing.id, ing.qty);
+
+    if (Math.random() >= bar.successChance) {
+      this.ui.message(
+        'The ore is too impure and you fail to refine it.', 'bad'
+      );
+    } else {
+      p.inventory.add(bar.id, 1);
+      this.announceXp('smithing', bar.xp);
+      this.ui.message(`You retrieve a ${bar.name.toLowerCase()} from the furnace.`);
+    }
+
+    this.ui.dirty = true;
+  }
+
+  /** One item of smithing at an anvil, repeating until the bars run out. */
+  private resolveSmith(tx: number, ty: number, productId: string): void {
+    const p = this.player;
+
+    const def = getSmithable(productId);
+    const product = def ? getItem(def.id) : undefined;
+    if (!def || !product || this.map.sceneryAt(tx, ty)?.kind !== 'anvil') {
+      p.clearAction();
+      return;
+    }
+
+    if (!this.hasTool(HAMMER_IDS)) {
+      this.ui.message('You need a hammer to work the metal with.', 'bad');
+      p.clearAction();
+      return;
+    }
+
+    if (!this.approach(tx, ty)) return;
+
+    const level = p.skills.level('smithing');
+    if (level < def.level) {
+      this.ui.message(
+        `You need a Smithing level of ${def.level} to make a ${product.name.toLowerCase()}.`,
+        'bad'
+      );
+      p.clearAction();
+      return;
+    }
+
+    if (p.inventory.count(def.barId) < def.bars) {
+      const barName = getItem(def.barId)?.name.toLowerCase() ?? 'bars';
+      this.ui.message(`You need ${def.bars} ${barName} to make that.`);
+      p.clearAction();
+      return;
+    }
+
+    if (p.actionDelay > 0) { p.actionDelay--; return; }
+    p.actionDelay = SMITH_TICKS;
+
+    this.consume(def.barId, def.bars);
+    p.inventory.add(def.id, 1);
+    this.announceXp('smithing', SMITH_XP_PER_BAR * def.bars);
+    this.ui.message(`You hammer the metal into a ${product.name.toLowerCase()}.`);
+    this.ui.dirty = true;
+  }
+
+  // ----------------------------------------------------------------------
+  // Crafting helpers
+  // ----------------------------------------------------------------------
+  /** True if any of these tool ids is carried or worn. */
+  private hasTool(ids: readonly string[]): boolean {
+    const inv = this.player.inventory;
+    return ids.some(
+      (id) => inv.count(id) > 0 ||
+        Object.values(inv.equipment).some((eq) => eq?.id === id)
+    );
+  }
+
+  private hasIngredients(list: readonly { id: string; qty: number }[]): boolean {
+    return list.every((i) => this.player.inventory.count(i.id) >= i.qty);
+  }
+
+  /** Remove `qty` of an item, spanning slots for non-stackables. */
+  private consume(id: string, qty: number): void {
+    const inv = this.player.inventory;
+    let left = qty;
+
+    for (let i = 0; i < inv.slots.length && left > 0; i++) {
+      const slot = inv.slots[i];
+      if (!slot || slot.id !== id) continue;
+      const taken = inv.removeSlot(i, left);
+      left -= taken?.qty ?? 0;
+    }
+  }
+
+  private ingredientText(list: readonly { id: string; qty: number }[]): string {
+    return list
+      .map((i) => `${i.qty} ${getItem(i.id)?.name.toLowerCase() ?? i.id}`)
+      .join(' and ');
+  }
+
+  // ----------------------------------------------------------------------
+  // Station interfaces
+  // ----------------------------------------------------------------------
+  private openSmeltMenu(at: Point, tx: number, ty: number): void {
+    const p = this.player;
+
+    const opts = bars.map((bar: BarDef) => ({
+      verb: 'Smelt',
+      noun: `${bar.name} (${this.ingredientText(bar.ingredients)})`,
+      action: () => {
+        p.clearPath();
+        p.setAction({ type: 'smelt', x: tx, y: ty, barId: bar.id });
+      }
+    }));
+
+    this.ui.openMenu(at.x, at.y, 'Smelting', opts);
+  }
+
+  /**
+   * The anvil offers whatever the bars in your inventory can become. Holding
+   * more than one metal asks which first, rather than listing eighteen items.
+   */
+  private openSmithMenu(at: Point, tx: number, ty: number): void {
+    const held = bars.filter((b) => this.player.inventory.count(b.id) > 0);
+
+    if (!held.length) {
+      this.ui.message('You need a bar of metal to work with.');
+      return;
+    }
+
+    if (held.length === 1) {
+      this.openSmithProductMenu(at, tx, ty, held[0]!);
+      return;
+    }
+
+    this.ui.openMenu(at.x, at.y, 'Smithing', held.map((bar) => ({
+      verb: 'Work',
+      noun: bar.name,
+      action: () => this.openSmithProductMenu(at, tx, ty, bar)
+    })));
+  }
+
+  private openSmithProductMenu(at: Point, tx: number, ty: number, bar: BarDef): void {
+    const p = this.player;
+
+    const opts = smithablesFor(bar.id).map((def: SmithDef) => {
+      const name = getItem(def.id)?.name ?? def.id;
+      const locked = p.skills.level('smithing') < def.level;
+
+      return {
+        verb: 'Smith',
+        noun: locked
+          ? `${name} (requires level ${def.level})`
+          : `${name} (${def.bars} ${def.bars === 1 ? 'bar' : 'bars'})`,
+        action: () => {
+          p.clearPath();
+          p.setAction({ type: 'smith', x: tx, y: ty, productId: def.id });
+        }
+      };
+    });
+
+    this.ui.openMenu(at.x, at.y, bar.name, opts);
   }
 
   /** Award experience and announce any level-ups in the chat log. */
@@ -504,11 +803,15 @@ export class Game implements World {
   }
 
   equipItem(index: number): void {
+    // Read the slot before equipping; afterwards the item has moved.
+    const stack = this.player.inventory.slots[index];
+    const worn = stack ? getItem(stack.id)?.slot !== 'weapon' : false;
+
     const result = this.player.inventory.equip(index);
     if (!result.ok) return;
 
     this.player.attackSpeed = this.player.inventory.attackSpeed();
-    this.ui.message(`You wield the ${result.name}.`);
+    this.ui.message(`You ${worn ? 'wear' : 'wield'} the ${result.name}.`);
     this.ui.dirty = true;
   }
 
@@ -626,12 +929,27 @@ export class Game implements World {
       return;
     }
 
-    // A standing tree is a woodcutting node.
+    // Interactive scenery: trees, ore veins, and the smithy stations.
     const scenery = this.map.sceneryAt(tile.x, tile.y);
-    if (scenery?.kind === 'tree' && scenery.resource &&
-        !this.objects.isDepleted(this.map.idx(tile.x, tile.y))) {
+    const spent = this.objects.isDepleted(this.map.idx(tile.x, tile.y));
+
+    if (scenery?.kind === 'tree' && scenery.resource && !spent) {
       p.clearPath();
       p.setAction({ type: 'chop', x: tile.x, y: tile.y });
+      this.renderer.setClickMarker(tile.x, tile.y, 'move');
+      return;
+    }
+
+    if (scenery?.kind === 'rock' && scenery.resource && !spent) {
+      p.clearPath();
+      p.setAction({ type: 'mine', x: tile.x, y: tile.y });
+      this.renderer.setClickMarker(tile.x, tile.y, 'move');
+      return;
+    }
+
+    if (scenery?.kind === 'furnace' || scenery?.kind === 'anvil') {
+      p.clearPath();
+      p.setAction({ type: 'use-station', x: tile.x, y: tile.y, station: scenery.kind });
       this.renderer.setClickMarker(tile.x, tile.y, 'move');
       return;
     }
@@ -729,6 +1047,52 @@ export class Game implements World {
             }
           });
         }
+      }
+
+      if (scenery?.kind === 'rock' && scenery.resource) {
+        const rockDef = getRock(scenery.resource);
+        const spent = this.objects.isDepleted(this.map.idx(tile.x, tile.y));
+
+        if (rockDef && !spent) {
+          opts.push({
+            verb: 'Mine', noun: rockDef.name,
+            action: () => {
+              p.clearPath();
+              p.setAction({ type: 'mine', x: tile.x, y: tile.y });
+            }
+          });
+        }
+        if (rockDef) {
+          opts.push({
+            verb: 'Examine', noun: rockDef.name,
+            action: () => {
+              this.ui.message(spent
+                ? 'The ore has been mined out. It will reform shortly.'
+                : `${rockDef.name}. Requires Mining ${rockDef.level}.`);
+            }
+          });
+        }
+      }
+
+      if (scenery?.kind === 'furnace' || scenery?.kind === 'anvil') {
+        const station = scenery.kind;
+        opts.push({
+          verb: station === 'furnace' ? 'Smelt at' : 'Smith at',
+          noun: station === 'furnace' ? 'Furnace' : 'Anvil',
+          action: () => {
+            p.clearPath();
+            p.setAction({ type: 'use-station', x: tile.x, y: tile.y, station });
+          }
+        });
+        opts.push({
+          verb: 'Examine',
+          noun: station === 'furnace' ? 'Furnace' : 'Anvil',
+          action: () => {
+            this.ui.message(station === 'furnace'
+              ? 'A furnace hot enough to smelt ore into bars.'
+              : 'A sturdy anvil. Bring bars and a hammer.');
+          }
+        });
       }
 
       for (const it of this.ground.at(tile.x, tile.y)) {

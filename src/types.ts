@@ -31,7 +31,8 @@ export type EquipSlot = 'head' | 'cape' | 'body' | 'legs' | 'weapon' | 'shield';
 export type ItemShape =
   | 'blob' | 'coin' | 'bone' | 'feather'
   | 'meat' | 'blade' | 'shield' | 'plate'
-  | 'log' | 'axe' | 'tinderbox';
+  | 'log' | 'axe' | 'tinderbox'
+  | 'ore' | 'bar' | 'pickaxe' | 'hammer' | 'helm' | 'legs';
 
 export interface Bonuses {
   attack: number;
@@ -162,7 +163,22 @@ export type PlayerAction =
   /** Chop the tree at this tile; repeats each tick until it falls or you stop. */
   | { type: 'chop'; x: number; y: number }
   /** Cook raw food on the fire at this tile, one item per successful tick. */
-  | { type: 'cook'; x: number; y: number };
+  | { type: 'cook'; x: number; y: number }
+  /** Mine the rock at this tile; repeats each tick until the ore is out. */
+  | { type: 'mine'; x: number; y: number }
+  /**
+   * Walk to a furnace or an anvil and open its interface on arrival. The
+   * interface is what turns this into a `smelt` or `smith` action -- clicking
+   * the station itself only ever means "go there and show me my options".
+   */
+  | { type: 'use-station'; x: number; y: number; station: StationKind }
+  /** Smelt ore into `barId` at the furnace on this tile, repeating. */
+  | { type: 'smelt'; x: number; y: number; barId: string }
+  /** Hammer bars into `productId` at the anvil on this tile, repeating. */
+  | { type: 'smith'; x: number; y: number; productId: string };
+
+/** Scenery you interact with through an interface rather than a single verb. */
+export type StationKind = 'furnace' | 'anvil';
 
 // --------------------------------------------------------------------------
 // World

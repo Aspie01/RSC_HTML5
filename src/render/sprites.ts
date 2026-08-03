@@ -147,7 +147,11 @@ export function fire(ctx: CanvasRenderingContext2D, x: number, y: number, t: num
   ctx.restore();
 }
 
-export function rock(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+/**
+ * A boulder. Pass `ore` to salt it with coloured flecks, which is the only
+ * thing distinguishing a copper vein from a coal one at this zoom level.
+ */
+export function rock(ctx: CanvasRenderingContext2D, x: number, y: number, ore?: string): void {
   shadow(ctx, x, y, 16, 7);
 
   ctx.fillStyle = '#7c7c7c';
@@ -169,6 +173,142 @@ export function rock(ctx: CanvasRenderingContext2D, x: number, y: number): void 
   ctx.lineTo(x + 1, y - 16);
   ctx.lineTo(x + 4, y - 8);
   ctx.closePath();
+  ctx.fill();
+
+  if (!ore) return;
+
+  // Fixed fleck positions: a random scatter would crawl every frame, since
+  // scenery is redrawn from scratch rather than cached.
+  const flecks = [
+    { dx: -9, dy: -6, r: 2.6 },
+    { dx: -2, dy: -11, r: 3.1 },
+    { dx: 6, dy: -13, r: 2.3 },
+    { dx: 8, dy: -4, r: 2.8 },
+    { dx: 0, dy: -2, r: 2.1 }
+  ];
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = 0.8;
+  for (const f of flecks) {
+    ctx.fillStyle = ore;
+    ctx.beginPath();
+    ctx.arc(x + f.dx, y + f.dy, f.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = shade(ore, 40);
+    ctx.beginPath();
+    ctx.arc(x + f.dx - f.r * 0.3, y + f.dy - f.r * 0.35, f.r * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** What is left after a vein is mined out, until the ore reforms. */
+export function minedRock(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  shadow(ctx, x, y, 13, 6);
+
+  ctx.fillStyle = '#5f5f5f';
+  ctx.strokeStyle = '#3a3a3a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x - 12, y + 2);
+  ctx.lineTo(x - 8, y - 7);
+  ctx.lineTo(x + 3, y - 9);
+  ctx.lineTo(x + 11, y - 4);
+  ctx.lineTo(x + 12, y + 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Rubble where the ore came out.
+  ctx.fillStyle = '#4a4a4a';
+  ctx.beginPath();
+  ctx.ellipse(x - 1, y - 5, 5, 2.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** The smelting furnace: a stone stack with a glowing mouth. */
+export function furnace(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  shadow(ctx, x, y, 21, 9);
+
+  ctx.fillStyle = '#6e6357';
+  ctx.strokeStyle = '#3a332b';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x - 18, y + 2);
+  ctx.lineTo(x - 15, y - 30);
+  ctx.lineTo(x + 15, y - 30);
+  ctx.lineTo(x + 18, y + 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Chimney.
+  ctx.fillStyle = '#5d5349';
+  ctx.beginPath();
+  ctx.moveTo(x - 9, y - 30);
+  ctx.lineTo(x - 7, y - 44);
+  ctx.lineTo(x + 7, y - 44);
+  ctx.lineTo(x + 9, y - 30);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Lit mouth.
+  ctx.fillStyle = '#1c1410';
+  ctx.beginPath();
+  ctx.roundRect(x - 9, y - 20, 18, 15, 3);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#e2521c';
+  ctx.beginPath();
+  ctx.roundRect(x - 7, y - 15, 14, 9, 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#ffd766';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 9, 5, 2.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** The smithing anvil: a block on a stump. */
+export function anvil(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  shadow(ctx, x, y, 16, 7);
+
+  ctx.fillStyle = '#5a4028';
+  ctx.strokeStyle = '#2e2620';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(x - 8, y - 12, 16, 12, 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#55555c';
+  ctx.beginPath();
+  ctx.moveTo(x - 7, y - 14);
+  ctx.lineTo(x - 5, y - 20);
+  ctx.lineTo(x + 5, y - 20);
+  ctx.lineTo(x + 7, y - 14);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Face, with the horn sticking out to the east.
+  ctx.fillStyle = '#6d6d76';
+  ctx.beginPath();
+  ctx.moveTo(x - 12, y - 26);
+  ctx.lineTo(x + 10, y - 26);
+  ctx.lineTo(x + 17, y - 23);
+  ctx.lineTo(x + 10, y - 20);
+  ctx.lineTo(x - 12, y - 20);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.beginPath();
+  ctx.roundRect(x - 11, y - 25.5, 20, 2, 1);
   ctx.fill();
 }
 
@@ -204,11 +344,12 @@ export function fence(ctx: CanvasRenderingContext2D, x: number, y: number): void
 }
 
 /**
- * Lookup for the renderer's scenery pass. Trees are deliberately absent: they
- * take extra arguments (resource tint, scale, stump state) and are drawn by a
- * dedicated branch, so this table can stay uniformly (ctx, x, y).
+ * Lookup for the renderer's scenery pass. Trees and rocks are deliberately
+ * absent: they take extra arguments (resource tint, scale, depleted state) and
+ * are drawn by dedicated branches, so this table can stay uniformly
+ * (ctx, x, y).
  */
-export const scenerySprites = { rock, bush, fence } as const;
+export const scenerySprites = { bush, fence, furnace, anvil } as const;
 
 // --------------------------------------------------------------------------
 // Creatures
@@ -447,6 +588,144 @@ export function item(
       ctx.beginPath();
       ctx.arc(s * 0.18, -s * 0.22, s * 0.06, 0, Math.PI * 2);
       ctx.fill();
+      break;
+
+    case 'ore': {
+      // Grey stone with coloured ore showing through, matching the vein art.
+      ctx.fillStyle = '#7c7c7c';
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.3, s * 0.18);
+      ctx.lineTo(-s * 0.2, -s * 0.24);
+      ctx.lineTo(s * 0.12, -s * 0.3);
+      ctx.lineTo(s * 0.3, -s * 0.02);
+      ctx.lineTo(s * 0.18, s * 0.24);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      const spots = [[-s * 0.1, -s * 0.06], [s * 0.11, -s * 0.14], [s * 0.06, s * 0.1]];
+      for (const [ox, oy] of spots) {
+        ctx.fillStyle = def.colour;
+        ctx.beginPath();
+        ctx.arc(ox!, oy!, s * 0.075, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+
+    case 'bar':
+      // An ingot drawn as a shallow prism: top face, then the front edge.
+      ctx.fillStyle = shade(def.colour, 26);
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.24, -s * 0.1);
+      ctx.lineTo(s * 0.08, -s * 0.22);
+      ctx.lineTo(s * 0.3, -s * 0.06);
+      ctx.lineTo(-s * 0.02, s * 0.06);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = shade(def.colour, -28);
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.24, -s * 0.1);
+      ctx.lineTo(-s * 0.02, s * 0.06);
+      ctx.lineTo(-s * 0.02, s * 0.2);
+      ctx.lineTo(-s * 0.24, s * 0.04);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = def.colour;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.02, s * 0.06);
+      ctx.lineTo(s * 0.3, -s * 0.06);
+      ctx.lineTo(s * 0.3, s * 0.08);
+      ctx.lineTo(-s * 0.02, s * 0.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      break;
+
+    case 'pickaxe':
+      ctx.strokeStyle = '#5a4028';
+      ctx.lineWidth = s * 0.09;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.2, s * 0.36);
+      ctx.lineTo(s * 0.14, -s * 0.26);
+      ctx.stroke();
+
+      ctx.strokeStyle = def.colour;
+      ctx.lineWidth = s * 0.11;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.16, -s * 0.14);
+      ctx.quadraticCurveTo(s * 0.12, -s * 0.4, s * 0.36, -s * 0.16);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+      break;
+
+    case 'hammer':
+      ctx.strokeStyle = '#5a4028';
+      ctx.lineWidth = s * 0.1;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.18, s * 0.34);
+      ctx.lineTo(s * 0.1, -s * 0.12);
+      ctx.stroke();
+
+      ctx.fillStyle = def.colour;
+      ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+      ctx.lineWidth = 1.2;
+      ctx.save();
+      ctx.translate(s * 0.14, -s * 0.2);
+      ctx.rotate(-1.03);
+      ctx.beginPath();
+      ctx.roundRect(-s * 0.09, -s * 0.22, s * 0.18, s * 0.44, s * 0.04);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+      break;
+
+    case 'helm':
+      // Dome with a nose guard.
+      ctx.beginPath();
+      ctx.arc(0, s * 0.04, s * 0.3, Math.PI, 0);
+      ctx.lineTo(s * 0.3, s * 0.16);
+      ctx.lineTo(-s * 0.3, s * 0.16);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = shade(def.colour, -40);
+      ctx.beginPath();
+      ctx.roundRect(-s * 0.05, s * 0.02, s * 0.1, s * 0.26, s * 0.03);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = shade(def.colour, 40);
+      ctx.beginPath();
+      ctx.ellipse(-s * 0.11, -s * 0.1, s * 0.07, s * 0.05, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+
+    case 'legs':
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.24, -s * 0.3);
+      ctx.lineTo(s * 0.24, -s * 0.3);
+      ctx.lineTo(s * 0.24, s * 0.34);
+      ctx.lineTo(s * 0.06, s * 0.34);
+      ctx.lineTo(s * 0.06, s * 0.02);
+      ctx.lineTo(-s * 0.06, s * 0.02);
+      ctx.lineTo(-s * 0.06, s * 0.34);
+      ctx.lineTo(-s * 0.24, s * 0.34);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = shade(def.colour, -34);
+      ctx.beginPath();
+      ctx.roundRect(-s * 0.26, -s * 0.32, s * 0.52, s * 0.1, s * 0.03);
+      ctx.fill();
+      ctx.stroke();
       break;
 
     case 'blob':
