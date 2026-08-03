@@ -33,7 +33,7 @@ export interface TerrainInfo {
 
 export type SceneryKind =
   | 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil' | 'fishing_spot'
-  | 'well' | 'rubble' | 'sand_bank' | 'thicket';
+  | 'well' | 'rubble' | 'sand_bank' | 'thicket' | 'stone_box';
 
 export interface Scenery {
   readonly kind: SceneryKind;
@@ -493,6 +493,10 @@ export function generateMap(): GameMap {
     }
   }
   map.setScenery(SALLOWS_ENTRANCE.x, SALLOWS_ENTRANCE.y, { kind: 'thicket', blocks: true });
+
+  // Somebody put the ledger pages where nothing rots. The box does not block:
+  // the pool under it already does, and it has to stay clickable from the bank.
+  map.setScenery(36, 43, { kind: 'stone_box', blocks: false });
 
   // Marshroot likes the wet. A reason to come back that is not the quest.
   for (const [bx, by] of [[34, 41], [38, 43], [42, 41], [37, 46]] as const) {

@@ -37,6 +37,7 @@ import type { TradeResult } from './systems/shop.ts';
 import { shopForNpc } from './data/shops.ts';
 import type { ShopDef } from './data/shops.ts';
 import { getQuest, questsForNpc, quests } from './data/quests.ts';
+import { combinationFor } from './data/combinations.ts';
 import type { QuestDef, QuestItem, QuestStage } from './data/quests.ts';
 import { Dialogue } from './ui/dialogue.ts';
 import { INVENTORY_CAPACITY } from './systems/inventory.ts';
@@ -67,8 +68,19 @@ const BLOCKED_GRACE_TICKS = 3;
  * so adding Foraging is a row here and a row in `resources.ts`.
  */
 /** What looking closely at a piece of scenery tells you, absent a quest. */
+/**
+ * Scenery that can be looked at closely, and what looking says absent a quest.
+ *
+ * Membership of this table is what makes a thing clickable-to-inspect at all,
+ * so a quest that sends the player to look at something must add its kind
+ * here or the stage cannot be reached by clicking. That caught the reed wall:
+ * its inspect stage was only reachable because a test set the action directly.
+ */
 const INSPECT_TEXT: Readonly<Record<string, string>> = {
-  well: 'The village well. The water is a long way down, and further than it used to be.'
+  well: 'The village well. The water is a long way down, and further than it used to be.',
+  thicket: 'Dead reed, standing upright. It died where it stood and never fell.',
+  stone_box: 'A stone box, set in the pool. Placed, not dropped.',
+  rubble: 'A fall of loose stone. The edges of it were squared by hand.'
 };
 
 const GATHER_VERBS: Readonly<Partial<Record<SkillId, string>>> = {
@@ -1054,6 +1066,50 @@ export class Game implements World {
     this.ui.dirty = true;
   }
 
+  /**
+   * Use one inventory item on another.
+   *
+   * Returns false when the pair means nothing, so the interface can say so
+   * without this method knowing what a message looks like. Both slots are read
+   * before anything is consumed, because removing the first would shift the
+   * second's index out from under us.
+   */
+  combineItems(firstIndex: number, secondIndex: number): boolean {
+    const p = this.player;
+    if (firstIndex === secondIndex) return false;
+
+    const a = p.inventory.slots[firstIndex];
+    const b = p.inventory.slots[secondIndex];
+    if (!a || !b) return false;
+
+    const recipe = combinationFor(a.id, b.id);
+    if (!recipe) return false;
+
+    if (recipe.skill && recipe.level) {
+      if (p.skills.level(recipe.skill) < recipe.level) {
+        this.ui.message(recipe.tooLow ?? 'You are not skilled enough for that.', 'bad');
+        return true;   // handled: the pair was right, the player was not
+      }
+    }
+
+    this.consume(a.id, 1);
+    this.consume(b.id, 1);
+
+    if (!p.inventory.add(recipe.output, recipe.outputQty)) {
+      // Cannot happen from a two-for-one, but a future many-for-many could.
+      p.inventory.add(a.id, 1);
+      p.inventory.add(b.id, 1);
+      this.ui.message('Your inventory is too full.', 'bad');
+      return true;
+    }
+
+    audio.play('smith');
+    if (recipe.skill && recipe.xp) this.announceXp(recipe.skill, recipe.xp);
+    this.ui.message(recipe.message, 'good');
+    this.ui.dirty = true;
+    return true;
+  }
+
   /** True if the player holds any part of this recipe. Used to filter menus. */
   private hasAnyIngredient(bar: BarDef): boolean {
     return bar.ingredients.some((i) => this.player.inventory.count(i.id) > 0);
@@ -1538,7 +1594,7 @@ export class Game implements World {
       return;
     }
 
-    if (scenery?.kind === 'well') {
+    if (scenery && INSPECT_TEXT[scenery.kind] !== undefined) {
       p.clearPath();
       p.setAction({ type: 'inspect', x: tile.x, y: tile.y });
       this.renderer.setClickMarker(tile.x, tile.y, 'move');

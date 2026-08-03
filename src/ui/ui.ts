@@ -17,6 +17,7 @@ import { getItem } from '../data/items.ts';
 import { burnables, fletchablesFrom } from '../data/resources.ts';
 import { quests, TOTAL_QUEST_POINTS } from '../data/quests.ts';
 import { spells, spellsUpTo } from '../data/spells.ts';
+import { combinable } from '../data/combinations.ts';
 import * as sprites from '../render/sprites.ts';
 import * as XP from '../data/xp.ts';
 
@@ -57,6 +58,14 @@ export class UI {
   private readonly game: Game;
   private activeTab: TabId = 'inventory';
   private menuOpen = false;
+
+  /**
+   * Inventory slot waiting to be used on another, or null.
+   *
+   * Lives in the interface rather than in the player: it is a half-finished
+   * click, not game state, and it should not survive a save.
+   */
+  private pendingUse: number | null = null;
 
   dirty = true;
 
@@ -110,6 +119,9 @@ export class UI {
 
   setTab(id: TabId): void {
     this.activeTab = id;
+    // Leaving the inventory abandons a half-finished "Use", rather than
+    // keeping a selection alive on a panel nobody is looking at.
+    this.pendingUse = null;
     this.dom.panelTitle.textContent = TABS.find((t) => t.id === id)?.title ?? '';
 
     for (const btn of this.dom.tabs.querySelectorAll<HTMLButtonElement>('.tab-btn')) {
@@ -125,7 +137,9 @@ export class UI {
       }
     });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') this.closeMenu();
+      if (e.key !== 'Escape') return;
+      this.closeMenu();
+      if (this.pendingUse !== null) { this.pendingUse = null; this.dirty = true; }
     });
   }
 
@@ -256,7 +270,22 @@ export class UI {
           }
 
           cell.title = def.name;
-          cell.addEventListener('click', () => this.game.defaultItemAction(index));
+          if (this.pendingUse === index) cell.classList.add('selected');
+
+          cell.addEventListener('click', () => {
+            // A pending "Use" turns the next click into the second half of a
+            // combination rather than the item's own action.
+            const first = this.pendingUse;
+            if (first !== null) {
+              this.pendingUse = null;
+              if (first !== index && !this.game.combineItems(first, index)) {
+                this.message('Nothing happens.');
+              }
+              this.dirty = true;
+              return;
+            }
+            this.game.defaultItemAction(index);
+          });
           cell.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             this.openItemMenu(e.clientX, e.clientY, index, def);
@@ -276,6 +305,18 @@ export class UI {
 
     if (burnables[def.id]) {
       opts.push({ verb: 'Light', noun: def.name, action: () => this.game.lightLogs(index) });
+    }
+    // Offered only for items that are half of something, so the menu does not
+    // grow a "Use" on every rock in the game with nothing to use it on.
+    if (combinable(def.id)) {
+      opts.push({
+        verb: 'Use', noun: def.name,
+        action: () => {
+          this.pendingUse = index;
+          this.message(`Use ${def.name} with...`);
+          this.dirty = true;
+        }
+      });
     }
     // Anything that starts a fletching recipe offers it here. Driven by the
     // recipe table, so a new arrow tier needs no change in this file.

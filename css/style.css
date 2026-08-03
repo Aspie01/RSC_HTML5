@@ -839,3 +839,6 @@ html, body {
 /* A spell the caster has not reached the level for. Listed, not offered. */
 .style-btn.locked { opacity: 0.45; cursor: default; }
 .style-btn.locked:hover { border-color: var(--border); }
+
+/* The first half of a pending "Use". */
+.inv-slot.selected { border-color: var(--gold); background: #3a2f1c; }

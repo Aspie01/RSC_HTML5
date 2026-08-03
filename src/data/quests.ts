@@ -344,6 +344,89 @@ export const quests: readonly QuestDef[] = [
     ]
   },
 
+  // Quest 14. The arc's hinge. Vigil established that somebody built an
+  // instrument to measure the loss and left instructions to send word; this is
+  // the quest that answers who to, and the answer is the reason the order
+  // stopped existing.
+  //
+  // It also teaches item combination, which the engine had only as a hardcoded
+  // tinderbox-on-logs. Two halves of a book, found a century and four miles
+  // apart, and neither is worth anything alone -- which is the clearest thing
+  // a combination can be.
+  {
+    id: 'what_the_warden_wrote',
+    name: 'What the Warden Wrote',
+    requires: { quests: ['cartographers_error'] },
+    blocked: [
+      { who: 'npc', text: 'Not until you have been out to the fen with Alder. I am not starting this conversation twice.' }
+    ],
+    reward: {
+      points: 3,
+      xp: { magic: 250, foraging: 250 },
+      // Handed straight back. The stage takes it because Maren has to read the
+      // last page herself, and she gives it back in the same breath -- "keep
+      // the book" is the line, so the player must actually keep the book.
+      items: [{ id: 'wardens_ledger', qty: 1 }],
+      unlock: 'The ledger is yours. Two hundred years of it, and one instruction nobody can carry out.'
+    },
+    stages: [
+      {
+        journal: 'Maren Ashfall has been keeping a list, and wants to see the chart.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Alder sent you. He would not come himself because then it would be a thing two people believed.' },
+          { who: 'player', text: 'He measured the fen. Four and a half feet, and still going.' },
+          { who: 'npc', text: 'Then sit down, because I have something and I have never known what it was.' },
+          { who: 'npc', text: 'Book covers. No book in them -- the stitching is cut, clean, not torn. My family has had them since before the well went bad and nobody remembers who from.' },
+          { who: 'npc', text: 'There is a mark pressed into the board. A line with water under it, and the water is below the line.' },
+          { who: 'player', text: 'That is what the lamp shows.' },
+          { who: 'npc', text: 'Is it. Is it indeed.' },
+          { who: 'npc', text: 'Then the pages went somewhere and somebody meant them to be findable. Take the covers. Look where the water is.' }
+        ],
+        gives: [{ id: 'ledger_covers', qty: 1 }]
+      },
+      {
+        journal: 'Search the Sallows for the pages the covers lost.',
+        npc: 'maren',
+        goal: { type: 'inspect', x: 36, y: 43 },
+        waiting: [
+          { who: 'npc', text: 'The fen. If somebody wanted them kept, they put them where nothing rots, and nothing rots in salt.' }
+        ],
+        done: [
+          { who: 'player', text: 'There is a stone box in the pool, a hand under the surface, and it is not old enough to be lost. It was placed.' },
+          { who: 'player', text: 'Pages. Stiff as board, salt all through them, and every word still legible -- the salt that ruined this valley is the only reason they survived it.' },
+          { who: 'player', text: 'Somebody put them in the water on purpose, knowing what the water was doing. They were not hiding them. They were preserving them.' }
+        ],
+        gives: [{ id: 'sodden_pages', qty: 1 }]
+      },
+      {
+        journal: 'Use the pages on the covers to make the ledger whole.',
+        npc: 'maren',
+        goal: { type: 'give', items: [{ id: 'wardens_ledger', qty: 1 }] },
+        waiting: [
+          { who: 'npc', text: 'Put them together. Use the one on the other -- I am not going to do it for you, they are your hands and it is your find.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Read me the last page. Not the first. Nobody ever wants the last page and it is always the one that matters.' },
+          { who: 'player', text: 'It is a column of dates and depths. It runs two hundred and six years. The handwriting changes eleven times.' },
+          { who: 'player', text: 'The last entry is eighty-one years ago. Depth, four feet one inch. Then a different hand, underneath, and only one line.' },
+          { who: 'npc', text: 'Go on.' },
+          { who: 'player', text: '"No one left to send to. Keep the light. Keep the count. Someone will read this."' },
+          { who: 'npc', text: '...' },
+          { who: 'npc', text: 'Eighty-one years. And the last of them sat down and wrote that, and then filled in the depth anyway, because that was the job.' },
+          { who: 'player', text: 'Sella\'s family kept filling in dates. They never knew why either.' },
+          { who: 'npc', text: 'No. But they kept the count, and now somebody has read it.' },
+          { who: 'npc', text: 'Keep the book. I have carried half of it my whole life without knowing, and you have carried it four miles and made it a whole one.' },
+          { who: 'npc', text: 'There is a road under the fen. The ledger has it drawn. It goes east, and it is where every one of those depths was taken from.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Keep the light. Keep the count. It is not much of an instruction and it is the only one we have.' }
+    ]
+  },
+
   // Quest 13. Magic gets a spellbook, and the arc gets its first Warden
   // artefact. Sella has been holding the other half of this since Glass and
   // Ash -- "there is more than vials in glass, and I will show you when there

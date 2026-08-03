@@ -195,6 +195,21 @@ export const items = {
     examine: 'Sixty-six feet of it, and it does not lie.'
   }),
 
+  ledger_covers: item('ledger_covers', 'Empty ledger covers', {
+    colour: '#5a3f2a', shape: 'blob',
+    examine: 'Board and hide, and the stitching where a book used to be.'
+  }),
+
+  sodden_pages: item('sodden_pages', 'Salt-stiffened pages', {
+    colour: '#c9bfa0', shape: 'blob',
+    examine: 'Stiff as board and perfectly legible. Salt kept them.'
+  }),
+
+  wardens_ledger: item('wardens_ledger', "Warden's ledger", {
+    colour: '#7a5a3a', shape: 'blob',
+    examine: 'Two hundred years of dates, depths, and one instruction.'
+  }),
+
   sallows_chart: item('sallows_chart', 'Corrected chart', {
     colour: '#d8c9a0', shape: 'blob',
     examine: 'The old lines in ink, the new ones in pencil. They do not agree.'

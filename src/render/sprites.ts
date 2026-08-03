@@ -527,8 +527,32 @@ export function thicket(ctx: CanvasRenderingContext2D, x: number, y: number): vo
   }
 }
 
+/** A cut stone box sitting in shallow water. Squared edges read as placed. */
+export function stoneBox(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  shadow(ctx, x, y, 12, 6);
+
+  ctx.fillStyle = '#6f6a62';
+  ctx.strokeStyle = '#3a3630';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x - 10, y - 3);
+  ctx.lineTo(x, y - 9);
+  ctx.lineTo(x + 10, y - 3);
+  ctx.lineTo(x, y + 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Waterline across it, so it reads as half submerged.
+  ctx.strokeStyle = 'rgba(180,215,235,0.5)';
+  ctx.beginPath();
+  ctx.moveTo(x - 11, y - 1);
+  ctx.lineTo(x + 11, y - 1);
+  ctx.stroke();
+}
+
 export const scenerySprites = {
-  bush, fence, furnace, anvil, well, rubble, thicket
+  bush, fence, furnace, anvil, well, rubble, thicket, stone_box: stoneBox
 } as const;
 
 // --------------------------------------------------------------------------
