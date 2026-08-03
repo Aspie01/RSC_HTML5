@@ -185,6 +185,34 @@ export const items = {
   }),
 
   // ------------------------------------------------------------------------
+  // Foraging
+  // ------------------------------------------------------------------------
+  bronze_sickle: item('bronze_sickle', 'Bronze sickle', { value: 22,
+    slot: 'weapon', speed: 4, colour: '#a97142', shape: 'blade', tags: ['sickle'],
+    bonuses: { attack: 2, strength: 2 },
+    examine: 'Curved, and sharper on the inside of the curve.'
+  }),
+
+  marshroot: item('marshroot', 'Marshroot', { value: 7,
+    colour: '#7d8a4a', shape: 'blob', tags: ['raw_food'],
+    examine: 'Bitter and fibrous. Fire fixes both.'
+  }),
+
+  roasted_marshroot: item('roasted_marshroot', 'Roasted marshroot', { value: 20,
+    colour: '#a8763a', shape: 'blob', heals: 5,
+    examine: 'Sweet once the fire has had it.'
+  }),
+
+  burnt_marshroot: item('burnt_marshroot', 'Burnt marshroot', {
+    colour: '#3a3028', shape: 'blob', examine: 'Now it is just bitter.'
+  }),
+
+  emberleaf: item('emberleaf', 'Emberleaf', { value: 26,
+    stackable: true, colour: '#c25a2c', shape: 'feather', tags: ['reagent'],
+    examine: 'Warm to hold, and it has not been anywhere near a fire.'
+  }),
+
+  // ------------------------------------------------------------------------
   // Crafting: glass
   // ------------------------------------------------------------------------
   sand: item('sand', 'Sand', { value: 2,

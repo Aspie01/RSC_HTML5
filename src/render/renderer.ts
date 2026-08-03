@@ -315,6 +315,9 @@ export class Renderer {
             sprites.rock(ctx, s.x, s.y, def?.colour);
           }
 
+        } else if (e.obj.kind === 'bush') {
+          sprites.bush(ctx, s.x, s.y, def?.colour, spent);
+
         } else if (e.obj.kind === 'sand_bank') {
           // Drawn low and flat: a rise in the beach, not a thing standing on it.
           sprites.sandBank(ctx, s.x, s.y, spent);

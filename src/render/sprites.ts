@@ -312,7 +312,15 @@ export function anvil(ctx: CanvasRenderingContext2D, x: number, y: number): void
   ctx.fill();
 }
 
-export function bush(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+/**
+ * A hedge. `berry` tints the fruiting bulbs when there is something on it
+ * worth cutting, so a forageable bush is distinguishable from scenery at a
+ * glance and a picked-over one reads as picked over.
+ */
+export function bush(
+  ctx: CanvasRenderingContext2D, x: number, y: number,
+  berry?: string, spent = false
+): void {
   shadow(ctx, x, y, 13, 6);
 
   ctx.fillStyle = '#3d6b33';
@@ -324,6 +332,15 @@ export function bush(ctx: CanvasRenderingContext2D, x: number, y: number): void 
     ctx.arc(x - 7 + i * 7, y - 7 - (i === 1 ? 4 : 0), 8, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+  }
+
+  if (!berry || spent) return;
+
+  ctx.fillStyle = berry;
+  for (const [dx, dy] of [[-6, -9], [1, -13], [7, -6], [-2, -4]] as const) {
+    ctx.beginPath();
+    ctx.arc(x + dx, y + dy, 2.2, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
