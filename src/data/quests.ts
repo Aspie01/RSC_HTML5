@@ -47,6 +47,16 @@ export interface QuestStage {
   readonly waiting?: readonly DialogueLine[];
   /** Said as the stage completes. */
   readonly done: readonly DialogueLine[];
+  /**
+   * Items handed over as this stage ends, before the next one begins.
+   *
+   * Distinct from the quest reward, which only arrives at the end. A stage
+   * needs this whenever it hands out the means to do the NEXT stage: Low Tide
+   * gives a rod and then asks for four sprats, and without granting the rod
+   * here the quest asks for fish the player has no way to catch. Any stage
+   * whose dialogue says "take this" wants a `gives`.
+   */
+  readonly gives?: readonly QuestItem[];
 }
 
 export interface QuestReward {
@@ -159,6 +169,53 @@ export const quests: readonly QuestDef[] = [
     ],
     afterwards: [
       { who: 'npc', text: 'Mind the edge on that axe. I never did get round to blunting it.' }
+    ]
+  },
+
+  // Quest 3 of the tutorial tier. No gate and no prerequisite: it has to be
+  // completable by someone who walked east before they walked anywhere else.
+  // The rod comes first and the catch second, so the reward is what makes the
+  // skill possible rather than what decorates it.
+  {
+    id: 'low_tide',
+    name: 'Low Tide',
+    reward: {
+      points: 1,
+      xp: { fishing: 60, cooking: 40 },
+      unlock: 'The pier is yours to fish. The shallows will keep you fed.'
+    },
+    stages: [
+      {
+        journal: 'Iselle Marrow is at the pier, watching water she does not trust.',
+        npc: 'iselle',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Careful on the boards, they are older than I am. Everyone comes down here eventually.' },
+          { who: 'npc', text: 'Water is low again. Third time this season, and nobody upriver will say why.' },
+          { who: 'player', text: 'Is that unusual?' },
+          { who: 'npc', text: 'It is now. But you did not come for my worrying. You came because you are hungry, or you will be.' },
+          { who: 'npc', text: 'Take my spare rod. Bring me back four sprats off the shallows and I will call us square.' }
+        ],
+        // The rod arrives HERE, not with the reward -- the next stage asks for
+        // fish, and without it there would be no way to catch them.
+        gives: [{ id: 'fishing_rod', qty: 1 }]
+      },
+      {
+        journal: 'Catch 4 raw sprats from the shallows and bring them to Iselle.',
+        npc: 'iselle',
+        goal: { type: 'give', items: [{ id: 'raw_sprat', qty: 4 }] },
+        waiting: [
+          { who: 'npc', text: 'Stand where the rings are. If the water goes still, the shoal has moved on -- walk a few boards and try again.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Four, and not one of them chewed. You have the patience for it, which is most of the skill.' },
+          { who: 'npc', text: 'Keep the rod. Cook them over a fire before you eat them, unless you enjoy being unwell.' },
+          { who: 'npc', text: 'And if the water drops again -- you will tell someone, will you not? Somebody ought to be keeping count.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Still dropping. Slowly, but it is dropping.' }
     ]
   },
 

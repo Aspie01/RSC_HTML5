@@ -21,7 +21,7 @@ import type { Scenery } from '../world/map';
 import * as iso from '../world/iso';
 import * as sprites from '../render/sprites';
 import { getItem } from '../data/items';
-import { getTree, getRock } from '../data/resources';
+import { getGatherable } from '../data/resources';
 import { lerp } from '../core/util';
 import { loop } from '../core/loop';
 
@@ -297,22 +297,28 @@ export class Renderer {
       if (e.kind === 'scenery') {
         const s = this.worldToScreen(e.tx, e.ty);
 
+        const def = e.obj.resource ? getGatherable(e.obj.resource) : undefined;
+        const spent = world.objects.isDepleted(world.map.idx(e.tx, e.ty));
+
         if (e.obj.kind === 'tree') {
           // A chopped tree shows a stump until its respawn timer elapses.
-          if (world.objects.isDepleted(world.map.idx(e.tx, e.ty))) {
+          if (spent) {
             sprites.stump(ctx, s.x, s.y);
           } else {
-            const def = e.obj.resource ? getTree(e.obj.resource) : undefined;
             sprites.tree(ctx, s.x, s.y, e.obj.variant ?? 0, def?.colour, def?.scale ?? 1);
           }
 
         } else if (e.obj.kind === 'rock') {
-          const def = e.obj.resource ? getRock(e.obj.resource) : undefined;
-          if (def && world.objects.isDepleted(world.map.idx(e.tx, e.ty))) {
+          if (def && spent) {
             sprites.minedRock(ctx, s.x, s.y);
           } else {
             sprites.rock(ctx, s.x, s.y, def?.colour);
           }
+
+        } else if (e.obj.kind === 'fishing_spot') {
+          // Ripples animate, and stop entirely once the shoal has moved on --
+          // so a spent spot is readable from across the water.
+          sprites.fishingSpot(ctx, s.x, s.y, spent ? 0 : this.time, def?.colour);
 
         } else {
           sprites.scenerySprites[e.obj.kind](ctx, s.x, s.y);

@@ -14,6 +14,7 @@ interface ItemOpts {
   shape?: ItemShape;
   bonuses?: Partial<Bonuses>;
   heals?: number;
+  tags?: readonly string[];
 }
 
 function item(id: string, name: string, opts: ItemOpts = {}): ItemDef {
@@ -27,7 +28,8 @@ function item(id: string, name: string, opts: ItemOpts = {}): ItemDef {
     colour: opts.colour ?? '#b9a06a',
     shape: opts.shape ?? 'blob',
     bonuses: { attack: 0, strength: 0, defence: 0, ...opts.bonuses },
-    heals: opts.heals ?? 0
+    heals: opts.heals ?? 0,
+    tags: opts.tags ?? []
   };
 }
 
@@ -45,7 +47,7 @@ export const items = {
   }),
 
   raw_chicken: item('raw_chicken', 'Raw chicken', {
-    colour: '#f2c4b8', shape: 'meat', examine: 'I need to cook this first.'
+    colour: '#f2c4b8', shape: 'meat', tags: ['raw_food'], examine: 'I need to cook this first.'
   }),
 
   cooked_chicken: item('cooked_chicken', 'Cooked chicken', {
@@ -69,32 +71,68 @@ export const items = {
   }),
 
   bronze_axe: item('bronze_axe', 'Bronze axe', {
-    slot: 'weapon', speed: 5, colour: '#a97142', shape: 'axe',
+    slot: 'weapon', speed: 5, colour: '#a97142', shape: 'axe', tags: ['axe'],
     bonuses: { attack: 3, strength: 4 },
     examine: 'A woodcutter\'s axe.'
   }),
 
   tinderbox: item('tinderbox', 'Tinderbox', {
-    colour: '#8a7050', shape: 'tinderbox',
+    colour: '#8a7050', shape: 'tinderbox', tags: ['tinderbox'],
     examine: 'Useful for lighting a fire.'
   }),
 
   bronze_pickaxe: item('bronze_pickaxe', 'Bronze pickaxe', {
-    slot: 'weapon', speed: 5, colour: '#a97142', shape: 'pickaxe',
+    slot: 'weapon', speed: 5, colour: '#a97142', shape: 'pickaxe', tags: ['pickaxe'],
     bonuses: { attack: 2, strength: 3 },
     examine: 'Used for mining rocks.'
   }),
 
   hammer: item('hammer', 'Hammer', {
-    colour: '#6f6f78', shape: 'hammer',
+    colour: '#6f6f78', shape: 'hammer', tags: ['hammer'],
     examine: 'Good for hitting things. Or smithing.'
   }),
 
   // Quest rewards. Not obtainable any other way, which is the point of them.
   woodsmans_axe: item('woodsmans_axe', "Woodsman's axe", {
-    slot: 'weapon', speed: 5, colour: '#8f8f96', shape: 'axe',
+    slot: 'weapon', speed: 5, colour: '#8f8f96', shape: 'axe', tags: ['axe'],
     bonuses: { attack: 7, strength: 9 },
     examine: 'Tobin kept a better edge on this than he let on.'
+  }),
+
+  // Fishing. The rod is the quest reward that opens the skill; bait is not a
+  // separate item on purpose -- a second consumable to manage would add
+  // inventory bookkeeping without adding a decision.
+  fishing_rod: item('fishing_rod', 'Fishing rod', {
+    colour: '#8a6a3a', shape: 'log', tags: ['rod'],
+    examine: 'A long rod with a line and hook.'
+  }),
+
+  raw_sprat: item('raw_sprat', 'Raw sprat', {
+    colour: '#9fb4c2', shape: 'fish', tags: ['raw_food'],
+    examine: 'A small silver fish. Better cooked.'
+  }),
+
+  cooked_sprat: item('cooked_sprat', 'Cooked sprat', {
+    colour: '#c9a86b', shape: 'fish', heals: 3,
+    examine: 'Small, but it will keep you going.'
+  }),
+
+  burnt_sprat: item('burnt_sprat', 'Burnt sprat', {
+    colour: '#3a3028', shape: 'fish', examine: 'Charcoal with fins.'
+  }),
+
+  raw_bream: item('raw_bream', 'Raw bream', {
+    colour: '#7f9ab0', shape: 'fish', tags: ['raw_food'],
+    examine: 'A good size. Someone will want this cooked.'
+  }),
+
+  cooked_bream: item('cooked_bream', 'Cooked bream', {
+    colour: '#c08a4a', shape: 'fish', heals: 7,
+    examine: 'A proper meal.'
+  }),
+
+  burnt_bream: item('burnt_bream', 'Burnt bream', {
+    colour: '#3a3028', shape: 'fish', examine: 'You left it on too long.'
   }),
 
   smiths_hammer: item('smiths_hammer', "Smith's hammer", {

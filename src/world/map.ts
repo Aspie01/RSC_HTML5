@@ -21,16 +21,17 @@ export interface TerrainInfo {
   readonly walk: boolean;
 }
 
-export type SceneryKind = 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil';
+export type SceneryKind =
+  | 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil' | 'fishing_spot';
 
 export interface Scenery {
   readonly kind: SceneryKind;
   readonly blocks: boolean;
   readonly variant?: number;
   /**
-   * Id into the matching table in data/resources.ts -- trees for `tree`, rocks
-   * for `rock` -- when this scenery can be gathered from. Absent means purely
-   * decorative, which is what separates an ore vein from a boulder.
+   * Id into `gatherables` in data/resources.ts when this scenery can be worked
+   * for a resource. Absent means purely decorative, which is what separates an
+   * ore vein from a boulder, or a fishing spot from open water.
    */
   readonly resource?: string;
 }
@@ -177,14 +178,34 @@ const ORE_VEINS: ReadonlyArray<{ x: number; y: number; rock: string }> = [
 ];
 
 /**
+ * Fishing spots, all placed so that a pier or shore tile sits beside them.
+ * Shallows hug the sand; the deep water is out at the pier head, which is what
+ * makes walking to the end of it worth doing at Fishing 10.
+ */
+const FISHING_SPOTS: ReadonlyArray<{ x: number; y: number; spot: string }> = [
+  { x: 45, y: 22, spot: 'sprat' },
+  { x: 45, y: 23, spot: 'sprat' },
+  { x: 45, y: 25, spot: 'sprat' },
+  { x: 45, y: 26, spot: 'sprat' },
+  { x: 46, y: 23, spot: 'sprat' },
+  { x: 46, y: 25, spot: 'bream' },
+  { x: 47, y: 24, spot: 'bream' }
+];
+
+/**
  * Where the quest givers stand. Fixed tiles, chosen so each one is found at
  * the place their quest is about: Maren on the crossroads you spawn at, Tobin
- * among the trees, Garrow inside the smithy.
+ * among the trees, Garrow inside the smithy, Iselle at the pier.
  */
 const QUEST_GIVERS: ReadonlyArray<{ npcId: string; x: number; y: number }> = [
   { npcId: 'maren', x: 26, y: 22 },
   { npcId: 'tobin', x: 19, y: 28 },
-  { npcId: 'garrow', x: 17, y: 20 }
+  { npcId: 'garrow', x: 17, y: 20 },
+  // Beside the pier mouth, never on it. A quest giver never wanders, and the
+  // pathfinder walks through NPCs while movement refuses to enter their tile,
+  // so anyone standing on a one-tile chokepoint seals it permanently. (44,24)
+  // is that chokepoint here -- it is the only way onto the boards.
+  { npcId: 'iselle', x: 44, y: 23 }
 ];
 
 function spawnCluster(
@@ -225,6 +246,12 @@ export function generateMap(): GameMap {
   map.fillRect(45, 0, W - 1, H - 1, Terrain.Water);
   map.fillRect(43, 0, 44, H - 1, Terrain.Sand);
 
+  // A short pier at the end of the east road. Without it the only reachable
+  // water would be the single column touching the sand: every tile further out
+  // has nothing walkable beside it, so no fishing spot out there could ever be
+  // approached. The pier is what makes the lake a place rather than a wall.
+  map.fillRect(45, 24, 46, 24, Terrain.Stone);
+
   // Crossroads: the main path through the world.
   map.fillRect(2, 23, 42, 24, Terrain.Path);
   map.fillRect(23, 2, 24, 42, Terrain.Path);
@@ -252,6 +279,15 @@ export function generateMap(): GameMap {
   map.setScenery(16, 17, { kind: 'furnace', blocks: true });
   map.setScenery(18, 17, { kind: 'anvil', blocks: true });
   map.setScenery(18, 19, { kind: 'anvil', blocks: true });
+
+  // Fishing spots do not block: the water under them already refuses to be
+  // walked on, and marking them blocking as well would stop the pathfinder
+  // considering the pier tiles beside them.
+  for (const spot of FISHING_SPOTS) {
+    map.setScenery(spot.x, spot.y, {
+      kind: 'fishing_spot', blocks: false, resource: spot.spot
+    });
+  }
 
   // Scatter trees and rocks on open grass, keeping the paths clear.
   for (let y = 1; y < H - 1; y++) {

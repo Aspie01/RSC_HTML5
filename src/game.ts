@@ -24,9 +24,9 @@ import { UI } from './ui/ui';
 import { rollDrops } from './data/npcs';
 import { getItem } from './data/items';
 import {
-  getTree, burnables, recipeFor,
-  getRock, getBar, getSmithable, bars, smithablesFor,
-  PICKAXE_IDS, HAMMER_IDS, HAMMER_SPEED, SMITH_XP_PER_BAR
+  getGatherable, burnables, recipeFor,
+  getBar, getSmithable, bars, smithablesFor,
+  HAMMER_SPEED, SMITH_XP_PER_BAR
 } from './data/resources';
 import type { BarDef, SmithDef } from './data/resources';
 import { rollGather, rollBurn } from './systems/skilling';
@@ -47,6 +47,16 @@ import type { SaveStore } from './persist/storage';
 import { SAVE_VERSION, type SaveData, encodeSaveCode, decodeSaveCode, parseSave } from './persist/save';
 
 const AUTOSAVE_TICKS = 50; // every 30 seconds
+
+/**
+ * The right-click verb for each gathering skill. Data rather than a `switch`,
+ * so adding Foraging is a row here and a row in `resources.ts`.
+ */
+const GATHER_VERBS: Readonly<Partial<Record<SkillId, string>>> = {
+  woodcutting: 'Chop down',
+  mining: 'Mine',
+  fishing: 'Fish at'
+};
 
 /** Keys whose default action scrolls the page the game is embedded in. */
 const SCROLL_KEYS: ReadonlySet<string> = new Set([
@@ -271,14 +281,11 @@ export class Game implements World {
         }
       }
 
-    } else if (action.type === 'chop') {
-      this.resolveChop(action.x, action.y);
+    } else if (action.type === 'gather') {
+      this.resolveGather(action.x, action.y);
 
     } else if (action.type === 'cook') {
       this.resolveCook(action.x, action.y);
-
-    } else if (action.type === 'mine') {
-      this.resolveMine(action.x, action.y);
 
     } else if (action.type === 'use-station') {
       this.resolveStation(action.x, action.y, action.station);
@@ -321,52 +328,60 @@ export class Game implements World {
   }
 
   /**
-   * One tick of woodcutting. Like combat, this is an independent roll every
-   * tick rather than a progress bar -- which is why a tree sometimes falls
-   * immediately and sometimes takes ten seconds.
+   * One tick of gathering -- chopping, mining or fishing, which are the same
+   * action with different data behind them.
+   *
+   * Like combat, this is an independent roll every tick rather than a progress
+   * bar filling up, which is why a tree sometimes falls immediately and
+   * sometimes takes ten seconds. Nothing below names a skill, a tool or an
+   * item; everything specific comes from the `GatherDef`.
    */
-  private resolveChop(tx: number, ty: number): void {
+  private resolveGather(tx: number, ty: number): void {
     const p = this.player;
 
     const scenery = this.map.sceneryAt(tx, ty);
-    if (!scenery || scenery.kind !== 'tree' || !scenery.resource) {
-      p.clearAction();
-      return;
-    }
-
-    const def = getTree(scenery.resource);
+    const def = scenery?.resource ? getGatherable(scenery.resource) : undefined;
     if (!def) { p.clearAction(); return; }
 
     const tileIndex = this.map.idx(tx, ty);
     if (this.objects.isDepleted(tileIndex)) {
-      this.ui.message('This tree has already been cut down.');
+      this.ui.message(def.depleted);
+      p.clearAction();
+      return;
+    }
+
+    if (def.tool && !this.hasToolTagged(def.tool)) {
+      this.ui.message(def.noTool, 'bad');
       p.clearAction();
       return;
     }
 
     if (!this.approach(tx, ty)) return;
 
-    const level = p.skills.level('woodcutting');
+    const level = p.skills.level(def.skill);
     if (level < def.level) {
+      const skill = SKILL_LIST.find((s) => s.id === def.skill)?.name ?? def.skill;
       this.ui.message(
-        `You need a Woodcutting level of ${def.level} to chop this tree.`, 'bad'
+        `You need a ${skill} level of ${def.level} to use this.`, 'bad'
       );
       p.clearAction();
       return;
     }
 
-    if (!rollGather(def.low, def.high, level)) return; // swing missed; try again next tick
+    if (!rollGather(def.low, def.high, level)) return; // missed; roll again next tick
 
     if (p.inventory.isFull()) {
-      this.ui.message("Your inventory is too full to hold any more logs.", 'bad');
+      this.ui.message(def.full, 'bad');
       p.clearAction();
       return;
     }
 
-    p.inventory.add(def.logId, 1);
-    audio.play('chop');
-    this.announceXp('woodcutting', def.xp);
-    this.ui.message(`You get some ${getItem(def.logId)?.name.toLowerCase() ?? 'logs'}.`);
+    p.inventory.add(def.outputId, 1);
+    audio.play(def.cue);
+    this.announceXp(def.skill, def.xp);
+    this.ui.message(
+      def.success.replace('{item}', getItem(def.outputId)?.name.toLowerCase() ?? 'something')
+    );
     this.ui.dirty = true;
 
     if (Math.random() < def.depleteChance) {
@@ -423,66 +438,6 @@ export class Game implements World {
     }
 
     this.ui.dirty = true;
-  }
-
-  /**
-   * One tick of mining. The same repeated-roll shape as woodcutting, with two
-   * differences: a pickaxe is required, and a successful swing always empties
-   * the vein -- which is what makes mining a circuit between rocks rather than
-   * a stand-still skill.
-   */
-  private resolveMine(tx: number, ty: number): void {
-    const p = this.player;
-
-    const scenery = this.map.sceneryAt(tx, ty);
-    if (!scenery || scenery.kind !== 'rock' || !scenery.resource) {
-      p.clearAction();
-      return;
-    }
-
-    const def = getRock(scenery.resource);
-    if (!def) { p.clearAction(); return; }
-
-    const tileIndex = this.map.idx(tx, ty);
-    if (this.objects.isDepleted(tileIndex)) {
-      this.ui.message('There is no ore left in this rock.');
-      p.clearAction();
-      return;
-    }
-
-    if (!this.hasTool(PICKAXE_IDS)) {
-      this.ui.message('You need a pickaxe to mine this rock.', 'bad');
-      p.clearAction();
-      return;
-    }
-
-    if (!this.approach(tx, ty)) return;
-
-    const level = p.skills.level('mining');
-    if (level < def.level) {
-      this.ui.message(
-        `You need a Mining level of ${def.level} to mine this rock.`, 'bad'
-      );
-      p.clearAction();
-      return;
-    }
-
-    if (!rollGather(def.low, def.high, level)) return; // swing glanced off
-
-    if (p.inventory.isFull()) {
-      this.ui.message('Your inventory is too full to hold any more ore.', 'bad');
-      p.clearAction();
-      return;
-    }
-
-    p.inventory.add(def.oreId, 1);
-    audio.play('mine');
-    this.announceXp('mining', def.xp);
-    this.ui.message(`You manage to mine some ${getItem(def.oreId)?.name.toLowerCase() ?? 'ore'}.`);
-    this.ui.dirty = true;
-
-    this.objects.deplete(tileIndex, def.respawnTicks);
-    p.clearAction();
   }
 
   /** Walk to a furnace or anvil, then hand over to its interface. */
@@ -566,7 +521,7 @@ export class Game implements World {
       return;
     }
 
-    if (!this.hasTool(HAMMER_IDS)) {
+    if (!this.hasToolTagged('hammer')) {
       this.ui.message('You need a hammer to work the metal with.', 'bad');
       p.clearAction();
       return;
@@ -710,6 +665,10 @@ export class Game implements World {
       if (fire) fire.permanent = true;
     }
 
+    // Handed over before the next stage is set, so a stage that supplies the
+    // tool for the one after it cannot leave the player unable to continue.
+    for (const item of stage.gives ?? []) this.giveQuestItem(item);
+
     if (this.quests.isComplete(def)) this.completeQuest(def);
     this.ui.dirty = true;
   }
@@ -827,9 +786,20 @@ export class Game implements World {
       Object.values(inv.equipment).some((eq) => eq?.id === id);
   }
 
-  /** True if any of these tool ids is carried or worn. */
-  private hasTool(ids: readonly string[]): boolean {
-    return ids.some((id) => this.carries(id));
+  /**
+   * True if anything carried or worn has this tag.
+   *
+   * Tools are matched this way rather than by id so the engine never names an
+   * item: a steel axe added to `items.ts` tomorrow chops trees the moment it
+   * has the `axe` tag, with no change here.
+   */
+  private hasToolTagged(tag: string): boolean {
+    const inv = this.player.inventory;
+    const tagged = (id: string | undefined): boolean =>
+      id !== undefined && (getItem(id)?.tags.includes(tag) ?? false);
+
+    return inv.slots.some((s) => tagged(s?.id)) ||
+      Object.values(inv.equipment).some((eq) => tagged(eq?.id));
   }
 
   private hasIngredients(list: readonly { id: string; qty: number }[]): boolean {
@@ -1239,16 +1209,10 @@ export class Game implements World {
     const scenery = this.map.sceneryAt(tile.x, tile.y);
     const spent = this.objects.isDepleted(this.map.idx(tile.x, tile.y));
 
-    if (scenery?.kind === 'tree' && scenery.resource && !spent) {
+    // Anything with a resource is gathered the same way, whatever it looks like.
+    if (scenery?.resource && !spent) {
       p.clearPath();
-      p.setAction({ type: 'chop', x: tile.x, y: tile.y });
-      this.renderer.setClickMarker(tile.x, tile.y, 'move');
-      return;
-    }
-
-    if (scenery?.kind === 'rock' && scenery.resource && !spent) {
-      p.clearPath();
-      p.setAction({ type: 'mine', x: tile.x, y: tile.y });
+      p.setAction({ type: 'gather', x: tile.x, y: tile.y });
       this.renderer.setClickMarker(tile.x, tile.y, 'move');
       return;
     }
@@ -1350,51 +1314,31 @@ export class Game implements World {
       }
 
       const scenery = this.map.sceneryAt(tile.x, tile.y);
-      if (scenery?.kind === 'tree' && scenery.resource) {
-        const treeDef = getTree(scenery.resource);
-        const stumped = this.objects.isDepleted(this.map.idx(tile.x, tile.y));
-
-        if (treeDef && !stumped) {
-          opts.push({
-            verb: 'Chop down', noun: treeDef.name,
-            action: () => {
-              p.clearPath();
-              p.setAction({ type: 'chop', x: tile.x, y: tile.y });
-            }
-          });
-        }
-        if (treeDef) {
-          opts.push({
-            verb: 'Examine', noun: treeDef.name,
-            action: () => {
-              this.ui.message(stumped
-                ? 'A freshly cut tree stump. It will regrow shortly.'
-                : `${treeDef.name}. Requires Woodcutting ${treeDef.level}.`);
-            }
-          });
-        }
-      }
-
-      if (scenery?.kind === 'rock' && scenery.resource) {
-        const rockDef = getRock(scenery.resource);
+      if (scenery?.resource) {
+        const def = getGatherable(scenery.resource);
         const spent = this.objects.isDepleted(this.map.idx(tile.x, tile.y));
 
-        if (rockDef && !spent) {
+        if (def) {
+          // The verb belongs to the resource, not to the engine, so a new
+          // gathering skill does not need a new arm here.
+          const verb = GATHER_VERBS[def.skill] ?? 'Use';
+          const skill = SKILL_LIST.find((s) => s.id === def.skill)?.name ?? def.skill;
+
+          if (!spent) {
+            opts.push({
+              verb, noun: def.name,
+              action: () => {
+                p.clearPath();
+                p.setAction({ type: 'gather', x: tile.x, y: tile.y });
+              }
+            });
+          }
           opts.push({
-            verb: 'Mine', noun: rockDef.name,
-            action: () => {
-              p.clearPath();
-              p.setAction({ type: 'mine', x: tile.x, y: tile.y });
-            }
-          });
-        }
-        if (rockDef) {
-          opts.push({
-            verb: 'Examine', noun: rockDef.name,
+            verb: 'Examine', noun: def.name,
             action: () => {
               this.ui.message(spent
-                ? 'The ore has been mined out. It will reform shortly.'
-                : `${rockDef.name}. Requires Mining ${rockDef.level}.`);
+                ? def.depleted
+                : `${def.name}. Requires ${skill} ${def.level}.`);
             }
           });
         }

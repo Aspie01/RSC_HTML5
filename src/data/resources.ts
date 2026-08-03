@@ -7,53 +7,186 @@
 import type { SkillId } from '../types';
 
 // --------------------------------------------------------------------------
-// Woodcutting
+// Gathering
 // --------------------------------------------------------------------------
-export interface TreeDef {
+
+/**
+ * One shape for every "stand next to a thing and roll for it" skill.
+ *
+ * Woodcutting, Mining and Fishing are the same action wearing three costumes:
+ * check a level, check a tool, roll once per tick, hand over an item, maybe
+ * exhaust the source. They had two near-identical definitions and two
+ * near-identical resolvers before Fishing arrived to make it three, which is
+ * the point at which the duplication stops being cheaper than the abstraction.
+ *
+ * Everything that differs between them is a field here, so a new resource --
+ * or a whole new gathering skill -- is a row in this file and nothing else.
+ */
+export interface GatherDef {
   readonly id: string;
   readonly name: string;
-  /** Woodcutting level required to attempt this tree. */
+  readonly skill: SkillId;
+  /** Skill level required to attempt this at all. */
   readonly level: number;
   readonly xp: number;
-  readonly logId: string;
+  /** Item handed over on a successful roll. */
+  readonly outputId: string;
   /** Roll weights at level 1 and at the level cap, on the engine's 0..255 scale. */
   readonly low: number;
   readonly high: number;
   /**
-   * Chance the tree falls after yielding a log. Normal trees always fall
-   * (1.0); bigger trees keep giving, which is why oaks are worth camping.
+   * Item TAG the player must be carrying, never an item id -- so a steel axe
+   * works the day it is added, without this file knowing it exists.
+   */
+  readonly tool?: string;
+  /**
+   * Chance the source is exhausted after a success. Rocks and fishing spots
+   * differ sharply here and it is most of how each skill *feels*: a rock
+   * always empties, so mining is a walk between veins; a shoal usually stays,
+   * so fishing is somewhere to stand.
    */
   readonly depleteChance: number;
-  /** Ticks before the stump grows back. */
+  /** Ticks before an exhausted source comes back. */
   readonly respawnTicks: number;
-  /** Canopy tint, so oaks read as visually distinct in the world. */
+  /** Sound cue played on a success. */
+  readonly cue: 'chop' | 'mine' | 'fish';
+  /** `{item}` is replaced with the output's lowercase name. */
+  readonly success: string;
+  /** Shown when the source is currently exhausted. */
+  readonly depleted: string;
+  /** Shown when the pack is full. */
+  readonly full: string;
+  /** Shown when the required tool is missing. */
+  readonly noTool: string;
+
+  /** Tint, so an oak reads differently from a tree and copper from coal. */
   readonly colour: string;
-  readonly scale: number;
+  /** Size multiplier, for trees that should tower over their neighbours. */
+  readonly scale?: number;
 }
 
-export const trees = {
+// --------------------------------------------------------------------------
+// Woodcutting
+// --------------------------------------------------------------------------
+export const gatherables = {
+  // Trees. A normal tree always falls, so a new player learns that a source
+  // runs out; an oak usually survives, which is what makes it worth walking to.
   tree: {
-    id: 'tree', name: 'Tree',
-    level: 1, xp: 25, logId: 'logs',
+    id: 'tree', name: 'Tree', skill: 'woodcutting',
+    level: 1, xp: 25, outputId: 'logs',
     low: 64, high: 200,
-    depleteChance: 1.0,
-    respawnTicks: 20,
+    tool: 'axe',
+    depleteChance: 1.0, respawnTicks: 20,
+    cue: 'chop',
+    success: 'You get some {item}.',
+    depleted: 'This tree has already been cut down.',
+    full: 'Your inventory is too full to hold any more logs.',
+    noTool: 'You need an axe to chop this tree.',
     colour: '#2f5c2a', scale: 1.0
   },
   oak: {
-    id: 'oak', name: 'Oak tree',
-    level: 10, xp: 37.5, logId: 'oak_logs',
+    id: 'oak', name: 'Oak tree', skill: 'woodcutting',
+    level: 10, xp: 37.5, outputId: 'oak_logs',
     low: 32, high: 120,
-    depleteChance: 0.35,
-    respawnTicks: 25,
+    tool: 'axe',
+    depleteChance: 0.35, respawnTicks: 25,
+    cue: 'chop',
+    success: 'You get some {item}.',
+    depleted: 'This tree has already been cut down.',
+    full: 'Your inventory is too full to hold any more logs.',
+    noTool: 'You need an axe to chop this tree.',
     colour: '#4a6b22', scale: 1.22
+  },
+
+  // Rocks. Always empty on a success -- that is why mining is a walk between
+  // veins rather than a stand-still skill.
+  copper: {
+    id: 'copper', name: 'Copper rock', skill: 'mining',
+    level: 1, xp: 17.5, outputId: 'copper_ore',
+    low: 75, high: 220,
+    tool: 'pickaxe',
+    depleteChance: 1.0, respawnTicks: 8,
+    cue: 'mine',
+    success: 'You manage to mine some {item}.',
+    depleted: 'There is no ore left in this rock.',
+    full: 'Your inventory is too full to hold any more ore.',
+    noTool: 'You need a pickaxe to mine this rock.',
+    colour: '#c06a3a'
+  },
+  tin: {
+    id: 'tin', name: 'Tin rock', skill: 'mining',
+    level: 1, xp: 17.5, outputId: 'tin_ore',
+    low: 75, high: 220,
+    tool: 'pickaxe',
+    depleteChance: 1.0, respawnTicks: 8,
+    cue: 'mine',
+    success: 'You manage to mine some {item}.',
+    depleted: 'There is no ore left in this rock.',
+    full: 'Your inventory is too full to hold any more ore.',
+    noTool: 'You need a pickaxe to mine this rock.',
+    colour: '#b6b6c2'
+  },
+  iron: {
+    id: 'iron', name: 'Iron rock', skill: 'mining',
+    level: 10, xp: 35, outputId: 'iron_ore',
+    low: 40, high: 165,
+    tool: 'pickaxe',
+    depleteChance: 1.0, respawnTicks: 16,
+    cue: 'mine',
+    success: 'You manage to mine some {item}.',
+    depleted: 'There is no ore left in this rock.',
+    full: 'Your inventory is too full to hold any more ore.',
+    noTool: 'You need a pickaxe to mine this rock.',
+    colour: '#8a5030'
+  },
+  coal: {
+    id: 'coal', name: 'Coal rock', skill: 'mining',
+    level: 20, xp: 50, outputId: 'coal',
+    low: 18, high: 110,
+    tool: 'pickaxe',
+    depleteChance: 1.0, respawnTicks: 50,
+    cue: 'mine',
+    success: 'You manage to mine some {item}.',
+    depleted: 'There is no ore left in this rock.',
+    full: 'Your inventory is too full to hold any more ore.',
+    noTool: 'You need a pickaxe to mine this rock.',
+    colour: '#2c2c31'
+  },
+
+  // Fishing spots. The shoal rarely moves on, so unlike mining this is a place
+  // to stand -- which is the whole reason the docks are worth walking to.
+  sprat: {
+    id: 'sprat', name: 'Shallows', skill: 'fishing',
+    level: 1, xp: 20, outputId: 'raw_sprat',
+    low: 70, high: 210,
+    tool: 'rod',
+    depleteChance: 0.06, respawnTicks: 12,
+    cue: 'fish',
+    success: 'You catch a {item}.',
+    depleted: 'The shoal here has moved on.',
+    full: 'Your inventory is too full to hold any more fish.',
+    noTool: 'You need a fishing rod to fish here.',
+    colour: '#6f97b5'
+  },
+  bream: {
+    id: 'bream', name: 'Deep water', skill: 'fishing',
+    level: 10, xp: 40, outputId: 'raw_bream',
+    low: 30, high: 150,
+    tool: 'rod',
+    depleteChance: 0.1, respawnTicks: 20,
+    cue: 'fish',
+    success: 'You catch a {item}.',
+    depleted: 'The shoal here has moved on.',
+    full: 'Your inventory is too full to hold any more fish.',
+    noTool: 'You need a fishing rod to fish here.',
+    colour: '#3f6f96'
   }
-} as const satisfies Record<string, TreeDef>;
+} as const satisfies Record<string, GatherDef>;
 
-export type TreeId = keyof typeof trees;
+export type GatherId = keyof typeof gatherables;
 
-export function getTree(id: string): TreeDef | undefined {
-  return (trees as Record<string, TreeDef>)[id];
+export function getGatherable(id: string): GatherDef | undefined {
+  return (gatherables as Record<string, GatherDef>)[id];
 }
 
 // --------------------------------------------------------------------------
@@ -89,6 +222,17 @@ export const recipes: Record<string, RecipeDef> = {
   raw_chicken: {
     rawId: 'raw_chicken', cookedId: 'cooked_chicken', burntId: 'burnt_chicken',
     level: 1, xp: 30, stopBurnLevel: 15
+  },
+  // Fishing's outbound arrow. A sprat is worse than chicken on purpose -- the
+  // reason to fish at level 1 is that the shoal never runs out, not that the
+  // food is better. Bream is where it overtakes.
+  raw_sprat: {
+    rawId: 'raw_sprat', cookedId: 'cooked_sprat', burntId: 'burnt_sprat',
+    level: 1, xp: 25, stopBurnLevel: 12
+  },
+  raw_bream: {
+    rawId: 'raw_bream', cookedId: 'cooked_bream', burntId: 'burnt_bream',
+    level: 10, xp: 50, stopBurnLevel: 28
   }
 };
 
@@ -96,62 +240,6 @@ export function recipeFor(itemId: string): RecipeDef | undefined {
   return recipes[itemId];
 }
 
-// --------------------------------------------------------------------------
-// Mining
-// --------------------------------------------------------------------------
-export interface RockDef {
-  readonly id: string;
-  readonly name: string;
-  /** Mining level required to swing at this rock. */
-  readonly level: number;
-  readonly xp: number;
-  readonly oreId: string;
-  /** Roll weights at level 1 and at the level cap, on the engine's 0..255 scale. */
-  readonly low: number;
-  readonly high: number;
-  /** Ticks before the vein refills. Coal is slow on purpose. */
-  readonly respawnTicks: number;
-  /** Ore fleck colour, so copper reads differently from coal at a glance. */
-  readonly colour: string;
-}
-
-// Unlike trees, a rock ALWAYS empties on a successful swing -- that is why
-// mining is a walk between veins rather than a stand-still skill.
-export const rocks = {
-  copper: {
-    id: 'copper', name: 'Copper rock',
-    level: 1, xp: 17.5, oreId: 'copper_ore',
-    low: 75, high: 220,
-    respawnTicks: 8, colour: '#c06a3a'
-  },
-  tin: {
-    id: 'tin', name: 'Tin rock',
-    level: 1, xp: 17.5, oreId: 'tin_ore',
-    low: 75, high: 220,
-    respawnTicks: 8, colour: '#b6b6c2'
-  },
-  iron: {
-    id: 'iron', name: 'Iron rock',
-    level: 10, xp: 35, oreId: 'iron_ore',
-    low: 40, high: 165,
-    respawnTicks: 16, colour: '#8a5030'
-  },
-  coal: {
-    id: 'coal', name: 'Coal rock',
-    level: 20, xp: 50, oreId: 'coal',
-    low: 18, high: 110,
-    respawnTicks: 50, colour: '#2c2c31'
-  }
-} as const satisfies Record<string, RockDef>;
-
-export type RockId = keyof typeof rocks;
-
-export function getRock(id: string): RockDef | undefined {
-  return (rocks as Record<string, RockDef>)[id];
-}
-
-/** Any one of these in the inventory or equipped lets you mine. */
-export const PICKAXE_IDS: readonly string[] = ['bronze_pickaxe'];
 
 /**
  * Smithing at an anvil needs one of these to hand, and a better hammer works

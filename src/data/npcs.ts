@@ -122,6 +122,11 @@ export const npcs = {
   garrow: npc('garrow', 'Garrow Blackfen', {
     talkable: true, attackable: false, wanderRadius: 0,
     colour: '#3f3a36', accent: '#c9a184', size: 1.1
+  }),
+
+  iselle: npc('iselle', 'Iselle Marrow', {
+    talkable: true, attackable: false, wanderRadius: 0,
+    colour: '#3c5a63', accent: '#e0c9a6', size: 1.0
   })
 } as const satisfies Record<string, NpcDef>;
 
