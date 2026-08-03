@@ -7,7 +7,7 @@
  * asking for a save code and handing one back.
  */
 
-import type { Game } from '../game';
+import type { Game } from '../game.ts';
 
 export function bindSaveDialog(game: Game): void {
   const modal = document.getElementById('save-modal');

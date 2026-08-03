@@ -4,7 +4,7 @@
 // touching engine code: add an entry here and the existing skilling pipeline
 // picks it up.
 
-import type { SkillId } from '../types';
+import type { SkillId } from '../types.ts';
 
 // --------------------------------------------------------------------------
 // Gathering

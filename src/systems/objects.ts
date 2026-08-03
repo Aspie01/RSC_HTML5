@@ -5,7 +5,7 @@
 // be regenerated or reloaded from a map editor without losing track of what the
 // player has chopped down, and it keeps GameMap free of gameplay state.
 
-import type { Point } from '../types';
+import type { Point } from '../types.ts';
 
 export interface Fire {
   readonly x: number;
@@ -38,7 +38,7 @@ export class WorldObjects {
   // ----------------------------------------------------------------------
   addFire(x: number, y: number, ticks: number, permanent = false): Fire {
     const fire: Fire = {
-      x, y, ticks, permanent, phase: Math.random() * Math.PI * 2
+      x, y, ticks, permanent, phase: Math.random() * Math.PI * 2 // render-only
     };
     this.fires.push(fire);
     return fire;

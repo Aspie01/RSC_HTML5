@@ -26,8 +26,8 @@ export class GroundItems {
       x,
       y,
       ticks: GROUND_DESPAWN_TICKS,
-      jitterX: (Math.random() - 0.5) * 18,
-      jitterY: (Math.random() - 0.5) * 10
+      jitterX: (Math.random() - 0.5) * 18, // render-only
+      jitterY: (Math.random() - 0.5) * 10 // render-only
     });
   }
 

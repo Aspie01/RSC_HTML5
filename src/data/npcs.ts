@@ -1,7 +1,7 @@
 // NPC definitions -- data only, matching early-game OSRS stat blocks.
 
-import type { NpcDef, DropEntry, ItemStack } from '../types';
-import { rand, randRange } from '../core/util';
+import type { NpcDef, DropEntry, ItemStack } from '../types.ts';
+import { rand, randRange } from '../core/util.ts';
 
 interface NpcOpts {
   level?: number;

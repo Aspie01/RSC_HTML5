@@ -4,8 +4,8 @@
 // table. Storing both invites them to drift out of sync -- derive, don't
 // duplicate.
 
-import type { SkillId } from '../types';
-import * as XP from '../data/xp';
+import type { SkillId } from '../types.ts';
+import * as XP from '../data/xp.ts';
 
 export interface SkillInfo {
   readonly id: SkillId;

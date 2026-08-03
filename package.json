@@ -6,12 +6,13 @@
   "description": "An isometric, tick-based RPG inspired by RuneScape Classic and OSRS.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && node tools/inline.mjs",
+    "build": "npm test && tsc --noEmit && vite build && node tools/inline.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "pack": "npm run build && node tools/pack.mjs",
     "serve:game": "node tools/serve.mjs dist 4173",
-    "serve:harness": "node tools/serve.mjs tools 4174"
+    "serve:harness": "node tools/serve.mjs tools 4174",
+    "test": "node --test \"tests/*.test.ts\""
   },
   "devDependencies": {
     "typescript": "^5.7.2",

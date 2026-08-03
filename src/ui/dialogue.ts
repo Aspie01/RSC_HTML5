@@ -8,7 +8,7 @@
 // The world keeps ticking underneath. Talking to someone has never been a
 // reason for the chickens to stop moving.
 
-import type { DialogueLine } from '../data/quests';
+import type { DialogueLine } from '../data/quests.ts';
 
 function el<T extends HTMLElement>(id: string): T {
   const node = document.getElementById(id);

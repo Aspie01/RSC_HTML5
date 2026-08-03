@@ -1,10 +1,11 @@
 // Entry point. Vite loads this from index.html.
 
-import { Game } from './game';
-import { openSaveStore } from './persist/storage';
-import { bindSaveDialog } from './ui/savedialog';
-import { bindStartOverlay } from './ui/startoverlay';
-import { bindShopWindow } from './ui/shopwindow';
+import { Game } from './game.ts';
+import { openSaveStore } from './persist/storage.ts';
+import { rng } from './core/rng.ts';
+import { bindSaveDialog } from './ui/savedialog.ts';
+import { bindStartOverlay } from './ui/startoverlay.ts';
+import { bindShopWindow } from './ui/shopwindow.ts';
 
 async function boot(): Promise<void> {
   const canvas = document.getElementById('game');
@@ -24,6 +25,13 @@ async function boot(): Promise<void> {
   } catch (err) {
     console.warn('Could not read the save:', err);
   }
+
+  // Seed a brand-new character from the clock. This happens here rather than
+  // in core/rng.ts because the clock is a browser concern: rule 1 keeps `Date`
+  // out of simulation code so the sim stays importable from a bare Node
+  // script, which is what the test suite relies on. A save that already has a
+  // generator overwrites this a moment later, in Game's load.
+  rng.reseed(Date.now() | 0);
 
   const game = new Game(canvas, minimap, store, saved);
 

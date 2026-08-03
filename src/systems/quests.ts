@@ -10,8 +10,8 @@
 // linear by construction. There is no state a quest can be in that this number
 // cannot express, and no way to be half way through two stages at once.
 
-import type { QuestDef, QuestStage } from '../data/quests';
-import { quests, getQuest } from '../data/quests';
+import type { QuestDef, QuestStage } from '../data/quests.ts';
+import { quests, getQuest } from '../data/quests.ts';
 
 export type QuestProgress = Record<string, number>;
 

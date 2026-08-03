@@ -6,13 +6,13 @@
 // are in range. Modelling it as an explicit action keeps click handling out of
 // the combat code.
 
-import type { AttackStyleId, CombatStats, MobAppearance, PlayerAction } from '../types';
-import { Mob } from './mob';
-import { Skills } from '../systems/skills';
-import { Inventory } from '../systems/inventory';
-import { STYLES } from '../systems/combat';
-import { getItem } from '../data/items';
-import type { Bonuses, ItemDef, SkillId } from '../types';
+import type { AttackStyleId, CombatStats, MobAppearance, PlayerAction } from '../types.ts';
+import { Mob } from './mob.ts';
+import { Skills } from '../systems/skills.ts';
+import { Inventory } from '../systems/inventory.ts';
+import { STYLES } from '../systems/combat.ts';
+import { getItem } from '../data/items.ts';
+import type { Bonuses, ItemDef, SkillId } from '../types.ts';
 
 /**
  * Which pair of equipment bonuses each non-melee combat skill reads.

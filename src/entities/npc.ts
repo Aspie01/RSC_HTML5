@@ -5,11 +5,11 @@
 // persistent-spawn model RuneScape uses, which is what makes specific spots
 // worth camping.
 
-import type { CombatStats, MobAppearance, NpcDef, World } from '../types';
-import { Mob } from './mob';
-import { getNpc } from '../data/npcs';
-import { randRange, tileDist } from '../core/util';
-import * as pathfind from '../world/pathfind';
+import type { CombatStats, MobAppearance, NpcDef, World } from '../types.ts';
+import { Mob } from './mob.ts';
+import { getNpc } from '../data/npcs.ts';
+import { randRange, tileDist } from '../core/util.ts';
+import * as pathfind from '../world/pathfind.ts';
 
 /** Tiles at which an aggressive NPC notices the player. */
 export const AGGRO_RANGE = 4;

@@ -16,8 +16,9 @@
 // capped skill actually reaching its `high` weight -- with the divisor pinned
 // at 98, a level-50 cap would top out halfway up every curve in the game.
 
-import { clamp } from '../core/util';
-import { MAX_LEVEL } from '../data/xp';
+import { clamp } from '../core/util.ts';
+import { rng, Rng } from '../core/rng.ts';
+import { MAX_LEVEL } from '../data/xp.ts';
 
 /** Per-tick success probability for a gathering action, in [0, 1]. */
 export function gatherChance(low: number, high: number, level: number): number {
@@ -25,8 +26,10 @@ export function gatherChance(low: number, high: number, level: number): number {
   return (low + ((high - low) * (l - 1)) / (MAX_LEVEL - 1)) / 256;
 }
 
-export function rollGather(low: number, high: number, level: number): boolean {
-  return Math.random() < gatherChance(low, high, level);
+export function rollGather(
+  low: number, high: number, level: number, gen: Rng = rng
+): boolean {
+  return gen.chance(gatherChance(low, high, level));
 }
 
 /**
@@ -42,6 +45,8 @@ export function burnChance(level: number, stopLevel: number, maxBurn = 0.4): num
   return clamp(t * maxBurn, 0, maxBurn);
 }
 
-export function rollBurn(level: number, stopLevel: number, maxBurn = 0.4): boolean {
-  return Math.random() < burnChance(level, stopLevel, maxBurn);
+export function rollBurn(
+  level: number, stopLevel: number, maxBurn = 0.4, gen: Rng = rng
+): boolean {
+  return gen.chance(burnChance(level, stopLevel, maxBurn));
 }

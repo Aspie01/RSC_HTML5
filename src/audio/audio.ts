@@ -16,7 +16,7 @@
  * speakers only, and nothing in the tick pipeline reads back from it.
  */
 
-import { CUES, type CueId, type Layer } from './cues';
+import { CUES, type CueId, type Layer } from './cues.ts';
 
 /** Headroom under the master gain so stacked cues cannot clip. */
 const MASTER_GAIN = 0.5;

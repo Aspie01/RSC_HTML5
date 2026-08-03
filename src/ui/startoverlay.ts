@@ -14,7 +14,7 @@
  *      means combat can start while the player is still reading the chat log.
  */
 
-import { audio } from '../audio/audio';
+import { audio } from '../audio/audio.ts';
 
 /** Muting survives a refresh, but is not part of the save -- it is a device preference, not progress. */
 const MUTE_KEY = 'rs_html5_muted';

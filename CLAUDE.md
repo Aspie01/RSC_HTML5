@@ -29,10 +29,15 @@ The simulation must be able to run under bare Node with no browser globals.
 The test: if the simulation cannot be imported and stepped from a Node script,
 this rule has been broken.
 
-**Current status: violated.** `game.ts` owns both the tick loop and the
+**Current status: partly violated.** `game.ts` owns both the tick loop and the
 renderer/UI/DOM bindings. This is a known debt, not a licence to add more.
 Do not deepen it — new gameplay logic goes in `systems/`, which stays clean,
 and browser-facing concerns go in `persist/`, `render/` or `ui/`.
+
+Everything *below* `game.ts` does hold, and is tested: `tests/` imports
+`systems/`, `data/` and `core/` under bare Node and steps them. That only works
+because every relative import carries an explicit `.ts` extension — Node will
+not guess one. Keep it that way, or the rule stops being checkable.
 
 ### 2. Seeded randomness only
 
@@ -47,8 +52,15 @@ This is what makes deterministic tests possible:
 Render-only jitter (flame flicker, sprite wobble) may use `Math.random()`,
 because it never touches state. If it can change an outcome, it is gameplay.
 
-**Current status: violated** in `skilling`, `combat`, `ground`, `objects`,
-`util`, and `game`. Route new rolls through the PRNG rather than adding to it.
+**Current status: held, and enforced.** The generator is `core/rng.ts`; its
+state rides in the save, so a character replays rather than merely resembling
+itself. Every function that rolls takes an optional generator as its last
+argument — pass one in tests, omit it in the game.
+
+A render-only call must carry a `// render-only` comment on its own line.
+`tests/content.test.ts` fails the build on any unmarked `Math.random()` outside
+`render/` and `audio/`, so the justification lives beside the code and a new
+one cannot be added silently.
 
 ### 3. Content is data, not code
 
@@ -165,8 +177,30 @@ Match the surrounding code. Specifically:
 - Discriminated unions over magic strings for results and actions.
 - Skill ids are baked into saves. Renaming one requires a migration.
 
+## Testing
+
+`npm test` runs `tests/` on Node's built-in runner. Node executes TypeScript
+directly, so there is no framework and no test dependency — matching the
+no-runtime-dependencies rule.
+
+`npm run build` runs the suite first and fails without it.
+
+What is worth a test here, given there is no browser in it:
+
+- **Anything with a formula.** XP curve, gather chance, max hit, hit chance.
+- **Anything seeded.** Fix a seed, assert an exact outcome, assert it repeats.
+- **Cross-references in `data/`.** Every quest, recipe, drop and shop line
+  points at an item id by string; a typo is a runtime failure the compiler
+  cannot see. The content tests walk all of them.
+- **The hard rules themselves**, where a machine can check them.
+
+What is not: anything needing the DOM, the renderer, or `game.ts`, which still
+binds both. Those are still checked by hand against the running tick loop —
+`window.game` is exposed in dev, and `game.tick()` can be stepped directly when
+`requestAnimationFrame` is unavailable.
+
 ## Before committing
 
-- `npm run build` must pass (this runs `tsc --noEmit` first).
+- `npm run build` must pass (tests, then `tsc --noEmit`, then the bundle).
 - Changes to gameplay should be verified against the real tick loop, not just
   typechecked. `window.game` is exposed in dev for exactly this.
