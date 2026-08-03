@@ -23,10 +23,15 @@ These are settled. Changing any of them later is expensive.
 
 ### Still open
 
-- Final title and package name — pick a codename this week regardless.
-- Renderer: Canvas2D top-down vs. Canvas2D isometric vs. WebGL RSC-style camera.
-- Authenticity contract: clone Open-RSC formulas, or RSC-*shaped* with original numbers.
+- ~~Final title and package name.~~ **Thalren Vale**, package `thalren-vale`.
+  Settled at M10, because the placeholder was "Untitled RuneScape-like" and
+  shipping that to itch.io invites a complaint from a rights holder who pursues
+  them. The name has to be original for the same reason no item may be mithril.
+- ~~Renderer.~~ Canvas2D isometric.
+- ~~Authenticity contract.~~ RSC-*shaped*, original numbers throughout.
 - Mobile/touch support: yes or no. Decide before the input adapter is written.
+  Still genuinely open — the game is mouse-only today and the deferred list in
+  §7 keeps touch controls out of v1.
 
 ---
 
@@ -256,13 +261,34 @@ storage-denied frame cannot be inspected from outside — an opaque origin is
 the point of it — so that path is covered by stubbing the storage globals to
 throw, which produces the same condition somewhere observable.*
 
-### M10 — Ship
-- Build to static bundle, verify all paths relative.
-- Zip with `index.html` at root.
-- Upload to itch.io, set embed dimensions to a whole multiple of logical resolution.
+### M10 — Ship *[packaging done, upload outstanding]*
+- ~~Build to static bundle, verify all paths relative.~~ Four files, both
+  references `./`-relative, no `url()`, no external hosts, favicon inlined.
+- ~~Zip with `index.html` at root.~~ `npm run pack`.
+- Upload to itch.io, set embed dimensions. **Use 960×600.**
 - Test in Chrome, Firefox, Safari — including private browsing.
 - Blog post with screenshots, a short GIF, and a "Play on itch.io" link.
 - **Accept:** a stranger on a phone or laptop can load it and chop a tree without instructions.
+
+**Embed size is a judgement call, not a multiple.** The original plan assumed a
+fixed logical resolution with integer scaling; the layout that got built is
+fluid instead, so there is no multiple to take. Measured against the two things
+that actually break — a stage too small to read and a side panel too short to
+hold the inventory — 960×600 gives a 716×600 stage and a 288px panel. 800×500
+is the practical floor. Below roughly 640×420 the panel stops being usable.
+
+**Packing is a script, not a documented command,** because of one trap:
+PowerShell's `Compress-Archive` writes entry names with backslashes, which the
+ZIP spec forbids. Extractors that take it literally produce a file named
+`assets\index.js`, the page loads, every asset 404s, and the result is the
+blank screen that gets reported as "worked locally, broken on itch".
+`tools/pack.mjs` writes the archive directly so the separator is right
+everywhere. Verified by extracting the zip and diffing every file against
+`dist/`, then serving the extracted copy through the cross-origin harness.
+
+*The remaining items need a person: they need itch.io credentials, and browsers
+this environment does not have. The Safari and private-browsing passes are the
+ones that matter most, since they are where the storage tiers earn their keep.*
 
 ---
 

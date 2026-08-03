@@ -2,6 +2,21 @@
 
 Development-only. Nothing here ships in the bundle.
 
+## Packing a release
+
+```bash
+npm run pack
+```
+
+Builds, then writes `release/thalren-vale-<version>.zip` with `index.html` at
+the archive root — itch.io serves a directory listing instead of the game if it
+is nested. Upload that zip, tick "This file will be played in the browser", and
+set the embed to **960×600**.
+
+Do not substitute `Compress-Archive`: it writes backslash separators, which the
+ZIP spec forbids, and some extractors then create a file literally named
+`assets\index.js`. Everything 404s and the page renders blank.
+
 ## Cross-origin embed harness
 
 Reproduces the itch.io arrangement locally: a page on one origin embedding the
