@@ -1,0 +1,456 @@
+/* RuneScape-flavoured interface chrome.
+   The palette is deliberately muted browns and stone greys: the world canvas
+   should be the brightest thing on screen, with the UI receding around it. */
+
+:root {
+  --panel:        #3b3226;
+  --panel-dark:   #2a231a;
+  --panel-light:  #4b4030;
+  --border:       #5d5040;
+  --border-light: #6f6049;
+  --text:         #e6dbc2;
+  --text-muted:   #a8997c;
+  --gold:         #f2d33c;
+  --green:        #4fbf5f;
+  --red:          #d24b3a;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #14110c;
+  color: var(--text);
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  font-size: 13px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ------------------------------------------------------------------ */
+/* World view                                                          */
+/* ------------------------------------------------------------------ */
+#stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+#game {
+  flex: 1;
+  display: block;
+  width: 100%;
+  min-height: 0;
+  background: #0b0d0a;
+  cursor: default;
+}
+
+/* ------------------------------------------------------------------ */
+/* Chatbox                                                             */
+/* ------------------------------------------------------------------ */
+#chat {
+  height: 132px;
+  background: linear-gradient(#332b20, #241e16);
+  border-top: 2px solid var(--border);
+  padding: 4px 8px;
+  flex-shrink: 0;
+}
+
+#chat-log {
+  height: 100%;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.45;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+#chat-log::-webkit-scrollbar { width: 8px; }
+#chat-log::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.chat-line { color: #d8ccae; }
+.chat-line.sys     { color: #8fb6d8; }
+.chat-line.good    { color: #7fd88f; }
+.chat-line.bad     { color: #e0705f; }
+.chat-line.levelup { color: var(--gold); font-weight: bold; }
+
+/* ------------------------------------------------------------------ */
+/* Sidebar                                                             */
+/* ------------------------------------------------------------------ */
+#sidebar {
+  width: 244px;
+  flex-shrink: 0;
+  background: linear-gradient(var(--panel), var(--panel-dark));
+  border-left: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 8px;
+}
+
+#minimap-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+#minimap {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: #000;
+}
+
+/* Orbs ------------------------------------------------------------- */
+#orbs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px;
+}
+
+.orb { text-align: center; }
+
+.orb-well {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #241e16;
+  border: 2px solid var(--border-light);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#orb-hp-fill {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 100%;
+  background: linear-gradient(#63d873, #2e8a3c);
+  transition: height 0.25s ease;
+}
+
+#orb-hp {
+  position: relative;
+  font-weight: bold;
+  font-size: 12px;
+  color: #fff;
+  text-shadow: 0 0 3px #000, 0 1px 2px #000;
+}
+
+#orb-hp.low { animation: pulse 0.7s infinite; }
+
+@keyframes pulse {
+  0%, 100% { color: #fff; }
+  50%      { color: #ff6a55; }
+}
+
+.orb label {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.orb-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#stat-combat {
+  color: var(--gold);
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.run-toggle {
+  align-self: flex-start;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  border: 1px solid var(--border-light);
+  border-radius: 3px;
+  background: #241e16;
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.run-toggle.on {
+  background: #3d5c2c;
+  color: #cdf0b8;
+  border-color: #6b9450;
+}
+
+/* Tabs ------------------------------------------------------------- */
+#tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+}
+
+.tab-btn {
+  padding: 6px 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: linear-gradient(var(--panel-light), #362e22);
+  border: 1px solid var(--border);
+  border-radius: 3px 3px 0 0;
+  cursor: pointer;
+}
+
+.tab-btn:hover { color: var(--text); }
+
+.tab-btn.active {
+  color: var(--gold);
+  background: linear-gradient(#5c4f3b, #453a2b);
+  border-color: var(--border-light);
+}
+
+/* Panel ------------------------------------------------------------ */
+#panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+#panel-title {
+  font-size: 12px;
+  color: var(--gold);
+  letter-spacing: 0.5px;
+}
+
+#btn-reset {
+  font: inherit;
+  font-size: 10px;
+  padding: 2px 7px;
+  color: var(--text-muted);
+  background: #241e16;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+#btn-reset:hover { color: var(--red); border-color: var(--red); }
+
+#panel {
+  flex: 1;
+  overflow-y: auto;
+  background: #241e16;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+#panel::-webkit-scrollbar { width: 8px; }
+#panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.panel-footer {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* Inventory -------------------------------------------------------- */
+.inv-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+}
+
+.inv-slot {
+  position: relative;
+  aspect-ratio: 1;
+  background: #1c1710;
+  border: 1px solid #352d21;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inv-slot:has(canvas) { cursor: pointer; }
+.inv-slot:has(canvas):hover {
+  background: #2e2618;
+  border-color: var(--border-light);
+}
+
+.inv-icon { width: 100%; height: 100%; }
+
+.inv-qty {
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--gold);
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+}
+
+/* Equipment -------------------------------------------------------- */
+.equip-list { display: flex; flex-direction: column; gap: 3px; }
+
+.equip-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 7px;
+  background: #1c1710;
+  border: 1px solid #352d21;
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+.equip-row.filled { cursor: pointer; border-color: var(--border); }
+.equip-row.filled:hover { background: #2e2618; border-color: var(--border-light); }
+
+.equip-slot-name { color: var(--text-muted); text-transform: capitalize; }
+.equip-slot-item { color: var(--text); }
+.equip-row.filled .equip-slot-item { color: var(--gold); }
+
+.equip-bonuses {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.equip-bonuses .bonus-head {
+  color: var(--gold);
+  font-size: 11px;
+  margin-bottom: 5px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--border);
+}
+
+.equip-bonuses div:not(.bonus-head) {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 2px;
+  color: var(--text-muted);
+}
+
+.equip-bonuses b { color: var(--text); }
+
+/* Skills ----------------------------------------------------------- */
+.skill-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+}
+
+.skill-cell {
+  position: relative;
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 5px 7px;
+  background: #1c1710;
+  border: 1px solid #352d21;
+  border-radius: 2px;
+  font-size: 11px;
+  cursor: help;
+}
+
+.skill-cell:hover { background: #2e2618; }
+
+.skill-dot { width: 8px; height: 8px; border-radius: 50%; }
+.skill-name { color: var(--text-muted); }
+.skill-lvl { color: var(--gold); font-weight: bold; }
+
+.skill-bar {
+  position: absolute;
+  left: 4px; right: 4px; bottom: 3px;
+  height: 2px;
+  background: #352d21;
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.skill-bar i { display: block; height: 100%; }
+
+/* Combat styles ---------------------------------------------------- */
+.style-list { display: flex; flex-direction: column; gap: 4px; }
+
+.style-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 6px 9px;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: linear-gradient(var(--panel-light), #362e22);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.style-btn:hover { border-color: var(--border-light); }
+
+.style-btn.active {
+  background: linear-gradient(#6b5a3f, #4d4130);
+  border-color: var(--gold);
+}
+
+.style-btn b { font-size: 12px; }
+.style-btn.active b { color: var(--gold); }
+.style-btn small { font-size: 10px; color: var(--text-muted); }
+
+/* Context menu ----------------------------------------------------- */
+#context-menu {
+  display: none;
+  position: fixed;
+  z-index: 100;
+  min-width: 150px;
+  background: #5d5040;
+  border: 1px solid #2a231a;
+  border-radius: 2px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+
+.ctx-title {
+  padding: 4px 8px;
+  background: #4b4030;
+  color: var(--text);
+  font-size: 12px;
+  border-bottom: 1px solid #2a231a;
+}
+
+.ctx-option {
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  background: #d8ccb4;
+  color: #000;
+}
+
+.ctx-option:hover { background: #fff; }
+
+.ctx-verb { color: #000; }
+.ctx-noun { color: #6b4d00; }

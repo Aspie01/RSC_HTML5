@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($n = \\(Get-Command node -ErrorAction SilentlyContinue\\); if \\($n\\) { \"node: \" + \\(node --version\\) } else { \"node: NOT INSTALLED\" }; $p = \\(Get-Command npm -ErrorAction SilentlyContinue\\); if \\($p\\) { \"npm: \" + \\(npm --version\\) } else { \"npm: NOT INSTALLED\" }; $g = \\(Get-Command git -ErrorAction SilentlyContinue\\); if \\($g\\) { \"git: \" + \\(git --version\\) } else { \"git: NOT INSTALLED\" })",
+      "PowerShell(foreach \\($c in @\\('python','py','python3'\\)\\) { $x = Get-Command $c -ErrorAction SilentlyContinue; if \\($x\\) { \"$c -> $\\($x.Source\\)\" } else { \"$c -> not found\" } })",
+      "PowerShell($w = Get-Command winget -ErrorAction SilentlyContinue; if \\($w\\) { \"winget available\" } else { \"winget not found\" }; Get-ChildItem \"$env:LOCALAPPDATA\\\\Programs\" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name)"
+    ]
+  }
+}

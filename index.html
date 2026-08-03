@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Untitled RuneScape-like</title>
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- World view + chat -->
+  <div id="stage">
+    <canvas id="game"></canvas>
+
+    <div id="chat">
+      <div id="chat-log"></div>
+    </div>
+  </div>
+
+  <!-- Right-hand interface column -->
+  <aside id="sidebar">
+
+    <div id="minimap-wrap">
+      <canvas id="minimap"></canvas>
+    </div>
+
+    <div id="orbs">
+      <div class="orb" title="Hitpoints">
+        <div class="orb-well">
+          <div id="orb-hp-fill"></div>
+          <span id="orb-hp">10/10</span>
+        </div>
+        <label>HP</label>
+      </div>
+      <div class="orb-info">
+        <div id="stat-combat">Combat 3</div>
+        <div id="orb-run" class="run-toggle">RUN</div>
+      </div>
+    </div>
+
+    <div id="tabs"></div>
+
+    <div id="panel-head">
+      <span id="panel-title">Inventory</span>
+      <button id="btn-reset" title="Delete save and restart">reset</button>
+    </div>
+
+    <div id="panel"></div>
+
+  </aside>
+</div>
+
+<div id="context-menu"></div>
+
+<script type="module" src="/src/main.ts"></script>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "runescape-like",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "An isometric, tick-based RPG inspired by RuneScape Classic and OSRS.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
+  }
+}
