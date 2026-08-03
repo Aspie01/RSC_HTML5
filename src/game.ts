@@ -57,6 +57,17 @@ const RENAMED_SKILLS: Readonly<Record<string, SkillId>> = {
   ranged: 'archery'
 };
 
+/**
+ * Tools that did not exist in version 1.
+ *
+ * A returning player's saved inventory REPLACES the one the constructor deals
+ * out, so without this they load in with no pickaxe and no hammer. Neither
+ * drops from anything and neither can be bought, which would leave the entire
+ * mining and smithing loop permanently unreachable on that save -- the one
+ * thing a migration must never do.
+ */
+const V2_TOOLS: readonly string[] = ['bronze_pickaxe', 'hammer'];
+
 /** Ticks between bars at a furnace, and between items at an anvil. */
 const SMELT_TICKS = 3;
 const SMITH_TICKS = 3;
@@ -561,13 +572,16 @@ export class Game implements World {
   // ----------------------------------------------------------------------
   // Crafting helpers
   // ----------------------------------------------------------------------
+  /** True if this exact item is carried or worn. */
+  private carries(id: string): boolean {
+    const inv = this.player.inventory;
+    return inv.count(id) > 0 ||
+      Object.values(inv.equipment).some((eq) => eq?.id === id);
+  }
+
   /** True if any of these tool ids is carried or worn. */
   private hasTool(ids: readonly string[]): boolean {
-    const inv = this.player.inventory;
-    return ids.some(
-      (id) => inv.count(id) > 0 ||
-        Object.values(inv.equipment).some((eq) => eq?.id === id)
-    );
+    return ids.some((id) => this.carries(id));
   }
 
   private hasIngredients(list: readonly { id: string; qty: number }[]): boolean {
@@ -1213,6 +1227,7 @@ export class Game implements World {
         this.ui.message(
           'Your save was made in an older version and has been converted.', 'sys'
         );
+        this.grantNewTools();
         this.save();
       }
     } catch (err) {
@@ -1248,6 +1263,40 @@ export class Game implements World {
     }
 
     return out;
+  }
+
+  /**
+   * Hand a migrated character the tools its save predates, so that loading an
+   * old game is never worse than starting a new one.
+   *
+   * There is always room for them: a version-1 inventory held at most 28
+   * items and capacity is now 30, so migrateSlots() leaves two free slots at
+   * minimum. The ground-drop fallback covers hand-edited saves, not anything
+   * the game itself can produce.
+   */
+  private grantNewTools(): void {
+    const p = this.player;
+    const granted: string[] = [];
+
+    for (const id of V2_TOOLS) {
+      if (this.carries(id)) continue;
+
+      const name = getItem(id)?.name ?? id;
+
+      if (p.inventory.add(id, 1)) {
+        granted.push(name);
+      } else {
+        this.ground.drop(id, 1, p.x, p.y);
+        this.ui.message(
+          `Your pack is full, so your ${name.toLowerCase()} is at your feet.`, 'bad'
+        );
+      }
+    }
+
+    if (granted.length) {
+      this.ui.message(`You have been given: ${granted.join(' and ')}.`, 'good');
+      this.ui.dirty = true;
+    }
   }
 
   /**
