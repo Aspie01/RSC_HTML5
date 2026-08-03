@@ -31,7 +31,8 @@ this rule has been broken.
 
 **Current status: violated.** `game.ts` owns both the tick loop and the
 renderer/UI/DOM bindings. This is a known debt, not a licence to add more.
-Do not deepen it — new gameplay logic goes in `systems/`, which stays clean.
+Do not deepen it — new gameplay logic goes in `systems/`, which stays clean,
+and browser-facing concerns go in `persist/`, `render/` or `ui/`.
 
 ### 2. Seeded randomness only
 
@@ -77,6 +78,28 @@ Changing any of these is expensive. Do not revisit without being asked.
 | Level cap | **50.** Content gates land at 1/10/20/30/40/50 |
 | Inventory | 30 slots |
 | Persistence | Versioned saves + migration; never silently discard progress |
+
+### Persistence
+
+Saves live in `src/persist/`. `storage.ts` picks a backing store — IndexedDB,
+then localStorage, then memory — and moves an opaque string in and out of it.
+`save.ts` owns the format: `SaveData`, `SAVE_VERSION`, and the base64 codec
+behind the export/import textarea.
+
+Three rules that are cheap now and expensive later:
+
+- **Bump `SAVE_VERSION` and add a migration step** for any change old data
+  cannot survive unaltered. Skill ids, item ids and quest ids are all baked
+  into saves.
+- **Migration belongs in `game.ts`, not `persist/`.** Converting a save needs
+  live skills, inventory and world objects to write into. `persist/` must not
+  learn about game state.
+- **A migration must never leave a loaded character worse off than a new one.**
+  When v2 added Mining and Smithing, it also had to hand returning players the
+  pickaxe and hammer they had no other way to obtain.
+
+Storage is asynchronous, so the save is read *before* `Game` is constructed and
+handed in. Do not move that read into the constructor.
 
 ### Level cap and gates
 

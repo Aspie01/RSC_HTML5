@@ -1,6 +1,6 @@
 # RuneScape Classic-Inspired HTML5 Game — Development Roadmap
 
-**Status:** Planning
+**Status:** In development — M0–M8 built, M9 next
 **Scope:** Single-player, browser-based, static bundle
 **Targets:** itch.io (primary), blog link-out (secondary)
 **Starter skills:** Woodcutting → Firemaking → Cooking
@@ -129,20 +129,25 @@ Cooking's burn mechanic is `failureBehaviour: 'consume'` with a `burnedProduces`
 
 Each milestone has a concrete acceptance test. Do not advance until it passes.
 
-### M0 — Skeleton
+Headings carry their state: **[done]** means the acceptance test above was
+actually run, not that the code looks finished. Anything unmarked is unbuilt.
+Where a milestone shipped something other than what was planned, the deviation
+is noted under it rather than quietly rewritten.
+
+### M0 — Skeleton *[done]*
 - Vite project, TypeScript, `base: './'` set from day one.
 - Tick loop running, logging tick count.
 - Empty tile grid, player entity, fixed-resolution canvas with integer scaling.
 - **Accept:** tick counter advances at a stable rate; canvas scales 1x/2x/3x cleanly on window resize.
 
-### M1 — Movement
+### M1 — Movement *[done]*
 - Tile grid with a blocking mask.
 - A* pathfinding.
 - Click-to-walk. Player traverses one tile per tick along the path.
 - Camera follows player.
 - **Accept:** clicking across the map produces a sensible path; clicking a blocked tile walks to the nearest reachable neighbour.
 
-### M2 — Action state machine
+### M2 — Action state machine *[done]*
 - States: `idle → walking → arrived → performing → interrupted`.
 - Actions only fire when the player is adjacent to the target tile.
 - Clicking elsewhere mid-action cancels cleanly.
@@ -150,14 +155,14 @@ Each milestone has a concrete acceptance test. Do not advance until it passes.
 
 *This is the milestone people skip. Every skill reuses it.*
 
-### M3 — Inventory
+### M3 — Inventory *[done]*
 - Fixed 30 slots, RSC-style.
 - Item registry loaded, items renderable in a panel.
 - Drop, examine, and item-on-item plumbing (no behaviours bound yet).
 - Inventory-full is a defined, testable condition.
 - **Accept:** fill inventory, attempt to add an item, correct rejection message.
 
-### M4 — Woodcutting
+### M4 — Woodcutting *[done, acceptance test not run]*
 - Tree objects on the map with `depletesTo: stump` and respawn timers.
 - Axe detection by item tag.
 - Level-gated success roll per tick.
@@ -165,13 +170,20 @@ Each milestone has a concrete acceptance test. Do not advance until it passes.
 - Stops cleanly on inventory-full.
 - **Accept:** deterministic test — seed N, level 1, chop 100 trees, assert exact XP and log count. Rerun, identical result.
 
-### M5 — Skills panel + XP curve
+*Woodcutting works, but the acceptance test cannot be written yet: gathering
+rolls still go through `Math.random()`, so there is no seed to fix and no
+repeatable result to assert. This is the debt CLAUDE.md records under "Seeded
+randomness only", and it is the reason no test suite exists at all. Paying it
+means a PRNG in the sim, its call count in the save, and the rolls in
+`skilling`, `combat`, `ground`, `objects` and `util` routed through it.*
+
+### M5 — Skills panel + XP curve *[done]*
 - Level curve implemented and matching whichever reference you chose.
 - Skills panel showing level, XP, XP to next.
 - Level-up message in the chat log.
 - **Accept:** XP-to-level table matches reference at levels 1, 50, 92, 99.
 
-### M6 — Firemaking
+### M6 — Firemaking *[done]*
 - Item-on-item: tinderbox + logs.
 - Spawns a **dynamic** fire object on the player's tile.
 - Fire blocks the tile and invalidates pathing.
@@ -180,13 +192,13 @@ Each milestone has a concrete acceptance test. Do not advance until it passes.
 
 *This milestone forces the object system to become dynamic. Expect it to break assumptions from M4.*
 
-### M7 — Cooking
+### M7 — Cooking *[done]*
 - Item-on-object: raw food + fire.
 - Level-scaled burn chance; failure consumes the input and produces burnt food.
 - Same action bound to a second target type (range) with different burn rates.
 - **Accept:** cooking works on both fire and range through the same `actions.ts` entry, with zero special-casing in the sim.
 
-### M8 — Persistence
+### M8 — Persistence *[done]*
 - Full state serialization, versioned: `{version: 1, state: {...}}`.
 - IndexedDB primary, localStorage fallback, in-memory fallback if both throw.
 - **Manual export/import**: base64 save string in a copyable textarea.
@@ -194,11 +206,32 @@ Each milestone has a concrete acceptance test. Do not advance until it passes.
 
 *Not polish. On itch.io this is the failure mode for a real fraction of players.*
 
-### M9 — Presentation
-- Sprite atlas (one PNG, not many files).
-- Chat log / message box.
+Lives in `src/persist/`: `storage.ts` (the tier chain) and `save.ts` (format,
+version, base64 codec). Two things the plan did not anticipate, both found by
+testing rather than by reading:
+
+- **Promoting a tier strands the saves below it.** Every existing save was in
+  localStorage; making IndexedDB primary reads an empty database and looks
+  exactly like a wiped character. An empty primary now inherits from a lower
+  tier, and `clear()` reaches every tier — otherwise the inheritance step
+  promotes a deleted save straight back on the next boot.
+- **Import cannot reload on the memory tier.** Importing writes the save then
+  reloads, but with no persistent store that reload boots from an empty one and
+  discards the import — silently failing in the exact case the feature exists
+  to rescue. Those players get an in-place swap instead.
+
+Migration stays in `game.ts` rather than moving to `persist/`: converting an
+old save needs live skills, inventory and world objects to write into.
+
+### M9 — Presentation *[in progress]*
+- ~~Sprite atlas (one PNG, not many files).~~ **Superseded.** `render/sprites.ts`
+  draws everything from canvas primitives: no files to load, nothing to go
+  missing in an iframe, and no atlas to keep in sync while content is still
+  moving. Revisit only when committing to a real art style.
+- ~~Chat log / message box.~~ Done — `#chat-log`, written through `ui.message()`.
 - Click-to-start overlay (doubles as canvas focus and audio unlock).
-- `preventDefault` on keys that would scroll the parent page.
+- `preventDefault` on keys that would scroll the parent page. Partially done:
+  Space is caught in `game.ts`, but the arrow keys and Page Up/Down are not.
 - Audio: ambient loop, action SFX.
 - **Accept:** loads and plays correctly inside a cross-origin iframe locally.
 
@@ -258,16 +291,25 @@ Claude Code will default to putting `ctx.fillRect` next to `player.woodcutting +
 
 Explicitly out of scope for v1. Listed so they don't creep in.
 
-- Combat, NPCs, aggression, respawn
-- Quests and dialogue trees
 - Banking
-- Additional skills (Mining, Smithing, Fishing)
+- Fishing, Foraging, Crafting, Archery, Magic *(planned for v1 in the content
+  roadmap, not yet built)*
 - Trading, multiplayer, any server component
 - Mobile touch controls *(unless decided in §0)*
 - World map beyond a single starting area
 - Sound settings, keybinds, accessibility options
 
-The three starter skills plus movement, inventory, and persistence constitute a complete, shippable vertical slice. Ship that before adding a fourth skill.
+**This list was written before the scope widened, and four items have since
+left it:** combat with NPCs and respawn, quests and dialogue, Mining, and
+Smithing are all built. That was deliberate — `roadmap-content.md` is the
+authority on what v1 contains, and it asks for 14 skills and 24 quests. Treat
+the section above as "not started", not as "must never exist".
+
+The advice underneath it still holds, though, and is the part worth keeping:
+the starter skills plus movement, inventory and persistence are a complete
+shippable slice. **Nothing has shipped yet.** M9 and M10 are the only things
+between the current build and a playable link, and every additional skill
+added before then is a skill shipped to nobody.
 
 ---
 
