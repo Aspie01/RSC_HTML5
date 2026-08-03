@@ -51,6 +51,7 @@
 
     <div id="panel-head">
       <span id="panel-title">Inventory</span>
+      <button id="btn-save" title="Export or import a save code">save</button>
       <button id="btn-reset" title="Delete save and restart">reset</button>
     </div>
 
@@ -60,6 +61,22 @@
 </div>
 
 <div id="context-menu"></div>
+
+<!-- Manual save export/import. The way out when browser storage is blocked. -->
+<div id="save-modal">
+  <div id="save-panel">
+    <div id="save-head">
+      <span>Save code</span>
+      <button id="btn-save-close" title="Close">x</button>
+    </div>
+    <textarea id="save-code" spellcheck="false" autocomplete="off"></textarea>
+    <div id="save-status"></div>
+    <div id="save-actions">
+      <button id="btn-save-copy">Copy</button>
+      <button id="btn-save-load">Load this code</button>
+    </div>
+  </div>
+</div>
 
 <script type="module" src="/src/main.ts"></script>
 

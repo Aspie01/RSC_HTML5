@@ -42,18 +42,10 @@ import * as combat from './systems/combat';
 import * as iso from './world/iso';
 import { lerp, tileDist } from './core/util';
 import { loop } from './core/loop';
+import type { SaveStore } from './persist/storage';
+import { SAVE_VERSION, type SaveData, encodeSaveCode, decodeSaveCode, parseSave } from './persist/save';
 
-const SAVE_KEY = 'rs_html5_save_v1';
 const AUTOSAVE_TICKS = 50; // every 30 seconds
-
-/**
- * Bump when the save format changes in a way old data cannot survive
- * unaltered, and add a step to migrate(). Never silently discard progress.
- *
- * 1 -> 2: skills renamed (hitpoints -> vitality, ranged -> archery), Prayer
- *         removed, and the experience curve recapped from 99 to 50.
- */
-const SAVE_VERSION = 2;
 
 /** Skills that changed id in version 2. */
 const RENAMED_SKILLS: Readonly<Record<string, SkillId>> = {
@@ -76,19 +68,6 @@ const V2_TOOLS: readonly string[] = ['bronze_pickaxe', 'hammer'];
 const SMELT_TICKS = 3;
 const SMITH_TICKS = 3;
 
-interface SaveData {
-  v: number;
-  x: number;
-  y: number;
-  hp: number;
-  xp: Record<string, number>;
-  style: string;
-  running: boolean;
-  slots: unknown;
-  equipment: unknown;
-  quests?: unknown;
-}
-
 export class Game implements World {
   readonly map: GameMap = generateMap();
   readonly ground = new GroundItems();
@@ -100,9 +79,21 @@ export class Game implements World {
   private readonly renderer: Renderer;
   private readonly ui: UI;
   private readonly dialogue = new Dialogue();
+  private readonly store: SaveStore;
   private autosaveCounter = 0;
 
-  constructor(canvas: HTMLCanvasElement, minimap: HTMLCanvasElement) {
+  /**
+   * The save arrives already read, rather than being fetched here.
+   *
+   * IndexedDB is asynchronous and a constructor cannot await, so the read has
+   * to happen before the game exists. Doing it any other way means the world
+   * boots at starting position and the player's real state lands on top of it
+   * some frames later -- visible as a teleport, and a race with any input in
+   * between.
+   */
+  constructor(canvas: HTMLCanvasElement, minimap: HTMLCanvasElement,
+              store: SaveStore, saved: string | null) {
+    this.store = store;
     // Start on the crossroads at the centre of the map.
     this.player = new Player(24, 24);
     this.player.inventory.add('bronze_scimitar', 1);
@@ -120,11 +111,20 @@ export class Game implements World {
     this.renderer = new Renderer(canvas, minimap);
     this.ui = new UI(this);
 
-    this.load();
+    if (saved !== null) this.load(saved);
     this.player.attackSpeed = this.player.inventory.attackSpeed();
 
     this.bindInput(canvas);
     this.greet();
+
+    if (store.kind === 'memory') {
+      this.ui.message(
+        'This browser is blocking storage, so progress will NOT be saved.', 'bad'
+      );
+      this.ui.message(
+        'Use the save button to copy a save code before you close the tab.', 'bad'
+      );
+    }
   }
 
   private greet(): void {
@@ -1415,41 +1415,55 @@ export class Game implements World {
   // ----------------------------------------------------------------------
   // Persistence
   // ----------------------------------------------------------------------
-  save(): void {
-    try {
-      const p = this.player;
-      const data: SaveData = {
-        v: SAVE_VERSION,
-        x: p.x, y: p.y,
-        hp: p.hp,
-        xp: p.skills.xp,
-        style: p.attackStyle,
-        running: p.running,
-        slots: p.inventory.slots,
-        equipment: p.inventory.equipment,
-        quests: this.quests.stages
-      };
-      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-    } catch (err) {
-      // Private browsing or a full quota; not worth interrupting play over.
-      console.warn('Save failed:', err);
-    }
+  /** Serialise the live state. Shared by autosave and by manual export. */
+  private serialise(): string {
+    const p = this.player;
+    const data: SaveData = {
+      v: SAVE_VERSION,
+      x: p.x, y: p.y,
+      hp: p.hp,
+      xp: p.skills.xp,
+      style: p.attackStyle,
+      running: p.running,
+      slots: p.inventory.slots,
+      equipment: p.inventory.equipment,
+      quests: this.quests.stages
+    };
+    return JSON.stringify(data);
   }
 
-  load(): void {
-    let raw: string | null;
+  /**
+   * Write the current state out.
+   *
+   * Deliberately not async, and deliberately not awaited: this is called from
+   * the tick loop, which is synchronous and must stay that way. The snapshot
+   * is taken synchronously so it cannot tear against a later tick, and only
+   * the write itself is left to settle on its own.
+   */
+  save(): void {
+    let raw: string;
     try {
-      raw = localStorage.getItem(SAVE_KEY);
-    } catch {
+      raw = this.serialise();
+    } catch (err) {
+      console.warn('Save failed:', err);
       return;
     }
-    if (!raw) return;
 
+    void this.store.write(raw).catch((err: unknown) => {
+      // Private browsing, a revoked permission, or a full quota. Not worth
+      // interrupting play over -- the export button remains the way out.
+      console.warn('Save failed:', err);
+    });
+  }
+
+  load(raw: string): void {
     try {
-      const data = JSON.parse(raw) as Partial<SaveData>;
+      const data = parseSave(raw);
+      if (!data) throw new Error('not a save');
+
       const p = this.player;
 
-      const xp = this.migrateXp(data.xp ?? {}, data.v ?? 1);
+      const xp = this.migrateXp(data.xp ?? {}, data.v);
 
       // Merge rather than replace. A save written before a skill existed has
       // no key for it, and assigning the object wholesale would leave that
@@ -1481,7 +1495,7 @@ export class Game implements World {
 
       this.ui.message('Welcome back. Your progress was restored.', 'sys');
 
-      if ((data.v ?? 1) < SAVE_VERSION) {
+      if (data.v < SAVE_VERSION) {
         this.ui.message(
           'Your save was made in an older version and has been converted.', 'sys'
         );
@@ -1571,9 +1585,81 @@ export class Game implements World {
     );
   }
 
-  reset(): void {
-    try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
+  async reset(): Promise<void> {
+    await this.store.clear();
     location.reload();
+  }
+
+  // ----------------------------------------------------------------------
+  // Manual export / import
+  // ----------------------------------------------------------------------
+
+  /**
+   * A save code the player can copy somewhere safe.
+   *
+   * This is the escape hatch for every storage failure at once: blocked
+   * cookies, private browsing, an itch.io iframe that partitions the origin,
+   * or simply moving to another machine. It reads live state rather than
+   * whatever is on disk, so a code is never staler than the moment it was
+   * asked for.
+   */
+  exportSave(): string {
+    return encodeSaveCode(this.serialise());
+  }
+
+  /**
+   * Take a pasted save code, replacing the current character with it.
+   *
+   * Committed to storage before the reload rather than applied in place:
+   * loading a save over a running world would have to unwind every piece of
+   * live state -- current action, path, combat target, open dialogue -- and
+   * booting from scratch is the same code path a returning player already
+   * takes, so it is the one that stays tested.
+   *
+   * Throws with a player-readable message if the code is not usable.
+   */
+  async importSave(code: string): Promise<void> {
+    const raw = decodeSaveCode(code);
+    await this.store.write(raw);
+
+    // On the memory tier that write does not outlive the page, so reloading
+    // would boot from an empty store and throw the import away -- silently
+    // failing in exactly the situation import exists to rescue. Those players
+    // get the in-place path instead.
+    if (this.store.kind === 'memory') {
+      this.applyInPlace(raw);
+      return;
+    }
+
+    location.reload();
+  }
+
+  /**
+   * Swap the running character for a saved one without a page reload.
+   *
+   * Only used when storage cannot survive a refresh. Everything cleared here
+   * refers to the character being replaced: an action mid-swing, a path to
+   * somewhere the new character never was, and anything already fighting the
+   * old one. This mirrors respawn()'s reset for the same reason.
+   */
+  private applyInPlace(raw: string): void {
+    const p = this.player;
+
+    p.clearPath();
+    p.clearAction();
+    p.attackCooldown = 0;
+    p.hitsplats.length = 0;
+    for (const npc of this.npcs) {
+      if (npc.target === p) npc.target = null;
+    }
+    this.dialogue.abandon();
+
+    this.load(raw);
+
+    p.maxHp = p.skills.level('vitality');
+    p.hp = Math.min(p.hp, p.maxHp);
+    p.attackSpeed = p.inventory.attackSpeed();
+    this.ui.dirty = true;
   }
 
   // ----------------------------------------------------------------------
