@@ -344,6 +344,87 @@ export const quests: readonly QuestDef[] = [
     ]
   },
 
+  // Quest 15. The end of Phase D, and the last thing anybody in this valley
+  // can tell you. The ledger has the road drawn; the road goes east and then
+  // down, and what is at the bottom of it is Phase E's problem.
+  //
+  // The mechanic is hazard traversal, which the engine had no concept of.
+  // Floodwater is walkable and costs a hitpoint a tick, so the road is not a
+  // locked door -- it is a crossing you pay for, and the payment is the food
+  // you brought. Blocking it outright would have been a wall wearing a costume.
+  {
+    id: 'sunken_road',
+    name: 'The Sunken Road',
+    requires: { quests: ['what_the_warden_wrote'] },
+    blocked: [
+      { who: 'npc', text: 'Not until the book is whole. I am not sending anybody east on a guess.' }
+    ],
+    reward: {
+      points: 3,
+      xp: { vitality: 500, magic: 300 },
+      unlock: 'The causeway is open. It goes east, and then it goes down.'
+    },
+    stages: [
+      {
+        journal: 'Maren Ashfall has read the road off the ledger, and wants it found.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'The drawing is on the fourth leaf. A causeway, running east out of the fen, dead straight for two hundred yards.' },
+          { who: 'player', text: 'There is nothing east of the fen but the lake.' },
+          { who: 'npc', text: 'There is now.' },
+          { who: 'npc', text: 'Every depth in that book was taken from the far end of it. Two hundred years of somebody walking out along a road that has been under water since before my grandmother, to look at a thing and write a number down.' },
+          { who: 'npc', text: 'The reed has taken the near end. Cut it and go along it, and eat before you do -- that water is cold enough to stop a heart and I am not being poetic.' },
+          { who: 'npc', text: 'Take these. I have no more use for them than you have, and you will have more.' }
+        ],
+        gives: [{ id: 'cooked_bream', qty: 4 }]
+      },
+      {
+        journal: 'Cut the reeds at the east edge of the Sallows and follow the causeway.',
+        npc: 'maren',
+        goal: { type: 'inspect', x: 45, y: 43 },
+        waiting: [
+          { who: 'npc', text: 'The east wall of the fen. The road runs out from it -- you will feel the stone under your feet before you see it.' }
+        ],
+        done: [
+          { who: 'player', text: 'Cut stone under a foot of water, laid flat and true, running away east into the lake.' },
+          { who: 'player', text: 'The water over it is colder than the water either side of it. Not shaded, not deeper -- colder, and only over the road.' },
+          { who: 'player', text: 'Whatever is taking this valley is at the far end, and somebody built a road to it, and then somebody else spent two hundred years walking out to check on it.' }
+        ]
+      },
+      {
+        journal: 'Follow the causeway east to its end. Bring food -- the water is lethal.',
+        npc: 'maren',
+        goal: { type: 'inspect', x: 47, y: 44 },
+        waiting: [
+          { who: 'npc', text: 'To the end of it. Eat as you go, and if you cannot make the end, come back and eat more before you try again.' }
+        ],
+        done: [
+          { who: 'player', text: 'The road stops. It does not run out or break off -- it stops, squared, at a stair.' },
+          { who: 'player', text: 'Steps going down, under the water, cut as cleanly as the day they were made. The cold comes up them.' },
+          { who: 'player', text: 'The last Warden stood here eighty-one years ago and wrote down four feet one inch, and went home, and told nobody because there was nobody left to tell.' },
+          { who: 'player', text: 'I am not going down there today.' }
+        ]
+      },
+      {
+        journal: 'Tell Maren Ashfall what is at the end of the road.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'player', text: 'It ends at a stair. It goes down.' },
+          { who: 'npc', text: 'Of course it does.' },
+          { who: 'npc', text: 'Then that is where the water is going, and that is where every number in that book was pointing, and the whole of it -- the well, the lake, Halder going upriver, the reed dying standing up -- is one thing, and it is down there.' },
+          { who: 'player', text: 'Someone should go down.' },
+          { who: 'npc', text: 'Someone should. Not today, and not without more than you are carrying.' },
+          { who: 'npc', text: 'Keep the light. Keep the count. And when you do go down, come back up, because the last person who kept this ledger did not have anyone to hand it to and I would rather not repeat that.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'The stair is still there. I check the chart most days, which is a foolish thing to do about a stair.' }
+    ]
+  },
+
   // Quest 14. The arc's hinge. Vigil established that somebody built an
   // instrument to measure the loss and left instructions to send word; this is
   // the quest that answers who to, and the answer is the reason the order

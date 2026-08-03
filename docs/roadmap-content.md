@@ -252,7 +252,7 @@ Six regions, unlocked by quest rather than level where possible.
 | **A** *[done]* | 0.1 — first public build | WC, Firemaking, Cooking. Quests 1–3. The Landing only. | Engine M0–M10 |
 | **B** *[done]* | 0.3 | Mining, Smithing, Fishing. Quests 4–7. Kettle Ridge, The Cut. | — |
 | **C** *[done]* | 0.5 | Full combat suite + Vitality. Quests 8–11. Wrackwood. | Combat system |
-| **D** | 0.7 | Magic, Crafting, Foraging. Quests 12–16. | Spell system |
+| **D** *[quests 12–15 done]* | 0.7 | Magic, Crafting, Foraging. Quests 12–16. | Spell system |
 | **E** | 0.9 | Drowned Interior. Quests 17–21. Tiers 5–6 equipment. | Boss framework |
 | **F** | 1.0 | Capstone quests 22–24. Balance pass. Mastery cap. | — |
 | **Post** | 1.x | Alchemy, Thieving, Agility, task system, Farming | — |
@@ -294,7 +294,18 @@ Three deviations:
   test woodcutter mid-chop. A Woodcutting reward gated on Woodcutting cannot
   charge a combat toll, which the Cut had already taught once.
 
-Phase D is next: Magic, Foraging, quests 12–16. Crafting is done.
+**Phase D is all but finished.** Magic, Foraging and Crafting are in, and
+quests 12 to 15 carry the Wardens arc from the first measurement that does
+not make sense to the stair at the end of the causeway. Only quest 16,
+Ironmonger's Bargain, is left -- it is Smithing tier 4 and sits outside the
+arc entirely.
+
+The register was settled here: the flood goes somewhere stranger. Nothing
+before quest 12 commits either way, so the earlier quests still read as
+written.
+
+Phase E is next, and the road already points at it: the descent at (47,44)
+is the way into the Drowned Interior.
 
 ---
 

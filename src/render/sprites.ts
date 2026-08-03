@@ -551,8 +551,27 @@ export function stoneBox(ctx: CanvasRenderingContext2D, x: number, y: number): v
   ctx.stroke();
 }
 
+/** A stair going down into water. Mostly an absence, which is the point. */
+export function descent(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  ctx.fillStyle = '#0d1418';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 2, 13, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Three steps catching the light before the dark takes them.
+  ctx.strokeStyle = 'rgba(150,190,205,0.45)';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 3; i++) {
+    const w = 10 - i * 3;
+    ctx.beginPath();
+    ctx.moveTo(x - w, y - 6 + i * 3);
+    ctx.lineTo(x + w, y - 6 + i * 3);
+    ctx.stroke();
+  }
+}
+
 export const scenerySprites = {
-  bush, fence, furnace, anvil, well, rubble, thicket, stone_box: stoneBox
+  bush, fence, furnace, anvil, well, rubble, thicket, stone_box: stoneBox, descent
 } as const;
 
 // --------------------------------------------------------------------------

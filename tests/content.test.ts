@@ -15,6 +15,7 @@ import { npcs } from '../src/data/npcs.ts';
 import { quests, getQuest } from '../src/data/quests.ts';
 import { shops } from '../src/data/shops.ts';
 import { combinations, combinationFor } from '../src/data/combinations.ts';
+import { inspectable } from '../src/data/inspect.ts';
 import {
   gatherables, bars, recipes, burnables, smithables, fletchables
 } from '../src/data/resources.ts';
@@ -296,15 +297,13 @@ test('anything a quest sends you to look at is clickable', () => {
   // An inspect stage is only reachable if its scenery kind is inspectable --
   // otherwise clicking the thing does nothing and the quest cannot proceed.
   // This caught the reed wall, whose stage was only reachable from a test.
-  const inspectable = new Set(['well', 'thicket', 'stone_box', 'rubble']);
-
   for (const q of quests) {
     for (const stage of q.stages) {
       if (stage.goal.type !== 'inspect') continue;
       const scenery = map.sceneryAt(stage.goal.x, stage.goal.y);
       assert.ok(scenery, `${q.id} inspects (${stage.goal.x},${stage.goal.y}) where there is nothing`);
       assert.ok(
-        inspectable.has(scenery.kind),
+        inspectable(scenery.kind),
         `${q.id} inspects a "${scenery.kind}", which cannot be clicked to inspect`
       );
     }

@@ -14,7 +14,7 @@ import type {
   EquipSlot, ItemStack, PlayerAction, Point, SkillId, StationKind, World
 } from './types.ts';
 import type { GroundItem } from './systems/ground.ts';
-import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE, SALLOWS_ENTRANCE } from './world/map.ts';
+import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE, SALLOWS_ENTRANCE, ROAD_ENTRANCE } from './world/map.ts';
 import { GroundItems } from './systems/ground.ts';
 import { WorldObjects } from './systems/objects.ts';
 import { Player } from './entities/player.ts';
@@ -38,6 +38,7 @@ import { shopForNpc } from './data/shops.ts';
 import type { ShopDef } from './data/shops.ts';
 import { getQuest, questsForNpc, quests } from './data/quests.ts';
 import { combinationFor } from './data/combinations.ts';
+import { INSPECT_TEXT, inspectable } from './data/inspect.ts';
 import type { QuestDef, QuestItem, QuestStage } from './data/quests.ts';
 import { Dialogue } from './ui/dialogue.ts';
 import { INVENTORY_CAPACITY } from './systems/inventory.ts';
@@ -67,22 +68,6 @@ const BLOCKED_GRACE_TICKS = 3;
  * The right-click verb for each gathering skill. Data rather than a `switch`,
  * so adding Foraging is a row here and a row in `resources.ts`.
  */
-/** What looking closely at a piece of scenery tells you, absent a quest. */
-/**
- * Scenery that can be looked at closely, and what looking says absent a quest.
- *
- * Membership of this table is what makes a thing clickable-to-inspect at all,
- * so a quest that sends the player to look at something must add its kind
- * here or the stage cannot be reached by clicking. That caught the reed wall:
- * its inspect stage was only reachable because a test set the action directly.
- */
-const INSPECT_TEXT: Readonly<Record<string, string>> = {
-  well: 'The village well. The water is a long way down, and further than it used to be.',
-  thicket: 'Dead reed, standing upright. It died where it stood and never fell.',
-  stone_box: 'A stone box, set in the pool. Placed, not dropped.',
-  rubble: 'A fall of loose stone. The edges of it were squared by hand.'
-};
-
 const GATHER_VERBS: Readonly<Partial<Record<SkillId, string>>> = {
   woodcutting: 'Chop down',
   mining: 'Mine',
@@ -253,6 +238,7 @@ export class Game implements World {
     // 2. Movement
     this.player.stepMovement(this);
     this.unstickPlayer();
+    this.applyHazard();
     for (const npc of this.npcs) {
       if (!npc.dead) npc.stepMovement(this);
     }
@@ -345,6 +331,37 @@ export class Game implements World {
       this.resolveTalk(action.target);
     }
   }
+
+  /**
+   * Bleed health for standing somewhere that hurts.
+   *
+   * Applied after movement, so a tile crossed in a single tick still costs --
+   * the road is priced by how far you walk through it, not by where you stop.
+   * Dying here is a real outcome: it is why the quest that opens it says to
+   * bring food, and why it is the last thing in the phase.
+   */
+  private applyHazard(): void {
+    const p = this.player;
+    if (p.dead) return;
+
+    const hazard = this.map.terrainInfo(p.x, p.y).hazard;
+    if (!hazard) { this.hazardWarned = false; return; }
+
+    if (!this.hazardWarned) {
+      this.ui.message('The water is bitterly cold. You cannot stay in it long.', 'bad');
+      this.hazardWarned = true;
+    }
+
+    p.addHitsplat(hazard);
+    p.damage(hazard);
+    audio.play('hurt');
+
+    if (!p.isAlive()) this.handlePlayerDeath();
+    this.ui.dirty = true;
+  }
+
+  /** So the cold-water warning is said once per wade, not once per tick. */
+  private hazardWarned = false;
 
   /** Tiles that are walkable but currently have somebody standing on them. */
   private readonly occupiedByMob = (x: number, y: number): boolean =>
@@ -835,6 +852,15 @@ export class Game implements World {
       this.openTheSallows();
     }
 
+    // Same shape at the road head: the reeds come down when they are cut, and
+    // the stage straight after asks the player to walk the causeway. Matched on
+    // the tile as well as the type, because this quest has two inspect stages
+    // and only the first one is a gate.
+    if (def.id === 'sunken_road' && stage.goal.type === 'inspect' &&
+        stage.goal.x === ROAD_ENTRANCE.x && stage.goal.y === ROAD_ENTRANCE.y) {
+      this.openTheRoad();
+    }
+
     // Handed over before the next stage is set, so a stage that supplies the
     // tool for the one after it cannot leave the player unable to continue.
     for (const item of stage.gives ?? []) this.giveQuestItem(item);
@@ -946,6 +972,7 @@ export class Game implements World {
     // waiting for completion here would re-seal it under someone standing
     // in it.
     if (this.quests.stageOf('cartographers_error') >= 3) this.openTheSallows();
+    if (this.quests.stageOf('sunken_road') >= 3) this.openTheRoad();
 
     const vigil = getQuest('vigil');
     if (vigil && this.quests.isComplete(vigil)) this.player.knowsSpells = true;
@@ -970,6 +997,11 @@ export class Game implements World {
     this.player.knowsSpells = true;
     this.player.selectedSpell ??= 'ember_spark';
     this.ui.dirty = true;
+  }
+
+  /** Cut the reed at the head of the causeway. */
+  private openTheRoad(): void {
+    this.map.scenery[this.map.idx(ROAD_ENTRANCE.x, ROAD_ENTRANCE.y)] = null;
   }
 
   /** Cut back the dead reed across the fen path. */
@@ -1594,7 +1626,7 @@ export class Game implements World {
       return;
     }
 
-    if (scenery && INSPECT_TEXT[scenery.kind] !== undefined) {
+    if (scenery && inspectable(scenery.kind)) {
       p.clearPath();
       p.setAction({ type: 'inspect', x: tile.x, y: tile.y });
       this.renderer.setClickMarker(tile.x, tile.y, 'move');

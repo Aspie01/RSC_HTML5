@@ -20,7 +20,9 @@ export const Terrain = {
   Path: 3,
   Water: 4,
   Sand: 5,
-  Stone: 6
+  Stone: 6,
+  /** Walkable, and it costs health every tick you stand in it. */
+  Floodwater: 7
 } as const;
 
 export type Terrain = (typeof Terrain)[keyof typeof Terrain];
@@ -29,11 +31,19 @@ export interface TerrainInfo {
   readonly top: string;
   readonly side: string;
   readonly walk: boolean;
+  /**
+   * Health lost per tick spent standing on it. Absent means none.
+   *
+   * A hazard is deliberately not a wall: the whole point of the Sunken Road is
+   * that it can be crossed, at a price, by someone who brought food. Blocking
+   * it would be a locked door wearing a costume.
+   */
+  readonly hazard?: number;
 }
 
 export type SceneryKind =
   | 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil' | 'fishing_spot'
-  | 'well' | 'rubble' | 'sand_bank' | 'thicket' | 'stone_box';
+  | 'well' | 'rubble' | 'sand_bank' | 'thicket' | 'stone_box' | 'descent';
 
 export interface Scenery {
   readonly kind: SceneryKind;
@@ -62,7 +72,8 @@ export const TERRAIN_INFO: Record<Terrain, TerrainInfo> = {
   [Terrain.Path]:      { top: '#9a8560', side: '#6b5c42', walk: true },
   [Terrain.Water]:     { top: '#2f5f8a', side: '#1e3f5e', walk: false },
   [Terrain.Sand]:      { top: '#c2ad78', side: '#8b7a54', walk: true },
-  [Terrain.Stone]:     { top: '#8a8a8a', side: '#5e5e5e', walk: true }
+  [Terrain.Stone]:     { top: '#8a8a8a', side: '#5e5e5e', walk: true },
+  [Terrain.Floodwater]: { top: '#3f6f7a', side: '#26454e', walk: true, hazard: 1 }
 };
 
 /** Deterministic PRNG (mulberry32), so the generated world never shifts. */
@@ -248,6 +259,24 @@ const SALLOW_POOLS: ReadonlyArray<readonly [number, number]> = [
  * the edge is not a gap, it is a cupboard.
  */
 export const SALLOWS_ENTRANCE = { x: 32, y: 44 } as const;
+
+/**
+ * The Sunken Road: a causeway running east out of the fen and under the lake.
+ *
+ * Every tile of it is floodwater, so crossing costs health the whole way. It is
+ * short on purpose -- a long hazard is not more interesting than a short one,
+ * it is only more food -- and it ends at a descent that goes down rather than
+ * on, which is where the Drowned Interior will be.
+ */
+const SUNKEN_ROAD: ReadonlyArray<readonly [number, number]> = [
+  [45, 43], [46, 43], [46, 44], [47, 44]
+];
+
+/** The tile that seals the road. Cleared when The Sunken Road completes. */
+export const ROAD_ENTRANCE = { x: 45, y: 43 } as const;
+
+/** Where the road stops going east and starts going down. */
+export const ROAD_DESCENT = { x: 47, y: 44 } as const;
 
 /**
  * Fishing spots, all placed so that a pier or shore tile sits beside them.
@@ -493,6 +522,13 @@ export function generateMap(): GameMap {
     }
   }
   map.setScenery(SALLOWS_ENTRANCE.x, SALLOWS_ENTRANCE.y, { kind: 'thicket', blocks: true });
+
+  // The causeway east. Laid after the reed wall so it cuts through it, and the
+  // wall tile it passes through is put back as thicket -- that is the gate the
+  // quest opens, and until then the road is visible and unreachable.
+  for (const [rx, ry] of SUNKEN_ROAD) map.setTerrain(rx, ry, Terrain.Floodwater);
+  map.setScenery(ROAD_ENTRANCE.x, ROAD_ENTRANCE.y, { kind: 'thicket', blocks: true });
+  map.setScenery(ROAD_DESCENT.x, ROAD_DESCENT.y, { kind: 'descent', blocks: false });
 
   // Somebody put the ledger pages where nothing rots. The box does not block:
   // the pool under it already does, and it has to stay clickable from the bank.
