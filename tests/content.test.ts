@@ -22,7 +22,7 @@ import {
 } from '../src/data/resources.ts';
 import * as XP from '../src/data/xp.ts';
 import { SKILL_LIST } from '../src/systems/skills.ts';
-import { generateMap } from '../src/world/map.ts';
+import { generateMap, INTERIOR_STAIR, VAULT_SEAL, VAULT_FLOOR } from '../src/world/map.ts';
 import { find } from '../src/world/pathfind.ts';
 
 /** One generated world, shared by the tests that need to look at it. */
@@ -359,6 +359,68 @@ test('a passage is anchored to scenery that can be clicked', () => {
       inspectable(scenery.kind),
       `passage sits on a "${scenery.kind}", which cannot be clicked to inspect`
     );
+  }
+});
+
+test('the vault is sealed until one tile of it is cleared', () => {
+  // Same shape as the Cut: a quest removes one piece of scenery and a region
+  // opens. Worth a test because the seal is a hand-placed run of tiles and a
+  // one-tile gap anywhere in it would open the vault to anyone who wandered
+  // west -- silently, since nothing else would notice.
+  const start = { x: INTERIOR_STAIR.x, y: INTERIOR_STAIR.y };
+
+  assert.equal(
+    find(map, start.x, start.y, VAULT_FLOOR.x, VAULT_FLOOR.y).length, 0,
+    'the vault can be walked into before the quest opens it'
+  );
+
+  // The seal itself must be inspectable, since a quest stage sends the player
+  // to look at it, and something must be standable beside it to do that from.
+  const seal = map.sceneryAt(VAULT_SEAL.x, VAULT_SEAL.y);
+  assert.ok(seal?.blocks, 'the seal does not block');
+  assert.ok(inspectable(seal.kind), `the seal is a "${seal.kind}", which cannot be inspected`);
+  assert.ok(
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].some(
+      ([dx, dy]) => map.isWalkable(VAULT_SEAL.x + dx, VAULT_SEAL.y + dy)
+    ),
+    'there is nowhere to stand to inspect the seal'
+  );
+
+  // Clearing that one tile is enough, and the floor behind it is dry -- the
+  // fight happens there, and a hazard floor would make it a timer instead.
+  const opened = generateMap();
+  opened.scenery[opened.idx(VAULT_SEAL.x, VAULT_SEAL.y)] = null;
+  assert.ok(
+    find(opened, start.x, start.y, VAULT_FLOOR.x, VAULT_FLOOR.y).length > 0,
+    'clearing the seal does not open a way in'
+  );
+  assert.equal(
+    opened.terrainInfo(VAULT_FLOOR.x, VAULT_FLOOR.y).hazard, undefined,
+    'the vault floor bleeds health, so the fight in it is a timer'
+  );
+});
+
+test('the adamantine under the interior can be reached and worked from dry land', () => {
+  // The islands moved when the vault was carved out of the west end. Every
+  // rock needs somewhere dry to stand beside it and a route there from the
+  // stair, or tier 5's ore is decorative.
+  for (let y = 41; y <= 47; y++) {
+    for (let x = 2; x <= 16; x++) {
+      if (map.sceneryAt(x, y)?.resource !== 'adamantine') continue;
+
+      const dry = ([ax, ay]: readonly [number, number]): boolean =>
+        map.isWalkable(ax, ay) && map.terrainInfo(ax, ay).hazard === undefined;
+
+      const stands = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const)
+        .map(([dx, dy]) => [x + dx, y + dy] as const)
+        .filter(dry);
+
+      assert.ok(stands.length > 0, `adamantine at (${x},${y}) can only be mined from the water`);
+      assert.ok(
+        stands.some(([ax, ay]) => find(map, INTERIOR_STAIR.x, INTERIOR_STAIR.y, ax, ay).length > 0),
+        `adamantine at (${x},${y}) cannot be reached from the stair`
+      );
+    }
   }
 });
 

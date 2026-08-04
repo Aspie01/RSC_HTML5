@@ -166,6 +166,23 @@ export const npcs = {
     ]
   }),
 
+  // The Last Warden. Four phases, which is the only thing that makes this a
+  // harder fight than the Ninth rather than a longer one -- it is not much
+  // stronger at any single moment, it just has one more moment than you have
+  // planned for.
+  the_last_warden: npc('the_last_warden', 'The Last Warden', {
+    level: 94, hitpoints: 120,
+    attack: 52, strength: 34, defence: 50,
+    attackBonus: 62, strengthBonus: 40, defenceBonus: 70,
+    speed: 5, aggressive: false, wanderRadius: 0, respawnTicks: 120,
+    colour: '#3a3f52', accent: '#c9b87a', size: 1.55,
+    drops: [
+      { id: 'adamantine_ore', qty: [4, 9], weight: 100 },
+      { id: 'coins', qty: [600, 1800], weight: 70 },
+      { id: 'adamantine_bar', qty: [1, 2], weight: 30 }
+    ]
+  }),
+
   ivo: npc('ivo', 'Ivo Rennick', {
     talkable: true, attackable: false, wanderRadius: 0,
     colour: '#5f4a5a', accent: '#d0c4b0', size: 0.98

@@ -295,10 +295,16 @@ const INTERIOR_DRY: ReadonlyArray<readonly [number, number]> = [
   // The stair, and a spit of standing ground around it.
   [8, 44], [8, 43], [7, 44], [9, 44], [8, 45],
   // Islands, so the region is crossed in hops rather than one long wade.
-  [3, 43], [4, 42], [5, 42], [4, 43],
-  [12, 42], [13, 42], [13, 43],
+  [5, 42], [5, 43], [6, 43],
+  [11, 42], [12, 42], [13, 42], [13, 43],
   [5, 46], [6, 46],
   [11, 46], [12, 46],
+  // The vault, west of the fall. Dry, and sealed off until Quest 20 clears
+  // the stone -- being dry behind a wall costs nothing and means the fight
+  // in it is a fight rather than a drowning.
+  [2, 41], [3, 41], [2, 42], [3, 42], [2, 43], [3, 43],
+  [2, 44], [3, 44], [2, 45], [3, 45], [2, 46], [3, 46],
+  [2, 47], [3, 47],
   // The eastern floor, where the Ninth stands. Deliberately a proper room
   // rather than an island: a boss fought while bleeding a hitpoint a tick to
   // the floor is not a fight, it is a timer, and the fight is meant to be the
@@ -313,6 +319,16 @@ const INTERIOR_DRY: ReadonlyArray<readonly [number, number]> = [
 export const INTERIOR_FLOOR = { x: 15, y: 44 } as const;
 
 /**
+ * The fall of stone sealing the vault at the west end, and the floor behind it.
+ *
+ * Same shape as the Cut: a quest clears one tile and a region opens. The
+ * difference is that this one is inspected first -- The Last Warden sends the
+ * player to look at the fall before anybody decides to move it.
+ */
+export const VAULT_SEAL = { x: 4, y: 44 } as const;
+export const VAULT_FLOOR = { x: 2, y: 44 } as const;
+
+/**
  * Adamantine, on the islands rather than the floor.
  *
  * Tier 5's ore is here and nowhere else, which is what makes the interior a
@@ -320,7 +336,7 @@ export const INTERIOR_FLOOR = { x: 15, y: 44 } as const;
  * on the hops, not in the boss's room, so mining it is a wade and not a fight.
  */
 const INTERIOR_ORE: ReadonlyArray<readonly [number, number]> = [
-  [3, 43], [4, 42], [13, 42], [5, 46], [12, 46]
+  [5, 42], [11, 42], [13, 42], [5, 46], [12, 46]
 ];
 
 /** Where the stair back up stands. */
@@ -573,6 +589,12 @@ export function generateMap(): GameMap {
   map.setScenery(INTERIOR_STAIR.x, INTERIOR_STAIR.y, { kind: 'descent', blocks: false });
   // The wall the Ninth stands in front of. Quest 19 sends you to read it.
   map.setScenery(16, 44, { kind: 'tally', blocks: true });
+
+  // The fall that seals the vault: a solid wall from the north edge to the
+  // south, so the only way west is through the one tile a quest can clear.
+  for (let y = 41; y <= 47; y++) {
+    map.setScenery(VAULT_SEAL.x, y, { kind: 'rubble', blocks: true });
+  }
 
   for (const [ox, oy] of INTERIOR_ORE) {
     map.setScenery(ox, oy, { kind: 'rock', blocks: true, resource: 'adamantine' });

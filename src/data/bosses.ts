@@ -65,6 +65,41 @@ export const bosses: readonly BossDef[] = [
         defence: 12, defenceBonus: 6, strength: 44, strengthBonus: 64, speed: 3
       }
     ]
+  },
+
+  // The Last Warden. Four phases against the Ninth's three, and that is the
+  // whole of what "multi-stage" buys: the fight is not harder at any single
+  // moment, it just has one more moment in it than the last one did.
+  //
+  // The shape is the reverse of the Ninth's on purpose. This one opens fast
+  // and unarmoured, slows down and armours up in the middle, and ends slow and
+  // enormous. A player who learned "outlast the front, race the back" on the
+  // Ninth and applies it here runs out of food in the wrong half -- which is
+  // the argument for having a second boss at all.
+  {
+    npcId: 'the_last_warden',
+    phases: [
+      {
+        at: 1.0,
+        say: 'It stands up without hurrying, the way somebody does who has been expecting you for a very long time.',
+        defence: 30, defenceBonus: 24, strength: 40, strengthBonus: 54, speed: 4
+      },
+      {
+        at: 0.7,
+        say: 'It stops giving ground. Whatever it is wearing under all that has stopped being ceremonial.',
+        defence: 50, defenceBonus: 70, strength: 34, strengthBonus: 40, speed: 5
+      },
+      {
+        at: 0.4,
+        say: '"Nine," it says, as though correcting you. "There were nine of us."',
+        defence: 38, defenceBonus: 44, strength: 48, strengthBonus: 70, speed: 4
+      },
+      {
+        at: 0.15,
+        say: 'It puts everything it has left into one arm, and stops defending itself at all.',
+        defence: 8, defenceBonus: 0, strength: 62, strengthBonus: 96, speed: 6
+      }
+    ]
   }
 ];
 

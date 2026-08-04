@@ -14,7 +14,7 @@ import type {
   EquipSlot, ItemStack, PlayerAction, Point, SkillId, StationKind, World
 } from './types.ts';
 import type { GroundItem } from './systems/ground.ts';
-import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE, SALLOWS_ENTRANCE, ROAD_ENTRANCE, INTERIOR_FLOOR } from './world/map.ts';
+import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE, SALLOWS_ENTRANCE, ROAD_ENTRANCE, INTERIOR_FLOOR, VAULT_SEAL, VAULT_FLOOR } from './world/map.ts';
 import { GroundItems } from './systems/ground.ts';
 import { WorldObjects } from './systems/objects.ts';
 import { Player } from './entities/player.ts';
@@ -915,6 +915,13 @@ export class Game implements World {
       this.summonTheNinth();
     }
 
+    // The fall moves when Maren says it may, which is the stage before the
+    // kill -- the same reason as the Ninth. A kill goal against something
+    // still behind a wall is a quest that cannot be finished.
+    if (def.id === 'the_last_warden' && this.quests.stageOf(def.id) >= 4) {
+      this.openTheVault();
+    }
+
     // Handed over before the next stage is set, so a stage that supplies the
     // tool for the one after it cannot leave the player unable to continue.
     for (const item of stage.gives ?? []) this.giveQuestItem(item);
@@ -1031,6 +1038,7 @@ export class Game implements World {
     // Same reasoning: the Ninth is summoned partway through Nine Names, and
     // the stage after that is killing it. It stays once it has been called.
     if (this.quests.stageOf('nine_names') >= 4) this.summonTheNinth();
+    if (this.quests.stageOf('the_last_warden') >= 4) this.openTheVault();
 
     const vigil = getQuest('vigil');
     if (vigil && this.quests.isComplete(vigil)) this.player.knowsSpells = true;
@@ -1084,6 +1092,21 @@ export class Game implements World {
   private summonTheNinth(): void {
     if (this.npcs.some((n) => n.def.id === 'the_ninth')) return;
     this.npcs.push(new Npc('the_ninth', INTERIOR_FLOOR.x, INTERIOR_FLOOR.y));
+  }
+
+  /**
+   * Move the fall at the west end, and put what was behind it behind it.
+   *
+   * One tile of the wall comes out, which is enough to walk through and not
+   * enough to make the vault feel opened. The Warden is placed at the same
+   * moment rather than earlier: the room is dry and reachable the instant the
+   * stone moves, and an empty vault would answer the quest's question before
+   * the quest does.
+   */
+  private openTheVault(): void {
+    this.map.scenery[this.map.idx(VAULT_SEAL.x, VAULT_SEAL.y)] = null;
+    if (this.npcs.some((n) => n.def.id === 'the_last_warden')) return;
+    this.npcs.push(new Npc('the_last_warden', VAULT_FLOOR.x, VAULT_FLOOR.y));
   }
 
   private freeTileBeside(x: number, y: number): Point | null {

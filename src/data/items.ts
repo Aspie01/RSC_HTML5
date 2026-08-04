@@ -529,6 +529,19 @@ export const items = {
   adamantine_platebody: item('adamantine_platebody', 'Adamantine platebody', { value: 2100,
     slot: 'body', colour: '#4a6b62', shape: 'plate',
     bonuses: { defence: 47 }
+  }),
+
+  // The first thing that goes in the cape slot, which is most of why it is
+  // worth having: it is not a better version of something, it is a slot that
+  // was empty until now. Small bonuses across every style, deliberately, so it
+  // is worn by an archer and a mage as readily as by a swordsman.
+  //
+  // Valueless. No shop takes it and no shop should -- it is the last thing a
+  // dead institution issued and there is exactly one.
+  wardens_seal: item('wardens_seal', "Warden's seal", {
+    slot: 'cape', colour: '#7a6a3f', shape: 'blob',
+    bonuses: { attack: 6, strength: 5, defence: 9, ranged: 6, magic: 6 },
+    examine: 'Warden of the Reach. There is no Reach and there are no Wardens, and here it is.'
   })
 } as const satisfies Record<string, ItemDef>;
 

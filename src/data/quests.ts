@@ -352,6 +352,98 @@ export const quests: readonly QuestDef[] = [
   // the player is carrying enough food to come back up, because the interior
   // is floodwater almost throughout and the only thing between a visitor and
   // drowning is what they brought.
+  // Quest 20. Maren's, because the Warden thread has been hers since What the
+  // Warden Wrote and handing the end of it to somebody else would be a cheat.
+  //
+  // Five points, and the most of any quest so far. It earns them by being the
+  // one that closes an arc rather than opening one: everything it uses -- the
+  // ledger, the stair, the fall, the phases -- was taught somewhere else.
+  {
+    id: 'the_last_warden',
+    name: 'The Last Warden',
+    // Vitality 35 on top of the two quests, one step above Nine Names.
+    //
+    // Not for flavour. Death here drops the whole pack on a vault floor under
+    // a flooded region, and measured against the tick loop a Vitality 30
+    // character still in blackiron wins this one time in twelve. A player who
+    // took the previous quest's reward and smithed it is fine at 30; one who
+    // did not is walking into a coin-flip that costs them everything they
+    // carried. Five levels turns that into a fight instead of a trap.
+    requires: {
+      quests: ['what_the_warden_wrote', 'nine_names'],
+      skills: { vitality: 35 }
+    },
+    blocked: [
+      { who: 'npc', text: 'Not before the ledger and not before that thing at the wall. I will not hear it out of order.' },
+      { who: 'npc', text: 'And not while you can still be put down by a boar. I have buried enough of this story.' }
+    ],
+    reward: {
+      points: 5,
+      xp: { attack: 2000, strength: 2000, defence: 2000, vitality: 1400 },
+      items: [{ id: 'wardens_seal', qty: 1 }],
+      unlock: "The Warden's seal. There is one, and you are wearing it."
+    },
+    stages: [
+      {
+        journal: 'Maren Ashfall has read the ledger through to the end.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'I have finished it. The ledger. All of it, including the part I have been not reading for a fortnight.' },
+          { who: 'npc', text: 'The Wardens did not fail during the flood. They were still working eleven years after it, from underneath. There is a vault and the entries stop mid-page.' },
+          { who: 'player', text: 'Stop, or end?' },
+          { who: 'npc', text: 'Stop. There is half a word. And the last name signing off on it is the ninth one -- the one with half a line through it.' },
+          { who: 'npc', text: 'West end of the interior, past the deep part. The ledger says a door. Go and see what there is instead, because I promise you there is not a door.' }
+        ]
+      },
+      {
+        journal: 'Find the vault at the west end of the drowned interior.',
+        npc: 'maren',
+        goal: { type: 'inspect', x: 4, y: 44 },
+        waiting: [
+          { who: 'npc', text: 'West. Keep west past the last of the standing ground and you will come up against it.' }
+        ],
+        done: [
+          { who: 'player', text: 'Not a door. A fall of stone, floor to ceiling, and the edges of it were squared by hand before they were broken.' },
+          { who: 'player', text: 'This did not collapse. Somebody brought it down, and they did it from this side.' }
+        ]
+      },
+      {
+        journal: 'Tell Maren Ashfall what is at the west end.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'From this side. Say that again to yourself and then tell me who was left on the other one.' },
+          { who: 'player', text: 'They sealed someone in.' },
+          { who: 'npc', text: 'They sealed the last of themselves in, and then eight of them went out and got crossed off a list one at a time, and the ninth never came back to open it.' },
+          { who: 'npc', text: 'Eleven years, and then the flood, and then a hundred more. Whatever is behind that stone has been waiting the entire time and it does not know any of that.' },
+          { who: 'player', text: 'I can move the stone.' },
+          { who: 'npc', text: 'I know you can. I am asking you to understand what you are opening, because I do not think it will be grateful and I do not think it will be reasonable.' },
+          { who: 'npc', text: 'It will not fight like the last one. That thing shed its armour as it went -- this one will put armour ON when it stops enjoying itself. Do not spend everything early because the middle is worse than the start.' }
+        ]
+      },
+      {
+        journal: 'Clear the fall at the west end and end what is behind it.',
+        npc: 'maren',
+        goal: { type: 'kill', npcId: 'the_last_warden', count: 1 },
+        waiting: [
+          { who: 'npc', text: 'The stone will move now that you know what is under it. Slow in the middle. Eat before you need to.' }
+        ],
+        done: [
+          { who: 'npc', text: 'You are not going to tell me what it said, are you.' },
+          { who: 'player', text: 'No.' },
+          { who: 'npc', text: 'Good. I would only write it down.' },
+          { who: 'npc', text: 'That is the last of them, then. Not the last one alive -- the last one at all, the office and everyone in it, finished in a room nobody could find.' },
+          { who: 'npc', text: 'It was carrying its seal. They all were, apparently; it is how they knew each other. Eight of those are at the bottom of the bay and this is the ninth.' },
+          { who: 'npc', text: 'Wear it. Not because it means anything -- it does not, there is nothing left for it to mean. Wear it because somebody should be carrying one, and there is nobody else.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'You still have it on. I notice. I am not going to say anything about it and I have now said something about it twice.' }
+    ]
+  },
+
   // Quest 19. The first boss, and the quest exists to make it survivable
   // rather than to make it hard: stage two sends the player to read the wall
   // and stage three is Iselle explaining, in order, what the thing will do.

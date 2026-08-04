@@ -118,6 +118,35 @@ test('a boss comes back at phase one', () => {
   assert.equal(n.combatStats().defence, getBoss('the_ninth')?.phases[0]?.defence);
 });
 
+test('the Last Warden armours up in the middle and drops it at the end', () => {
+  // The whole argument for a second boss is that it is not the first one
+  // again: the Ninth sheds armour as it goes, this one puts it on. A player
+  // who learned "outlast the front, race the back" has to unlearn it, and if
+  // this ever quietly becomes monotonic that lesson disappears.
+  const boss = getBoss('the_last_warden');
+  assert.ok(boss);
+
+  const defences = boss.phases.map((p) => p.defenceBonus ?? 0);
+  const opening = defences[0] ?? 0;
+  const middle = Math.max(...defences);
+  const last = defences[defences.length - 1] ?? 0;
+
+  assert.ok(middle > opening, 'the Last Warden never armours up');
+  assert.ok(last < opening, 'the Last Warden does not end unarmoured');
+  assert.notEqual(defences.indexOf(middle), 0, 'its hardest armour is its opening');
+  assert.notEqual(defences.indexOf(middle), defences.length - 1, 'it armours up at the end');
+
+  // And it must be the harder fight of the two, or the order makes no sense.
+  const ninth = getNpc('the_ninth');
+  const warden = getNpc('the_last_warden');
+  assert.ok(ninth && warden);
+  assert.ok(warden.hitpoints > ninth.hitpoints, 'the Last Warden is not the longer fight');
+  assert.ok(
+    (getBoss('the_last_warden')?.phases.length ?? 0) > (getBoss('the_ninth')?.phases.length ?? 0),
+    'the Last Warden does not have more stages than the Ninth'
+  );
+});
+
 test('an ordinary NPC has no phases and never changes', () => {
   const goblin = new Npc('goblin', 0, 0);
   assert.equal(goblin.phase, -1);
