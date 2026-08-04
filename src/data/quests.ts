@@ -344,6 +344,60 @@ export const quests: readonly QuestDef[] = [
     ]
   },
 
+  // Quest 17. Phase E opens. The stair has been standing at the end of the
+  // causeway since The Sunken Road ended with somebody deciding not to go down
+  // it; this is the quest where they go down it.
+  //
+  // The gate is a preparation, not a level. Maren will not open the way until
+  // the player is carrying enough food to come back up, because the interior
+  // is floodwater almost throughout and the only thing between a visitor and
+  // drowning is what they brought.
+  {
+    id: 'what_the_tide_kept',
+    name: 'What the Tide Kept',
+    requires: { quests: ['sunken_road'] },
+    blocked: [
+      { who: 'npc', text: 'The road first. I am not discussing the stair with somebody who has not stood on it.' }
+    ],
+    reward: {
+      points: 4,
+      xp: { vitality: 700, magic: 400, foraging: 300 },
+      unlock: 'The stair will carry you now. Down is a place, and it is under all of this.'
+    },
+    stages: [
+      {
+        journal: 'Maren Ashfall has decided somebody is going down the stair.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'I have been awake about this for eleven days and I have stopped pretending that is going to change.' },
+          { who: 'npc', text: 'Somebody goes down, or the count runs out. Those are the two things that happen, and only one of them has anybody in it.' },
+          { who: 'player', text: 'I will go.' },
+          { who: 'npc', text: 'I know. I have known since you came back up and said you were not going today, because that is not a thing you say about somewhere you are never going.' },
+          { who: 'npc', text: 'So listen. It is water down there, nearly all of it, and cold the way the road was cold. You do not fight cold, you outlast it.' },
+          { who: 'npc', text: 'Bring me ten cooked bream. Not for me -- I want to see ten, in your hands, before I let you at that stair. Anything less and you are going down to stay.' }
+        ]
+      },
+      {
+        journal: 'Bring Maren Ashfall 10 cooked bream, so she knows you can come back up.',
+        npc: 'maren',
+        goal: { type: 'give', items: [{ id: 'cooked_bream', qty: 10 }] },
+        waiting: [
+          { who: 'npc', text: 'Ten. Deep water off the pier head, and cook them -- I am counting cooked ones and you know it.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Ten. Right.' },
+          { who: 'npc', text: 'Keep them. That was never a delivery, it was a demonstration, and you have just proved it to yourself rather than to me.' },
+          { who: 'npc', text: 'Go down. Come back up. In that order and with no more than a day between them, and if you find nothing at all I will be delighted.' }
+        ],
+        gives: [{ id: 'cooked_bream', qty: 10 }]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'You have been down. You keep going down. I do not ask any more and you do not offer, which suits us both.' }
+    ]
+  },
+
   // Quest 16. The one quest in this phase with nothing to do with the Wardens,
   // and it is better for it -- after four quests of the water going somewhere,
   // a man who wants to teach you a trade is a change of air.

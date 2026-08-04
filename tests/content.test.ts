@@ -16,12 +16,14 @@ import { quests, getQuest } from '../src/data/quests.ts';
 import { shops } from '../src/data/shops.ts';
 import { combinations, combinationFor } from '../src/data/combinations.ts';
 import { inspectable } from '../src/data/inspect.ts';
+import { transitions } from '../src/data/transitions.ts';
 import {
   gatherables, bars, recipes, burnables, smithables, fletchables
 } from '../src/data/resources.ts';
 import * as XP from '../src/data/xp.ts';
 import { SKILL_LIST } from '../src/systems/skills.ts';
 import { generateMap } from '../src/world/map.ts';
+import { find } from '../src/world/pathfind.ts';
 
 /** One generated world, shared by the tests that need to look at it. */
 const map = generateMap();
@@ -307,5 +309,49 @@ test('anything a quest sends you to look at is clickable', () => {
         `${q.id} inspects a "${scenery.kind}", which cannot be clicked to inspect`
       );
     }
+  }
+});
+
+// --------------------------------------------------------------------------
+// Passages
+// --------------------------------------------------------------------------
+
+test('every passage lands somewhere walkable, and has a way back', () => {
+  for (const t of transitions) {
+    assert.ok(
+      map.isWalkable(t.to.x, t.to.y),
+      `passage to (${t.to.x},${t.to.y}) lands on something unwalkable`
+    );
+
+    // A one-way door is how a player ends up somewhere they cannot leave.
+    const back = transitions.find(
+      (o) => o.from.x === t.to.x && o.from.y === t.to.y
+    );
+    assert.ok(back, `passage to (${t.to.x},${t.to.y}) has no way back`);
+    assert.equal(back!.to.x, t.from.x, 'the return trip does not come back here');
+    assert.equal(back!.to.y, t.from.y, 'the return trip does not come back here');
+  }
+});
+
+test('a passage is anchored to scenery that can be clicked', () => {
+  for (const t of transitions) {
+    const scenery = map.sceneryAt(t.from.x, t.from.y);
+    assert.ok(scenery, `passage at (${t.from.x},${t.from.y}) has nothing to click`);
+    assert.ok(
+      inspectable(scenery.kind),
+      `passage sits on a "${scenery.kind}", which cannot be clicked to inspect`
+    );
+  }
+});
+
+test('the far side of a gated passage is not reachable on foot', () => {
+  // The whole point of a seam is that the two ends are not connected on the
+  // grid. If they were, the gate would be decorative.
+  for (const t of transitions) {
+    if (!t.quest) continue;
+    assert.equal(
+      find(map, t.from.x, t.from.y, t.to.x, t.to.y).length, 0,
+      `(${t.from.x},${t.from.y}) can walk to its own destination, so the gate does nothing`
+    );
   }
 });

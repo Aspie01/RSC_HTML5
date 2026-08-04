@@ -279,6 +279,32 @@ export const ROAD_ENTRANCE = { x: 45, y: 43 } as const;
 export const ROAD_DESCENT = { x: 47, y: 44 } as const;
 
 /**
+ * The Drowned Interior: what is at the bottom of the stair.
+ *
+ * Physically it is a walled block in the south-west, because the map is one
+ * flat grid with no levels -- the descent at the pier head is a seam that puts
+ * you here, and the stair at (8,44) puts you back. Nothing connects the two
+ * areas on the grid, so a player can only ever arrive by the passage.
+ *
+ * It is mostly floodwater. The Sunken Road charged a hitpoint a tick to cross
+ * four tiles; this is the same price over a whole region, which is what makes
+ * it the last place in the game rather than the next one.
+ */
+const INTERIOR_DRY: ReadonlyArray<readonly [number, number]> = [
+  // The stair, and a spit of standing ground around it.
+  [8, 44], [8, 43], [7, 44], [9, 44], [8, 45],
+  // Islands, so the region is crossed in hops rather than one long wade.
+  [4, 42], [5, 42], [4, 43],
+  [12, 42], [13, 42], [13, 43],
+  [5, 46], [6, 46],
+  [11, 46], [12, 46],
+  [15, 44], [15, 45]
+];
+
+/** Where the stair back up stands. */
+export const INTERIOR_STAIR = { x: 8, y: 44 } as const;
+
+/**
  * Fishing spots, all placed so that a pier or shore tile sits beside them.
  * Shallows hug the sand; the deep water is out at the pier head, which is what
  * makes walking to the end of it worth doing at Fishing 10.
@@ -505,6 +531,22 @@ export function generateMap(): GameMap {
   // here killed a test woodcutter mid-chop, which is precisely the failure the
   // goblins in the Cut already taught.
   spawnCluster(map, 'boar', 24, 42, 28, 44, 3, rng);
+
+  // The Drowned Interior. Flooded throughout except for the islands, and
+  // walled on every side -- the only way in or out is the stair, which is the
+  // point: a player cannot wander in early and a player cannot wander out
+  // when they are three hitpoints from the surface.
+  map.fillRect(2, 41, 16, 47, Terrain.Floodwater);
+  for (const [dx, dy] of INTERIOR_DRY) map.setTerrain(dx, dy, Terrain.Stone);
+
+  for (let y = 40; y <= 47; y++) {
+    for (let x = 1; x <= 17; x++) {
+      const edge = x === 1 || x === 17 || y === 40;
+      if (edge && map.inBounds(x, y)) map.setScenery(x, y, { kind: 'rock', blocks: true });
+      else if (y >= 41 && x >= 2 && x <= 16) map.scenery[map.idx(x, y)] = null;
+    }
+  }
+  map.setScenery(INTERIOR_STAIR.x, INTERIOR_STAIR.y, { kind: 'descent', blocks: false });
 
   // The Sallows. Reached along the south road, then east through the reeds.
   map.fillRect(33, 40, 44, 46, Terrain.Dirt);

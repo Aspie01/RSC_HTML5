@@ -39,6 +39,8 @@ import type { ShopDef } from './data/shops.ts';
 import { getQuest, questsForNpc, quests } from './data/quests.ts';
 import { combinationFor } from './data/combinations.ts';
 import { INSPECT_TEXT, inspectable } from './data/inspect.ts';
+import { transitionAt } from './data/transitions.ts';
+import type { TransitionDef } from './data/transitions.ts';
 import type { QuestDef, QuestItem, QuestStage } from './data/quests.ts';
 import { Dialogue } from './ui/dialogue.ts';
 import { INVENTORY_CAPACITY } from './systems/inventory.ts';
@@ -567,7 +569,49 @@ export class Game implements World {
       return;
     }
 
+    // A passage is checked after quests, so a stage that fires at the top of a
+    // stair still gets to speak before the stair takes the player away.
+    const passage = transitionAt(tx, ty);
+    if (passage) { this.usePassage(passage); return; }
+
     this.ui.message(INSPECT_TEXT[scenery.kind] ?? 'You see nothing unusual.');
+  }
+
+  /**
+   * Take a passage to somewhere else on the grid.
+   *
+   * The map has no levels, so "down" is a seam rather than a floor. Everything
+   * mid-flight is dropped for the same reason an imported save clears it: a
+   * path, a target or a queued action all refer to a place the player is no
+   * longer standing in.
+   */
+  private usePassage(passage: TransitionDef): void {
+    const p = this.player;
+
+    if (passage.quest) {
+      const q = getQuest(passage.quest);
+      if (!q || !this.quests.isComplete(q)) {
+        this.ui.message(passage.refused ?? 'You cannot go that way yet.');
+        return;
+      }
+    }
+
+    p.clearPath();
+    p.clearAction();
+    p.target = null;
+    for (const npc of this.npcs) {
+      if (npc.target === p) npc.target = null;
+    }
+
+    p.x = p.prevX = passage.to.x;
+    p.y = p.prevY = passage.to.y;
+
+    // The warning belongs to the wade, and the player has just left it.
+    this.hazardWarned = false;
+
+    audio.play('fire');
+    this.ui.message(passage.message, 'sys');
+    this.ui.dirty = true;
   }
 
   /** Walk to a furnace or anvil, then hand over to its interface. */
