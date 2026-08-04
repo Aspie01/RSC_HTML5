@@ -13,6 +13,7 @@ import type { AttackStyleId, ItemDef, EquipSlot } from '../types.ts';
 import { INVENTORY_CAPACITY, EQUIP_SLOTS } from '../systems/inventory.ts';
 import { SKILL_LIST } from '../systems/skills.ts';
 import { STAT_ROWS, formatPlaytime } from '../systems/stats.ts';
+import { bindPointer, onFirstTouch } from './pointer.ts';
 import { STYLES, previewMaxHit } from '../systems/combat.ts';
 import { getItem } from '../data/items.ts';
 import { burnables, fletchablesFrom } from '../data/resources.ts';
@@ -163,10 +164,27 @@ export class UI {
   }
 
   private bindGlobal(): void {
-    document.addEventListener('mousedown', (e) => {
+    // pointerdown rather than mousedown: on a touch screen the synthesised
+    // mouse event arrives late or not at all, so the menu would stay open
+    // under the next tap and swallow it.
+    //
+    // Capture phase, and that is load-bearing. A mouse right-click opens the
+    // menu during pointerdown on the target; if this ran on the way back up it
+    // would close the menu that the same event had just opened, and right-click
+    // would appear to do nothing. Capturing means this closes the PREVIOUS menu
+    // on the way down, before the new one exists. Long press is unaffected
+    // either way, since it fires on a timer long after the event has finished.
+    document.addEventListener('pointerdown', (e) => {
       if (this.menuOpen && !this.dom.contextMenu.contains(e.target as Node)) {
         this.closeMenu();
       }
+    }, { capture: true });
+
+    // Said once, and only to somebody who has actually touched the screen.
+    // Long press has no on-screen affordance, and a player who never finds it
+    // can walk around and do nothing else.
+    onFirstTouch(() => {
+      this.message('Touch controls: tap to act, press and hold for more options.', 'sys');
     });
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
@@ -305,23 +323,26 @@ export class UI {
           cell.title = def.name;
           if (this.pendingUse === index) cell.classList.add('selected');
 
-          cell.addEventListener('click', () => {
-            // A pending "Use" turns the next click into the second half of a
-            // combination rather than the item's own action.
-            const first = this.pendingUse;
-            if (first !== null) {
-              this.pendingUse = null;
-              if (first !== index && !this.game.combineItems(first, index)) {
-                this.message('Nothing happens.');
+          // Same two verbs as the world: act on it, or ask what you could do.
+          // Long press stands in for right click on a touch screen.
+          bindPointer(cell, {
+            tap: () => {
+              // A pending "Use" turns the next tap into the second half of a
+              // combination rather than the item's own action.
+              const first = this.pendingUse;
+              if (first !== null) {
+                this.pendingUse = null;
+                if (first !== index && !this.game.combineItems(first, index)) {
+                  this.message('Nothing happens.');
+                }
+                this.dirty = true;
+                return;
               }
-              this.dirty = true;
-              return;
+              this.game.defaultItemAction(index);
+            },
+            menu: (_x, _y, clientX, clientY) => {
+              this.openItemMenu(clientX, clientY, index, def);
             }
-            this.game.defaultItemAction(index);
-          });
-          cell.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            this.openItemMenu(e.clientX, e.clientY, index, def);
           });
         }
       }
