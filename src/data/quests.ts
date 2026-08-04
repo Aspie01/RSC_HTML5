@@ -352,6 +352,76 @@ export const quests: readonly QuestDef[] = [
   // the player is carrying enough food to come back up, because the interior
   // is floodwater almost throughout and the only thing between a visitor and
   // drowning is what they brought.
+  // Quest 18. Foraging's only quest, and the one that makes the third tier of
+  // it worth having: saltwort is useless in the pack and the best healing item
+  // in the game once it is in a vial.
+  //
+  // It wants both halves of two earlier quests -- the fen that Cartographer's
+  // Error opened, and the vials Glass and Ash taught -- which is the point.
+  // A Foraging 30 gate alone would have been a wall; this is a convergence.
+  {
+    id: 'alchemists_third_mistake',
+    name: "The Alchemist's Third Mistake",
+    requires: {
+      quests: ['glass_and_ash', 'cartographers_error'],
+      skills: { foraging: 30 }
+    },
+    blocked: [
+      { who: 'npc', text: 'No. Whatever it is, no. Come back when you can tell saltwort from the mud it sits in, and when you know what a vial costs to make.' }
+    ],
+    reward: {
+      points: 3,
+      xp: { foraging: 900, crafting: 350 },
+      items: [{ id: 'saltwort_draught', qty: 4 }],
+      unlock: 'Saltwort steeps in a vial now. It is the warmest thing you can carry into cold water.'
+    },
+    stages: [
+      {
+        journal: 'Ivo Rennick is standing in the fen arguing with a plant.',
+        npc: 'ivo',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Do not say alchemy. I heard you thinking it. Everyone arrives thinking it.' },
+          { who: 'player', text: 'I had not said anything.' },
+          { who: 'npc', text: 'My first mistake was believing there was such a thing. My second was spending nine years on it. Both survivable. Both, in their way, quite pleasant.' },
+          { who: 'npc', text: 'The third was this: I worked out that there is no alchemy, only plants that do what they do, and I kept the notes anyway.' },
+          { who: 'npc', text: 'Because they were right. That is the joke. Nine years of nonsense with one true page in it, and I cannot get at it alone -- my knees are finished and the good stems are out where the water is.' }
+        ]
+      },
+      {
+        journal: 'Bring Ivo Rennick 6 glass vials.',
+        npc: 'ivo',
+        goal: { type: 'give', items: [{ id: 'glass_vial', qty: 6 }] },
+        waiting: [
+          { who: 'npc', text: 'Vials. Six. Sand from the shore, a furnace, and whoever taught you the trick -- I am not going to teach it to you a second time.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Good glass. Thin at the shoulder, which is what you want -- a thick vial cooks the thing inside it.' },
+          { who: 'npc', text: 'Now the stems. Out where I said, and cut them low, at the root. Halfway up is the part that does nothing, and that is the part everyone brings me.' },
+          { who: 'npc', text: 'Five. Do not bring me six to be generous. I will only find a use for it and be up all night.' }
+        ]
+      },
+      {
+        journal: 'Cut 5 saltwort in the Sallows and bring them to Ivo Rennick.',
+        npc: 'ivo',
+        goal: { type: 'give', items: [{ id: 'saltwort', qty: 5 }] },
+        waiting: [
+          { who: 'npc', text: 'Saltwort. Pale, ugly, growing where nothing sensible would. A sickle, and cut low -- I did say.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Ah. Yes. Those are the ones.' },
+          { who: 'npc', text: 'Watch, because I am doing this once. Whole stem, into the vial, and then you leave it alone. That is the entire method. There is no word said over it and nothing turns gold.' },
+          { who: 'player', text: 'That is all of it?' },
+          { who: 'npc', text: 'That is all of it. Nine years, and the true page says "put the plant in the jar".' },
+          { who: 'npc', text: 'Take these four. Drink one when the cold has got into you rather than before -- it is not courage, it is a floor under you, and a floor is only any use once you are falling.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Still steeping? Good. Do not thank me, thank the plant. It was doing this long before either of us turned up to be clever about it.' }
+    ]
+  },
+
   {
     id: 'what_the_tide_kept',
     name: 'What the Tide Kept',

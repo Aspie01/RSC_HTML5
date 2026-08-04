@@ -146,6 +146,11 @@ export const npcs = {
     ]
   }),
 
+  ivo: npc('ivo', 'Ivo Rennick', {
+    talkable: true, attackable: false, wanderRadius: 0,
+    colour: '#5f4a5a', accent: '#d0c4b0', size: 0.98
+  }),
+
   alder: npc('alder', 'Alder Finch', {
     talkable: true, attackable: false, wanderRadius: 0,
     colour: '#4f4a3a', accent: '#cfc4a4', size: 1.0

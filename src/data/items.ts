@@ -16,6 +16,8 @@ interface ItemOpts {
   combatSkill?: import('../types.ts').SkillId;
   ammoTag?: string;
   heals?: number;
+  /** Verb used when consuming it -- data, because a draught is not eaten. */
+  eatVerb?: string;
   tags?: readonly string[];
   value?: number;
   range?: number;
@@ -40,6 +42,7 @@ function item(id: string, name: string, opts: ItemOpts = {}): ItemDef {
     ...(opts.combatSkill ? { combatSkill: opts.combatSkill } : {}),
     ...(opts.ammoTag ? { ammoTag: opts.ammoTag } : {}),
     heals: opts.heals ?? 0,
+    eatVerb: opts.eatVerb ?? 'eat',
     tags: opts.tags ?? [],
     value: opts.value ?? 0
   };
@@ -263,6 +266,13 @@ export const items = {
     examine: 'Warm to hold, and it has not been anywhere near a fire.'
   }),
 
+  // The third Foraging tier. Worthless on its own -- it is only ever an
+  // input, which is what stops the tier being a place to grind for coins.
+  saltwort: item('saltwort', 'Saltwort', { value: 40,
+    colour: '#b8c9b0', shape: 'feather', tags: ['reagent'],
+    examine: 'It grows where nothing grows. That should have been the clue.'
+  }),
+
   // ------------------------------------------------------------------------
   // Crafting: glass
   // ------------------------------------------------------------------------
@@ -284,6 +294,14 @@ export const items = {
   glass_vial: item('glass_vial', 'Glass vial', { value: 30,
     colour: '#bfe6e0', shape: 'vial',
     examine: 'Empty, stoppered, and worth more than the sand it came from.'
+  }),
+
+  // Twice the best fish, and the only healing that is not food. That is the
+  // reward for a Foraging 30 the game otherwise gives no reason to reach, and
+  // it is what makes the Drowned Interior stayable rather than survivable.
+  saltwort_draught: item('saltwort_draught', 'Saltwort draught', { value: 95,
+    colour: '#9fd8c4', shape: 'vial', heals: 14, eatVerb: 'drink',
+    examine: 'Bitter, and it puts the cold back where it came from.'
   }),
 
   smiths_hammer: item('smiths_hammer', "Smith's hammer", {

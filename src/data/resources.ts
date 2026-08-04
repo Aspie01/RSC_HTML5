@@ -128,6 +128,22 @@ export const gatherables = {
     colour: '#a8532c'
   },
 
+  // The third Foraging tier, and the only thing that grows in salt. It is
+  // in the Sallows and nowhere else, so it needs the fen opened first.
+  saltwort: {
+    id: 'saltwort', name: 'Saltwort', skill: 'foraging',
+    level: 30, xp: 85, outputId: 'saltwort',
+    low: 18, high: 100,
+    tool: 'sickle',
+    depleteChance: 0.7, respawnTicks: 60,
+    cue: 'chop',
+    success: 'You cut a stem of {item}.',
+    depleted: 'Cut back to the root. It will take a while.',
+    full: 'Your inventory is too full to hold any more.',
+    noTool: 'You need a sickle to cut this.',
+    colour: '#b8c9b0'
+  },
+
   // Hardwood. The third Woodcutting tier, and the one that teaches respawn:
   // it almost never falls, but when it does it is gone for a very long time,
   // so a grove is worked by rotating between trees rather than camping one.

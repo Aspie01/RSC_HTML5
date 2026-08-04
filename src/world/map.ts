@@ -341,7 +341,9 @@ const QUEST_GIVERS: ReadonlyArray<{ npcId: string; x: number; y: number }> = [
   // South-east, on the road out towards the guards -- where the fighting is.
   { npcId: 'hesk', x: 30, y: 31 },
   // On the south road, in sight of the reeds he cannot account for.
-  { npcId: 'alder', x: 30, y: 38 }
+  { npcId: 'alder', x: 30, y: 38 },
+  // Just inside the fen mouth, where the saltwort is.
+  { npcId: 'ivo', x: 34, y: 44 }
 ];
 
 function spawnCluster(
@@ -575,6 +577,12 @@ export function generateMap(): GameMap {
   // Somebody put the ledger pages where nothing rots. The box does not block:
   // the pool under it already does, and it has to stay clickable from the bank.
   map.setScenery(36, 43, { kind: 'stone_box', blocks: false });
+
+  // Saltwort, deeper in and only here. It is what quest 18 is about and what
+  // makes the Drowned Interior survivable, so it is worth the walk.
+  for (const [sx, sy] of [[39, 45], [43, 42], [35, 46], [41, 43]] as const) {
+    map.setScenery(sx, sy, { kind: 'bush', blocks: false, resource: 'saltwort' });
+  }
 
   // Marshroot likes the wet. A reason to come back that is not the quest.
   for (const [bx, by] of [[34, 41], [38, 43], [42, 41], [37, 46]] as const) {

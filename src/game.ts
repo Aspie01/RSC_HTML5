@@ -1164,6 +1164,10 @@ export class Game implements World {
     const recipe = combinationFor(a.id, b.id);
     if (!recipe) return false;
 
+    // Untaught methods stay silent rather than refusing: a message here would
+    // confirm the two items go together, which is the whole of the secret.
+    if (!this.recipeKnown(recipe)) return false;
+
     if (recipe.skill && recipe.level) {
       if (p.skills.level(recipe.skill) < recipe.level) {
         this.ui.message(recipe.tooLow ?? 'You are not skilled enough for that.', 'bad');
@@ -1578,7 +1582,7 @@ export class Game implements World {
     this.player.inventory.removeSlot(index, 1);
     this.player.heal(def.heals);
     audio.play('eat');
-    this.ui.message(`You eat the ${def.name}. It heals some health.`);
+    this.ui.message(`You ${def.eatVerb} the ${def.name.toLowerCase()}. It heals some health.`);
     this.ui.dirty = true;
   }
 

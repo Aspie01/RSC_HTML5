@@ -23,9 +23,26 @@ export interface CombineDef {
   readonly message: string;
   /** Said when the level is too low. Only needed if `skill` is set. */
   readonly tooLow?: string;
+  /**
+   * Quest that teaches this, if any -- the same gate the furnace recipes use.
+   * A level says "not yet"; a quest says "nobody has shown you how", and an
+   * unheard-of method should not quietly work the first time it is tried.
+   */
+  readonly quest?: string;
 }
 
 export const combinations: readonly CombineDef[] = [
+  {
+    inputs: ['glass_vial', 'saltwort'],
+    output: 'saltwort_draught',
+    outputQty: 1,
+    skill: 'foraging',
+    level: 30,
+    xp: 60,
+    quest: 'alchemists_third_mistake',
+    message: 'The stem goes in whole and the vial goes cloudy around it.',
+    tooLow: 'You do not know how to steep this yet.'
+  },
   {
     inputs: ['ledger_covers', 'sodden_pages'],
     output: 'wardens_ledger',

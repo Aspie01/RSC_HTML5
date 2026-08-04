@@ -286,6 +286,19 @@ test('every combination consumes and produces real items', () => {
   }
 });
 
+test('a quest-gated combination names a quest that exists', () => {
+  // A typo here fails open in the worst direction: recipeKnown() cannot find
+  // the quest, so the method is unlearnable and the quest that teaches it
+  // rewards nothing.
+  for (const c of combinations) {
+    if (!c.quest) continue;
+    assert.ok(
+      quests.some((q) => q.id === c.quest),
+      `combination making ${c.output} is gated on unknown quest "${c.quest}"`
+    );
+  }
+});
+
 test('a combination is found whichever way round it is used', () => {
   for (const c of combinations) {
     const [a, b] = c.inputs;
