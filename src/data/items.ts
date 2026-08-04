@@ -585,6 +585,15 @@ export const items = {
   //
   // Valueless. No shop takes it and no shop should -- it is the last thing a
   // dead institution issued and there is exactly one.
+  // Cosmetic, and it competes with the seal for the same slot on purpose.
+  // Wearing it is a decision to give up real bonuses to look like somebody who
+  // finished, which is the only kind of trophy worth having in a game with
+  // nobody else in it to show it to.
+  wayfarers_cloak: item('wayfarers_cloak', "Wayfarer's cloak", {
+    slot: 'cape', colour: '#5c4a6e', shape: 'blob',
+    examine: 'Heavy, warm, and it has been everywhere you have.'
+  }),
+
   wardens_seal: item('wardens_seal', "Warden's seal", {
     slot: 'cape', colour: '#7a6a3f', shape: 'blob',
     bonuses: { attack: 6, strength: 5, defence: 9, ranged: 6, magic: 6 },

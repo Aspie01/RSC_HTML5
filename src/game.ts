@@ -32,6 +32,7 @@ import type { BarDef, SmithDef, FletchDef } from './data/resources.ts';
 import { rollGather, rollBurn } from './systems/skilling.ts';
 import { SKILL_LIST } from './systems/skills.ts';
 import { Quests } from './systems/quests.ts';
+import { Stats } from './systems/stats.ts';
 import { Shops } from './systems/shop.ts';
 import type { TradeResult } from './systems/shop.ts';
 import { shopForNpc } from './data/shops.ts';
@@ -109,6 +110,20 @@ const RENAMED_SKILLS: Readonly<Record<string, SkillId>> = {
 const V2_TOOLS: readonly string[] = ['bronze_pickaxe', 'hammer'];
 
 /** Ticks between bars at a furnace, and between items at an anvil. */
+/**
+ * Which counter each gathering skill bumps.
+ *
+ * A map rather than a switch, because there is one gather resolver for all
+ * four skills and a switch there would be the thing rule 3 forbids: engine
+ * code that has to be edited when a skill is added.
+ */
+const GATHER_STAT: Partial<Record<SkillId, string>> = {
+  woodcutting: 'felled',
+  mining: 'mined',
+  fishing: 'caught',
+  foraging: 'foraged'
+};
+
 const SMELT_TICKS = 3;
 const SMITH_TICKS = 3;
 
@@ -120,6 +135,7 @@ export class Game implements World {
   readonly npcs: Npc[] = [];
   readonly quests = new Quests();
   readonly shops = new Shops();
+  readonly stats = new Stats();
 
   private readonly renderer: Renderer;
   private readonly ui: UI;
@@ -233,12 +249,20 @@ export class Game implements World {
       return;
     }
 
+    this.stats.ticks++;
+
     // 1. Intent
     this.resolvePlayerAction();
     for (const npc of this.npcs) npc.think(this);
 
     // 2. Movement
+    // Counted as tiles, not as ticks-in-which-you-moved: running covers two
+    // tiles in one tick, so the naive version under-reports by half exactly
+    // when the player is doing the most walking.
+    const wasAt = { x: this.player.x, y: this.player.y };
     this.player.stepMovement(this);
+    const moved = tileDist(wasAt.x, wasAt.y, this.player.x, this.player.y);
+    if (moved > 0) this.stats.bump('steps', moved);
     this.unstickPlayer();
     this.applyHazard();
     for (const npc of this.npcs) {
@@ -329,8 +353,16 @@ export class Game implements World {
     } else if (action.type === 'smith') {
       this.resolveSmith(action.x, action.y, action.productId);
 
-    } else {
+    } else if (action.type === 'talk') {
       this.resolveTalk(action.target);
+
+    } else {
+      // Exhaustiveness. This used to be a bare `else` that assumed anything
+      // unmatched was a talk and read `.target` off it, which meant a new
+      // action variant with no branch here failed as a crash inside
+      // resolveTalk rather than as a compile error. Now it does not compile.
+      const unreachable: never = action;
+      void unreachable;
     }
   }
 
@@ -478,6 +510,7 @@ export class Game implements World {
 
     p.inventory.add(def.outputId, 1);
     audio.play(def.cue);
+    this.stats.bump(GATHER_STAT[def.skill] ?? 'gathered');
     this.announceXp(def.skill, def.xp);
     this.ui.message(
       def.success.replace('{item}', getItem(def.outputId)?.name.toLowerCase() ?? 'something')
@@ -529,9 +562,11 @@ export class Game implements World {
 
     if (rollBurn(level, recipe.stopBurnLevel)) {
       p.inventory.add(recipe.burntId, 1);
+      this.stats.bump('burnt');
       this.ui.message('You accidentally burn the food.', 'bad');
     } else {
       p.inventory.add(recipe.cookedId, 1);
+      this.stats.bump('cooked');
       audio.play('cook');
       this.announceXp('cooking', recipe.xp);
       this.ui.message(`You cook the ${getItem(recipe.rawId)?.name.toLowerCase() ?? 'food'}.`);
@@ -679,6 +714,7 @@ export class Game implements World {
       );
     } else {
       p.inventory.add(bar.id, 1);
+      this.stats.bump('smelted');
       audio.play('smelt');
       this.announceXp(bar.skill, bar.xp);
       this.ui.message(`You retrieve a ${bar.name.toLowerCase()} from the furnace.`);
@@ -729,6 +765,7 @@ export class Game implements World {
 
     this.consume(def.barId, def.bars);
     p.inventory.add(def.id, 1);
+    this.stats.bump('smithed');
     audio.play('smith');
     this.announceXp('smithing', SMITH_XP_PER_BAR * def.bars);
     this.ui.message(`You hammer the metal into a ${product.name.toLowerCase()}.`);
@@ -987,6 +1024,11 @@ export class Game implements World {
     // Vigil is the only source of the book; there is no other way to learn one.
     if (def.id === 'vigil') this.learnSpells();
 
+
+    // Wayfarer reveals a tab that did not exist a moment ago, so the strip is
+    // rebuilt on any completion rather than only that one -- a tab appearing
+    // is a property of the quest data, not of one hardcoded id.
+    this.ui.refreshTabs();
 
     this.ui.message(`Quest complete: ${def.name}!`, 'levelup');
     this.ui.message(
@@ -1429,6 +1471,7 @@ export class Game implements World {
     p.clearPath();
     p.inventory.removeSlot(index, 1);
     this.objects.addFire(p.x, p.y, burnable.burnTicks);
+    this.stats.bump('fires');
     audio.play('fire');
     this.announceXp('firemaking', burnable.xp);
     this.ui.message('The fire catches and the logs begin to burn.', 'good');
@@ -1477,6 +1520,10 @@ export class Game implements World {
     target.addHitsplat(result.damage);
     target.damage(result.damage);
 
+    if (result.damage > 0) {
+      this.stats.bump(mob instanceof Player ? 'damageDealt' : 'damageTaken', result.damage);
+    }
+
     // Two cues, because who is being hit is the thing a player needs to hear
     // without looking. A miss is a zero-damage hit and stays silent.
     if (result.damage > 0) audio.play(target instanceof Player ? 'hurt' : 'hit');
@@ -1512,6 +1559,7 @@ export class Game implements World {
   }
 
   private killNpc(npc: Npc, killer: Player | Npc): void {
+    if (killer instanceof Player) this.stats.bump('slain');
     for (const drop of rollDrops(npc.def)) {
       this.ground.drop(drop.id, drop.qty, npc.x, npc.y);
     }
@@ -1545,6 +1593,7 @@ export class Game implements World {
 
   private handlePlayerDeath(): void {
     const p = this.player;
+    this.stats.bump('deaths');
     audio.play('die');
     audio.play('die');
     this.ui.message('Oh dear, you are dead!', 'bad');
@@ -1960,7 +2009,8 @@ export class Game implements World {
       rng: rng.snapshot(),
       knowsSpells: p.knowsSpells,
       spell: p.selectedSpell,
-      shops: this.shops.snapshot()
+      shops: this.shops.snapshot(),
+      stats: this.stats.toJSON()
     };
     return JSON.stringify(data);
   }
@@ -2015,7 +2065,10 @@ export class Game implements World {
       if (data.knowsSpells === true) p.knowsSpells = true;
       if (typeof data.spell === 'string') p.selectedSpell = data.spell;
       this.restoreQuestUnlocks();
+      // A loaded character may already have earned the statistics tab.
+      this.ui.refreshTabs();
       this.shops.restore(data.shops);
+      this.stats.restore(data.stats as Record<string, number> | undefined);
 
       if (data.slots) p.inventory.slots = this.migrateSlots(data.slots);
       if (data.equipment) p.inventory.equipment = data.equipment as typeof p.inventory.equipment;

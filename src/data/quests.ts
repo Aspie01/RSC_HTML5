@@ -365,6 +365,47 @@ export const quests: readonly QuestDef[] = [
   // the player is carrying enough food to come back up, because the interior
   // is floodwater almost throughout and the only thing between a visitor and
   // drowning is what they brought.
+  // Quest 24. The lap of honour, and the only quest gated on quest points
+  // rather than on anything in particular -- there is nothing left to require.
+  //
+  // 60 points is reachable only after The Long Answer, so this is genuinely
+  // last without having to say so. It is also the only quest whose reward is
+  // openly cosmetic: the cloak takes the same slot as the Warden's seal and is
+  // strictly worse, so wearing it is a decision to give up real bonuses in
+  // order to look like somebody who finished.
+  {
+    id: 'wayfarer',
+    name: 'Wayfarer',
+    requires: { points: 60 },
+    blocked: [
+      { who: 'npc', text: 'You are not done. I keep a list and you are not on the end of it yet.' }
+    ],
+    reward: {
+      points: 2,
+      xp: { woodcutting: 1000, mining: 1000, fishing: 1000, foraging: 1000 },
+      items: [{ id: 'wayfarers_cloak', qty: 1 }],
+      unlock: 'A cloak, and a page that has been keeping count of you the whole time.'
+    },
+    stages: [
+      {
+        journal: 'Alder Finch has been keeping a list.',
+        npc: 'alder',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Do not take this the wrong way, but I have been writing down what you do.' },
+          { who: 'player', text: 'Why?' },
+          { who: 'npc', text: 'Because I am a surveyor and it is the only thing I know how to do about anything. Somebody walks past me often enough, I start counting.' },
+          { who: 'npc', text: 'Trees. Rocks. Fish. How far you have walked, which is a genuinely absurd number and I have checked it twice.' },
+          { who: 'npc', text: 'Anyway. There is a cloak. It is not enchanted, it does not do anything, it is a good cloak and it is yours.' },
+          { who: 'npc', text: 'And you can have the page. I have run out of room on it and I would rather you kept your own count from here.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Still going up, that number. I do look, you know. I am not going to stop looking just because I gave you the page.' }
+    ]
+  },
+
   // Quest 23. The capstone, and Maren's, because she has been the throughline
   // since Cold Hearth and the last conversation belongs to the first person
   // the player ever spoke to.

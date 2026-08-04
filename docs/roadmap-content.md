@@ -214,11 +214,11 @@ The spine begins. Each of these recovers a fragment of what the collapsed order 
 
 | # | Quest | Teaches | Gate | Reward unlock |
 |---|---|---|---|---|
-| 22 | **Watermark** [4] | Endurance, all-skill check | Q20, 8 skills at 40 | Tidefall Steel |
-| 23 | **The Long Answer** [6] | Everything | Q22, all quests | Ending, mastery cap |
-| 24 | **Wayfarer** [2] | — | 60 QP | Cosmetic cloak, statistics screen |
+| 22 | **Watermark** [4] | All-skill check | Q20, any 8 skills at 40 | Tidefall steel (tier 6) |
+| 23 | **The Long Answer** [6] | Everything | Q22, all quests | The ending. No mastery cap -- 50 stands |
+| 24 | **Wayfarer** [2] | — | 60 quest points | Cosmetic cloak, statistics screen |
 
-**Total quest points: 58.** Cape/cloak at the full total.
+**Total quest points: 63**, as built. Wayfarer gates at 60, which is unreachable without finishing the ending -- a test pins that.
 
 ### 5.3 Quest volume reality check
 
@@ -254,7 +254,7 @@ Six regions, unlocked by quest rather than level where possible.
 | **C** *[done]* | 0.5 | Full combat suite + Vitality. Quests 8–11. Wrackwood. | Combat system |
 | **D** *[done]* | 0.7 | Magic, Crafting, Foraging. Quests 12–16. | Spell system |
 | **E** | 0.9 | Drowned Interior. Quests 17–21. Tiers 5–6 equipment. | Boss framework |
-| **F** | 1.0 | Capstone quests 22–24. Balance pass. Mastery cap. | — |
+| **F** *[done]* | 1.0 | Capstone quests 22–24. Tier 6. Statistics screen. | — |
 | **Post** | 1.x | Alchemy, Thieving, Agility, task system, Farming | — |
 
 Phase A is the build you already have a technical roadmap for. Everything after it is content on a proven engine.

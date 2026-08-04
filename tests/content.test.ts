@@ -356,6 +356,30 @@ test('the ending waits for every other quest', () => {
   assert.deepEqual(missing, [], 'quests exist that the ending does not wait for');
 });
 
+test('the victory lap cannot be taken before the ending', () => {
+  // Wayfarer gates on quest points rather than on The Long Answer, which is
+  // only correct as long as the points cannot be reached without it. Retuning
+  // any quest's points could quietly break that and let a player collect the
+  // lap of honour with the ending still in front of them.
+  const wayfarer = getQuest('wayfarer');
+  const ending = getQuest('the_long_answer');
+  assert.ok(wayfarer && ending);
+
+  const gate = wayfarer.requires?.points;
+  assert.ok(gate !== undefined, 'Wayfarer no longer gates on points');
+
+  const everythingElse = quests
+    .filter((q) => q.id !== 'wayfarer')
+    .reduce((sum, q) => sum + q.reward.points, 0);
+  assert.ok(everythingElse >= gate, 'Wayfarer cannot be reached at all');
+
+  const withoutEnding = everythingElse - ending.reward.points;
+  assert.ok(
+    withoutEnding < gate,
+    `Wayfarer opens at ${withoutEnding} points without finishing the ending`
+  );
+});
+
 test('nothing is gated behind the ending except the victory lap', () => {
   // Wayfarer is allowed to come after The Long Answer -- it is the lap of
   // honour. Anything ELSE requiring the ending would be content placed after

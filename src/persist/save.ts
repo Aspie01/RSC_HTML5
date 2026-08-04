@@ -38,6 +38,12 @@ export interface SaveData {
    * before it existed, which simply get a fresh stream of luck.
    */
   rng?: unknown;
+  /**
+   * Lifetime counters for the statistics screen. Optional, and absent means
+   * a returning player starts counting from zero rather than losing a save --
+   * no version bump, since nothing in the simulation reads them.
+   */
+  stats?: unknown;
   /** Spellbook state. Absent means Vigil is unfinished, which is the default. */
   knowsSpells?: unknown;
   spell?: unknown;
