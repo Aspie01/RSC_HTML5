@@ -352,6 +352,84 @@ export const quests: readonly QuestDef[] = [
   // the player is carrying enough food to come back up, because the interior
   // is floodwater almost throughout and the only thing between a visitor and
   // drowning is what they brought.
+  // Quest 21. The one quest that unlocks nothing, and the only place in this
+  // file that knowingly breaks "every quest unlocks something".
+  //
+  // That rule exists because a quest which pays out only experience is a
+  // chore. This one is a chore on purpose and it is placed where a chore
+  // cannot be mistaken for an oversight: immediately after the biggest payout
+  // in the game, and immediately before the capstone. A player who has just
+  // been handed the Warden's seal and is then given nothing at all learns
+  // that this world does not owe them an unlock -- which is the only way the
+  // capstone's payout can land as a gift rather than as a scheduled reward.
+  //
+  // It is also the "choice without consequence": Iselle asks what should be
+  // cut on the stone, the player answers, and nothing anywhere records it.
+  // No branch, no flag, no item. The engine does not know a choice was made,
+  // which is exactly the experience being aimed at.
+  //
+  // Do not "fix" this by adding a reward. If a later change makes it look
+  // like an omission, the fix is a comment, not an item.
+  {
+    id: 'unmarked',
+    name: 'Unmarked',
+    requires: { quests: ['the_last_warden'] },
+    blocked: [
+      { who: 'npc', text: 'Later. There is something I want to ask you and it is not the sort of thing you ask somebody in the middle of a job.' }
+    ],
+    reward: {
+      points: 3,
+      xp: { vitality: 500 },
+      // Every other quest names what it opened. This one names what it did
+      // not, and the line is the reward.
+      unlock: 'Nothing opens. The stone is still blank and you are still the only one who went and looked at it.'
+    },
+    stages: [
+      {
+        journal: 'Iselle Marrow wants to ask you something, and is not asking it.',
+        npc: 'iselle',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Eight of them have stones. Did you know that? Down at the waterline, south of the pier, in a row, and every one has a name on it.' },
+          { who: 'npc', text: 'The ninth has a stone too. Dressed, squared, set as deep as the others. Somebody cut the face smooth and ready and then put nothing on it.' },
+          { who: 'player', text: 'Because they did not know the name.' },
+          { who: 'npc', text: 'They knew the name. It is in the ledger, in the ninth line, with half a stroke through it. They knew it and they did not cut it.' },
+          { who: 'npc', text: 'Go and look at it. I am not sending you to do anything, I want to be very clear about that. Go and look at it and come back.' }
+        ]
+      },
+      {
+        journal: 'Look at the unmarked stone, at the waterline south of the pier.',
+        npc: 'iselle',
+        goal: { type: 'inspect', x: 44, y: 30 },
+        waiting: [
+          { who: 'npc', text: 'South along the shore until the sand runs out. It is the last one in the row and it is the only one facing the water.' }
+        ],
+        done: [
+          { who: 'player', text: 'The other eight face the road. This one has been turned round to face the bay.' },
+          { who: 'player', text: 'Somebody stood here with a chisel and a name and went home with both.' }
+        ]
+      },
+      {
+        journal: 'Go back to Iselle Marrow.',
+        npc: 'iselle',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'So. What would you put on it.' },
+          { who: 'player', text: '...' },
+          { who: 'npc', text: 'No, I mean it. You are the only person alive who has been in the room with the last of them. Nobody has a better claim to that stone than you do and I will cut whatever you say.' },
+          { who: 'player', text: 'I know.' },
+          { who: 'npc', text: 'Yes.' },
+          { who: 'npc', text: 'I have had eleven days and the ledger and every name in it, and I keep arriving at the same place you just did, which is that anything I put there would be for me.' },
+          { who: 'npc', text: 'It stays blank, then. Not because we failed to decide -- because we decided. That is a different thing and I would like somebody else to know it.' },
+          { who: 'npc', text: 'Thank you for going to look. That is all that was. There is nothing at the end of this and I did not want to pretend otherwise.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'It is still blank. I still go down there. Neither of those is going to change and I have stopped expecting them to.' }
+    ]
+  },
+
   // Quest 20. Maren's, because the Warden thread has been hers since What the
   // Warden Wrote and handing the end of it to somebody else would be a cheat.
   //

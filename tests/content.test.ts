@@ -326,8 +326,36 @@ test('anything a quest sends you to look at is clickable', () => {
         inspectable(scenery.kind),
         `${q.id} inspects a "${scenery.kind}", which cannot be clicked to inspect`
       );
+      // Clicking is done from an adjacent tile, so a thing with nowhere to
+      // stand beside it is as unreachable as one that is not inspectable.
+      assert.ok(
+        ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).some(
+          ([dx, dy]) => map.isWalkable(stage.goal.x + dx, stage.goal.y + dy)
+        ),
+        `${q.id} inspects (${stage.goal.x},${stage.goal.y}), which has nowhere to stand beside it`
+      );
     }
   }
+});
+
+test('exactly one quest pays out nothing, and it is meant to', () => {
+  // Unmarked is the deliberate exception to "every quest unlocks something".
+  // It is pinned here so that adding a reward to it is a failing test rather
+  // than a tidy-up, and so that a SECOND rewardless quest cannot appear by
+  // accident and quietly turn the exception into a pattern.
+  const rewardless = quests.filter((q) => (q.reward.items?.length ?? 0) === 0 &&
+    Object.keys(q.reward.xp ?? {}).length <= 1);
+
+  assert.deepEqual(
+    rewardless.map((q) => q.id), ['unmarked'],
+    'the set of quests that pay out almost nothing has changed'
+  );
+
+  const unmarked = getQuest('unmarked');
+  assert.ok(unmarked);
+  assert.equal(unmarked.reward.items, undefined, 'Unmarked has been given an item to hand over');
+  assert.ok(unmarked.reward.points > 0, 'Unmarked must still be worth quest points');
+  assert.ok(unmarked.reward.unlock.length > 0, 'Unmarked must still say what it did not do');
 });
 
 // --------------------------------------------------------------------------

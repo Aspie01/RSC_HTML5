@@ -15,6 +15,7 @@ export const INSPECT_TEXT: Readonly<Record<string, string>> = {
   stone_box: 'A stone box, set in the pool. Placed, not dropped.',
   rubble: 'A fall of loose stone. The edges of it were squared by hand.',
   descent: 'Steps going down under the water. They do not stop where the light does.',
+  marker: 'A standing stone at the waterline, dressed square and set deep. There is a face on it cut smooth and ready, and there is nothing on the face.',
   tally: 'Nine scratches, cut deep. Eight are old and the ninth is not finished -- the stroke stops halfway, as though the hand it was in stopped first.'
 };
 

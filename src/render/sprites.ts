@@ -589,9 +589,36 @@ export function tally(ctx: CanvasRenderingContext2D, x: number, y: number): void
   }
 }
 
+/** A dressed standing stone with a blank face. The blankness is the content. */
+export function marker(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  ctx.fillStyle = '#6e6a63';
+  ctx.strokeStyle = '#3f3c37';
+  ctx.lineWidth = 1;
+
+  // Slightly tapered, and taller than it is wide, so it reads as set upright
+  // rather than dropped.
+  ctx.beginPath();
+  ctx.moveTo(x - 7, y + 3);
+  ctx.lineTo(x - 5, y - 20);
+  ctx.lineTo(x + 5, y - 20);
+  ctx.lineTo(x + 7, y + 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // The dressed face: lighter, flat, and completely empty.
+  ctx.fillStyle = '#8b867d';
+  ctx.fillRect(x - 4, y - 18, 8, 17);
+
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 4, 9, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 export const scenerySprites = {
   bush, fence, furnace, anvil, well, rubble, thicket, stone_box: stoneBox, descent,
-  tally
+  tally, marker
 } as const;
 
 // --------------------------------------------------------------------------

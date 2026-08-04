@@ -206,7 +206,7 @@ The spine begins. Each of these recovers a fragment of what the collapsed order 
 | 18 | **The Alchemist's Third Mistake** [3] | Saltwort, and steeping it | Q11, Q12, Foraging 30 | The saltwort draught |
 | 19 | **Nine Names** [4] | Boss phases, prep | Q17, Vitality 30 | Adamantine, tier 5 |
 | 20 | **The Last Warden** [5] | Four-phase combat | Q14, Q19, Vitality 35 | Warden's seal (cape slot) |
-| 21 | **Unmarked** [3] | Choice without consequence | Q20 | Nothing mechanical. Deliberate. |
+| 21 | **Unmarked** [3] | Choice without consequence | Q20 | Nothing mechanical. Deliberate, and pinned by a test. |
 
 *"Unmarked" is the one quest that gives no unlock. It exists so the player learns that not everything in this world pays out — which makes it land when the capstone does.*
 

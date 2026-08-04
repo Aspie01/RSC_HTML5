@@ -44,7 +44,7 @@ export interface TerrainInfo {
 export type SceneryKind =
   | 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil' | 'fishing_spot'
   | 'well' | 'rubble' | 'sand_bank' | 'thicket' | 'stone_box' | 'descent'
-  | 'tally';
+  | 'tally' | 'marker';
 
 export interface Scenery {
   readonly kind: SceneryKind;
@@ -329,6 +329,15 @@ export const VAULT_SEAL = { x: 4, y: 44 } as const;
 export const VAULT_FLOOR = { x: 2, y: 44 } as const;
 
 /**
+ * The unmarked stone, at the waterline south of the pier.
+ *
+ * It is placed from the start rather than by a quest, because it has always
+ * been there and nobody has ever known what to cut on it. Unmarked is the only
+ * quest that changes nothing about the world, and that includes this.
+ */
+export const UNMARKED_STONE = { x: 44, y: 30 } as const;
+
+/**
  * Adamantine, on the islands rather than the floor.
  *
  * Tier 5's ore is here and nowhere else, which is what makes the interior a
@@ -589,6 +598,11 @@ export function generateMap(): GameMap {
   map.setScenery(INTERIOR_STAIR.x, INTERIOR_STAIR.y, { kind: 'descent', blocks: false });
   // The wall the Ninth stands in front of. Quest 19 sends you to read it.
   map.setScenery(16, 44, { kind: 'tally', blocks: true });
+
+  // The unmarked stone, at the waterline south of the pier, facing the bay the
+  // other eight seals went into. Quest 21 sends the player to look at it and
+  // then does not do anything about it.
+  map.setScenery(UNMARKED_STONE.x, UNMARKED_STONE.y, { kind: 'marker', blocks: true });
 
   // The fall that seals the vault: a solid wall from the north edge to the
   // south, so the only way west is through the one tile a quest can clear.
