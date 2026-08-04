@@ -593,8 +593,10 @@ export class Game implements World {
   private resolveSmelt(tx: number, ty: number, barId: string): void {
     const p = this.player;
 
+    // The menu already filters these out; the resolver checks again because an
+    // action can outlive the menu that created it.
     const bar = getBar(barId);
-    if (!bar || this.map.sceneryAt(tx, ty)?.kind !== 'furnace') {
+    if (!bar || !this.recipeKnown(bar) || this.map.sceneryAt(tx, ty)?.kind !== 'furnace') {
       p.clearAction();
       return;
     }
@@ -647,7 +649,8 @@ export class Game implements World {
 
     const def = getSmithable(productId);
     const product = def ? getItem(def.id) : undefined;
-    if (!def || !product || this.map.sceneryAt(tx, ty)?.kind !== 'anvil') {
+    if (!def || !product || !this.recipeKnown(def) ||
+        this.map.sceneryAt(tx, ty)?.kind !== 'anvil') {
       p.clearAction();
       return;
     }
@@ -1142,6 +1145,20 @@ export class Game implements World {
     return true;
   }
 
+  /**
+   * Whether a recipe has been taught yet.
+   *
+   * A level gate says "not yet"; a quest gate says "nobody has shown you
+   * how". Blackiron is the second kind, so it is hidden entirely rather
+   * than listed greyed-out -- a recipe you have never heard of should not
+   * appear on a menu at all.
+   */
+  private recipeKnown(def: { quest?: string }): boolean {
+    if (!def.quest) return true;
+    const q = getQuest(def.quest);
+    return q ? this.quests.isComplete(q) : false;
+  }
+
   /** True if the player holds any part of this recipe. Used to filter menus. */
   private hasAnyIngredient(bar: BarDef): boolean {
     return bar.ingredients.some((i) => this.player.inventory.count(i.id) > 0);
@@ -1204,6 +1221,7 @@ export class Game implements World {
     // already know how to make. A furnace that lists glass to someone who has
     // never seen sand is just a longer menu.
     const opts = bars
+      .filter((bar) => this.recipeKnown(bar))
       .filter((bar) => bar.skill === 'smithing' || this.hasAnyIngredient(bar))
       .map((bar: BarDef) => ({
         verb: 'Make',
@@ -1244,7 +1262,7 @@ export class Game implements World {
   private openSmithProductMenu(at: Point, tx: number, ty: number, bar: BarDef): void {
     const p = this.player;
 
-    const opts = smithablesFor(bar.id).map((def: SmithDef) => {
+    const opts = smithablesFor(bar.id).filter((def) => this.recipeKnown(def)).map((def: SmithDef) => {
       const name = getItem(def.id)?.name ?? def.id;
       const locked = p.skills.level('smithing') < def.level;
 

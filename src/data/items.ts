@@ -421,6 +421,48 @@ export const items = {
   steel_platebody: item('steel_platebody', 'Steel platebody', { value: 415,
     slot: 'body', colour: '#c3c8cf', shape: 'plate',
     bonuses: { defence: 22 }
+  }),
+
+  // ------------------------------------------------------------------------
+  // Tier 4: blackiron
+  //
+  // Steel taken back into the fire with three times the coal. Roughly half
+  // again as good as steel across the board, and it costs a steel bar to make
+  // one -- so every piece is the tier below it plus a great deal of fuel, which
+  // is exactly why coal being quest-locked matters.
+  // ------------------------------------------------------------------------
+  blackiron_bar: item('blackiron_bar', 'Blackiron bar', { value: 280,
+    colour: '#3f4247', shape: 'bar', examine: 'Dark all the way through, not just on the skin.'
+  }),
+
+  blackiron_dagger: item('blackiron_dagger', 'Blackiron dagger', { value: 210,
+    slot: 'weapon', speed: 4, colour: '#3f4247', shape: 'blade',
+    bonuses: { attack: 13, strength: 12 }
+  }),
+
+  blackiron_scimitar: item('blackiron_scimitar', 'Blackiron scimitar', { value: 480,
+    slot: 'weapon', speed: 4, colour: '#3f4247', shape: 'blade',
+    bonuses: { attack: 22, strength: 21 }
+  }),
+
+  blackiron_kiteshield: item('blackiron_kiteshield', 'Blackiron kiteshield', { value: 640,
+    slot: 'shield', colour: '#3f4247', shape: 'shield',
+    bonuses: { defence: 27 }
+  }),
+
+  blackiron_med_helm: item('blackiron_med_helm', 'Blackiron med helm', { value: 360,
+    slot: 'head', colour: '#3f4247', shape: 'helm',
+    bonuses: { defence: 12 }
+  }),
+
+  blackiron_platelegs: item('blackiron_platelegs', 'Blackiron platelegs', { value: 720,
+    slot: 'legs', colour: '#3f4247', shape: 'legs',
+    bonuses: { defence: 24 }
+  }),
+
+  blackiron_platebody: item('blackiron_platebody', 'Blackiron platebody', { value: 960,
+    slot: 'body', colour: '#3f4247', shape: 'plate',
+    bonuses: { defence: 33 }
   })
 } as const satisfies Record<string, ItemDef>;
 

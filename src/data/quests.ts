@@ -344,6 +344,62 @@ export const quests: readonly QuestDef[] = [
     ]
   },
 
+  // Quest 16. The one quest in this phase with nothing to do with the Wardens,
+  // and it is better for it -- after four quests of the water going somewhere,
+  // a man who wants to teach you a trade is a change of air.
+  //
+  // It fills tier 4, which CLAUDE.md's table has listed as unimplemented since
+  // the beginning. Blackiron is quest-gated as well as level-gated because the
+  // method is knowledge rather than skill: no amount of hammering discovers it,
+  // which is exactly what makes it worth a bargain.
+  {
+    id: 'ironmongers_bargain',
+    name: "Ironmonger's Bargain",
+    requires: { quests: ['deepcut'], skills: { smithing: 30 } },
+    blocked: [
+      { who: 'npc', text: 'Thirty levels before I waste good coal on you. Come back when the steel stops fighting you.' }
+    ],
+    reward: {
+      points: 2,
+      xp: { smithing: 800 },
+      items: [{ id: 'blackiron_bar', qty: 2 }],
+      unlock: 'Blackiron. Steel, and then a great deal more coal than sense suggests.'
+    },
+    stages: [
+      {
+        journal: 'Garrow Blackfen has a method he has never had the coal to use.',
+        npc: 'garrow',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'You opened the Cut, so you may as well have the other half of what it was for.' },
+          { who: 'npc', text: 'There is a thing past steel. My name is Blackfen and I did not pick it -- three generations of us knew how, and not one of us had the fuel.' },
+          { who: 'player', text: 'What is the method?' },
+          { who: 'npc', text: 'You put the steel back in. That is it. That is the whole secret, and it sounds like nothing until you learn it takes three coal to the bar and gets you one bar for one bar.' },
+          { who: 'npc', text: 'Nobody works it out alone because nobody would try it twice. It looks like ruining good steel, and the first time you do it, it is.' },
+          { who: 'npc', text: 'Bring me four steel and twelve coal. I will show you on two of them and you will spoil the other two yourself, which is how it is learned.' }
+        ]
+      },
+      {
+        journal: 'Bring Garrow Blackfen 4 steel bars and 12 coal.',
+        npc: 'garrow',
+        goal: { type: 'give', items: [{ id: 'steel_bar', qty: 4 }, { id: 'coal', qty: 12 }] },
+        waiting: [
+          { who: 'npc', text: 'Four steel and twelve coal. The coal is the hard half now, which is a sentence I could not have said last year.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Watch the colour. Not the shape -- the colour. When it stops going brighter and starts going darker, that is the whole of it.' },
+          { who: 'npc', text: 'There. Two bars, and they weigh what four did.' },
+          { who: 'player', text: 'And the other two?' },
+          { who: 'npc', text: 'You spoiled those. I said you would. Now you have seen it work and seen it fail, and you will not confuse the two again.' },
+          { who: 'npc', text: 'Take them. The furnace and the anvil will both take blackiron from you now -- you know the method, and knowing it was the only lock there ever was.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Watch the colour. It took me forty years to learn to say it that short.' }
+    ]
+  },
+
   // Quest 15. The end of Phase D, and the last thing anybody in this valley
   // can tell you. The ledger has the road drawn; the road goes east and then
   // down, and what is at the bottom of it is Phase E's problem.
