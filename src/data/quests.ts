@@ -121,7 +121,7 @@ export const quests: readonly QuestDef[] = [
     name: 'Cold Hearth',
     reward: {
       points: 1,
-      xp: { firemaking: 60, cooking: 60 },
+      xp: { firemaking: 20, cooking: 20 },
       unlock: 'Maren keeps her fire lit. You can cook at the crossroads whenever you like.'
     },
     stages: [
@@ -170,7 +170,7 @@ export const quests: readonly QuestDef[] = [
     name: 'Green Timber',
     reward: {
       points: 1,
-      xp: { woodcutting: 120 },
+      xp: { woodcutting: 30 },
       items: [{ id: 'woodsmans_axe', qty: 1 }],
       unlock: "Tobin's felling axe is yours. It bites harder than bronze."
     },
@@ -217,7 +217,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { woodcutting: 500, firemaking: 150 },
+      xp: { woodcutting: 130, firemaking: 40 },
       unlock: 'The grove is open. Ironbark takes an age to come back -- work them in turn.'
     },
     stages: [
@@ -323,7 +323,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { archery: 300, crafting: 150 },
+      xp: { archery: 300, crafting: 40 },
       items: [{ id: 'shortbow', qty: 1 }],
       unlock: 'A bow of your own, and the knowledge to keep it fed.'
     },
@@ -382,7 +382,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { woodcutting: 1000, mining: 1000, fishing: 1000, foraging: 1000 },
+      xp: { woodcutting: 260, mining: 260, fishing: 260, foraging: 260 },
       items: [{ id: 'wayfarers_cloak', qty: 1 }],
       unlock: 'A cloak, and a page that has been keeping count of you the whole time.'
     },
@@ -439,9 +439,9 @@ export const quests: readonly QuestDef[] = [
       points: 6,
       xp: {
         attack: 2500, strength: 2500, defence: 2500, vitality: 2500,
-        archery: 2500, magic: 2500, woodcutting: 2500, mining: 2500,
-        fishing: 2500, foraging: 2500, firemaking: 2500, cooking: 2500,
-        smithing: 2500, crafting: 2500
+        archery: 2500, magic: 2500, woodcutting: 620, mining: 620,
+        fishing: 620, foraging: 620, firemaking: 620, cooking: 620,
+        smithing: 620, crafting: 620
       },
       unlock: 'There is no more road. That is not the same as there being nothing left.'
     },
@@ -531,7 +531,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 4,
-      xp: { smithing: 3000, mining: 1500, crafting: 1000 },
+      xp: { smithing: 760, mining: 380, crafting: 260 },
       items: [{ id: 'adamantine_bar', qty: 3 }],
       unlock: 'Tidefall steel. Adamantine and a great deal of coal, at Smithing 50.'
     },
@@ -783,7 +783,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 4,
-      xp: { attack: 1200, strength: 1200, defence: 1200, vitality: 900, smithing: 600 },
+      xp: { attack: 1200, strength: 1200, defence: 1200, vitality: 900, smithing: 150 },
       unlock: 'The green ore under the interior will take a fire now. Adamantine, at Smithing 40.'
     },
     stages: [
@@ -864,7 +864,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 3,
-      xp: { foraging: 900, crafting: 350 },
+      xp: { foraging: 220, crafting: 90 },
       items: [{ id: 'saltwort_draught', qty: 4 }],
       unlock: 'Saltwort steeps in a vial now. It is the warmest thing you can carry into cold water.'
     },
@@ -924,7 +924,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 4,
-      xp: { vitality: 700, magic: 400, foraging: 300 },
+      xp: { vitality: 700, magic: 400, foraging: 80 },
       unlock: 'The stair will carry you now. Down is a place, and it is under all of this.'
     },
     stages: [
@@ -978,7 +978,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { smithing: 800 },
+      xp: { smithing: 200 },
       items: [{ id: 'blackiron_bar', qty: 2 }],
       unlock: 'Blackiron. Steel, and then a great deal more coal than sense suggests.'
     },
@@ -1116,7 +1116,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 3,
-      xp: { magic: 250, foraging: 250 },
+      xp: { magic: 250, foraging: 60 },
       // Handed straight back. The stage takes it because Maren has to read the
       // last page herself, and she gives it back in the same breath -- "keep
       // the book" is the line, so the player must actually keep the book.
@@ -1198,7 +1198,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 3,
-      xp: { magic: 400, crafting: 300 },
+      xp: { magic: 400, crafting: 80 },
       items: [{ id: 'emberglass_focus', qty: 1 }],
       unlock: 'The book is copied out. Three spells, and a focus that will hold them.'
     },
@@ -1280,7 +1280,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 3,
-      xp: { foraging: 300, crafting: 200 },
+      xp: { foraging: 80, crafting: 50 },
       items: [{ id: 'sallows_chart', qty: 1 }],
       unlock: 'The reeds are cut back. The Sallows are open, and they are lower than they were.'
     },
@@ -1350,7 +1350,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { crafting: 250, firemaking: 100 },
+      xp: { crafting: 60, firemaking: 30 },
       items: [{ id: 'coins', qty: 80 }],
       unlock: 'Sand and ash make glass, and glass makes anything that has to hold something.'
     },
@@ -1411,7 +1411,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { mining: 400, smithing: 150 },
+      xp: { mining: 100, smithing: 40 },
       unlock: 'The way into the Cut is open. Coal, and whatever else is down there.'
     },
     stages: [
@@ -1489,7 +1489,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { fishing: 80 },
+      xp: { fishing: 20 },
       items: [{ id: 'coins', qty: 40 }],
       unlock: 'Nobody upriver is answering. Maren thinks that is the interesting part.'
     },
@@ -1608,7 +1608,7 @@ export const quests: readonly QuestDef[] = [
     name: 'Low Tide',
     reward: {
       points: 1,
-      xp: { fishing: 60, cooking: 40 },
+      xp: { fishing: 20, cooking: 10 },
       unlock: 'The pier is yours to fish. The shallows will keep you fed.'
     },
     stages: [
@@ -1655,7 +1655,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { mining: 100, smithing: 150 },
+      xp: { mining: 30, smithing: 40 },
       items: [{ id: 'smiths_hammer', qty: 1 }],
       unlock: "Garrow's hammer works the anvil faster than your own."
     },

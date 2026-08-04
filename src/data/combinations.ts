@@ -38,7 +38,7 @@ export const combinations: readonly CombineDef[] = [
     outputQty: 1,
     skill: 'foraging',
     level: 30,
-    xp: 60,
+    xp: 7.5,
     quest: 'alchemists_third_mistake',
     message: 'The stem goes in whole and the vial goes cloudy around it.',
     tooLow: 'You do not know how to steep this yet.'

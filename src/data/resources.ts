@@ -73,7 +73,7 @@ export const gatherables = {
   // runs out; an oak usually survives, which is what makes it worth walking to.
   tree: {
     id: 'tree', name: 'Tree', skill: 'woodcutting',
-    level: 1, xp: 25, outputId: 'logs',
+    level: 1, xp: 3, outputId: 'logs',
     low: 64, high: 200,
     tool: 'axe',
     depleteChance: 1.0, respawnTicks: 20,
@@ -86,7 +86,7 @@ export const gatherables = {
   },
   oak: {
     id: 'oak', name: 'Oak tree', skill: 'woodcutting',
-    level: 10, xp: 37.5, outputId: 'oak_logs',
+    level: 10, xp: 4.5, outputId: 'oak_logs',
     low: 32, high: 120,
     tool: 'axe',
     depleteChance: 0.35, respawnTicks: 25,
@@ -103,7 +103,7 @@ export const gatherables = {
   // spell burns. Neither is any use raw, which is the point.
   marshroot: {
     id: 'marshroot', name: 'Marshroot', skill: 'foraging',
-    level: 1, xp: 15, outputId: 'marshroot',
+    level: 1, xp: 2, outputId: 'marshroot',
     low: 90, high: 230,
     tool: 'sickle',
     depleteChance: 0.5, respawnTicks: 18,
@@ -116,7 +116,7 @@ export const gatherables = {
   },
   emberleaf: {
     id: 'emberleaf', name: 'Emberleaf bush', skill: 'foraging',
-    level: 15, xp: 42, outputId: 'emberleaf',
+    level: 15, xp: 5.5, outputId: 'emberleaf',
     low: 35, high: 145,
     tool: 'sickle',
     depleteChance: 0.6, respawnTicks: 40,
@@ -132,7 +132,7 @@ export const gatherables = {
   // in the Sallows and nowhere else, so it needs the fen opened first.
   saltwort: {
     id: 'saltwort', name: 'Saltwort', skill: 'foraging',
-    level: 30, xp: 85, outputId: 'saltwort',
+    level: 30, xp: 11, outputId: 'saltwort',
     low: 18, high: 100,
     tool: 'sickle',
     depleteChance: 0.7, respawnTicks: 60,
@@ -149,7 +149,7 @@ export const gatherables = {
   // so a grove is worked by rotating between trees rather than camping one.
   ironbark: {
     id: 'ironbark', name: 'Ironbark tree', skill: 'woodcutting',
-    level: 20, xp: 62.5, outputId: 'ironbark_logs',
+    level: 20, xp: 8, outputId: 'ironbark_logs',
     low: 20, high: 95,
     tool: 'axe',
     depleteChance: 0.2, respawnTicks: 120,
@@ -165,7 +165,7 @@ export const gatherables = {
   // veins rather than a stand-still skill.
   copper: {
     id: 'copper', name: 'Copper rock', skill: 'mining',
-    level: 1, xp: 17.5, outputId: 'copper_ore',
+    level: 1, xp: 2, outputId: 'copper_ore',
     low: 75, high: 220,
     tool: 'pickaxe',
     depleteChance: 1.0, respawnTicks: 8,
@@ -178,7 +178,7 @@ export const gatherables = {
   },
   tin: {
     id: 'tin', name: 'Tin rock', skill: 'mining',
-    level: 1, xp: 17.5, outputId: 'tin_ore',
+    level: 1, xp: 2, outputId: 'tin_ore',
     low: 75, high: 220,
     tool: 'pickaxe',
     depleteChance: 1.0, respawnTicks: 8,
@@ -191,7 +191,7 @@ export const gatherables = {
   },
   iron: {
     id: 'iron', name: 'Iron rock', skill: 'mining',
-    level: 10, xp: 35, outputId: 'iron_ore',
+    level: 10, xp: 4.5, outputId: 'iron_ore',
     low: 40, high: 165,
     tool: 'pickaxe',
     depleteChance: 1.0, respawnTicks: 16,
@@ -204,7 +204,7 @@ export const gatherables = {
   },
   coal: {
     id: 'coal', name: 'Coal rock', skill: 'mining',
-    level: 20, xp: 50, outputId: 'coal',
+    level: 20, xp: 6.5, outputId: 'coal',
     low: 18, high: 110,
     tool: 'pickaxe',
     depleteChance: 1.0, respawnTicks: 50,
@@ -221,7 +221,7 @@ export const gatherables = {
   // turn the interior into a place you stand rather than a place you visit.
   adamantine: {
     id: 'adamantine', name: 'Adamantine rock', skill: 'mining',
-    level: 40, xp: 95, outputId: 'adamantine_ore',
+    level: 40, xp: 12, outputId: 'adamantine_ore',
     low: 12, high: 78,
     tool: 'pickaxe',
     depleteChance: 1.0, respawnTicks: 90,
@@ -237,7 +237,7 @@ export const gatherables = {
   // to stand -- which is the whole reason the docks are worth walking to.
   sprat: {
     id: 'sprat', name: 'Shallows', skill: 'fishing',
-    level: 1, xp: 20, outputId: 'raw_sprat',
+    level: 1, xp: 2.5, outputId: 'raw_sprat',
     low: 70, high: 210,
     tool: 'rod',
     depleteChance: 0.06, respawnTicks: 12,
@@ -253,7 +253,7 @@ export const gatherables = {
   // on glass is Firemaking, which is the other half.
   sand: {
     id: 'sand', name: 'Sand bank', skill: 'crafting',
-    level: 1, xp: 5, outputId: 'sand',
+    level: 1, xp: 1, outputId: 'sand',
     low: 120, high: 240,
     depleteChance: 0.15, respawnTicks: 10,
     cue: 'mine',
@@ -266,7 +266,7 @@ export const gatherables = {
 
   bream: {
     id: 'bream', name: 'Deep water', skill: 'fishing',
-    level: 10, xp: 40, outputId: 'raw_bream',
+    level: 10, xp: 5, outputId: 'raw_bream',
     low: 30, high: 150,
     tool: 'rod',
     depleteChance: 0.1, respawnTicks: 20,
@@ -297,11 +297,11 @@ export interface BurnableDef {
 }
 
 export const burnables: Record<string, BurnableDef> = {
-  logs: { logId: 'logs', level: 1, xp: 40, burnTicks: 120 },
-  oak_logs: { logId: 'oak_logs', level: 10, xp: 60, burnTicks: 200 },
+  logs: { logId: 'logs', level: 1, xp: 5, burnTicks: 120 },
+  oak_logs: { logId: 'oak_logs', level: 10, xp: 7.5, burnTicks: 200 },
   // Burns a long time, which matters now that a dead fire leaves ash: one
   // ironbark is a cooking fire that outlasts a whole inventory of fish.
-  ironbark_logs: { logId: 'ironbark_logs', level: 20, xp: 95, burnTicks: 340 }
+  ironbark_logs: { logId: 'ironbark_logs', level: 20, xp: 12, burnTicks: 340 }
 };
 
 // --------------------------------------------------------------------------
@@ -320,24 +320,24 @@ export interface RecipeDef {
 export const recipes: Record<string, RecipeDef> = {
   raw_chicken: {
     rawId: 'raw_chicken', cookedId: 'cooked_chicken', burntId: 'burnt_chicken',
-    level: 1, xp: 30, stopBurnLevel: 15
+    level: 1, xp: 4, stopBurnLevel: 15
   },
   // Fishing's outbound arrow. A sprat is worse than chicken on purpose -- the
   // reason to fish at level 1 is that the shoal never runs out, not that the
   // food is better. Bream is where it overtakes.
   raw_sprat: {
     rawId: 'raw_sprat', cookedId: 'cooked_sprat', burntId: 'burnt_sprat',
-    level: 1, xp: 25, stopBurnLevel: 12
+    level: 1, xp: 3, stopBurnLevel: 12
   },
   raw_bream: {
     rawId: 'raw_bream', cookedId: 'cooked_bream', burntId: 'burnt_bream',
-    level: 10, xp: 50, stopBurnLevel: 28
+    level: 10, xp: 6.5, stopBurnLevel: 28
   },
   // Foraging's outbound arrow into Cooking. Raw marshroot is inedible, so the
   // forage is worth nothing until it has been through a fire.
   marshroot: {
     rawId: 'marshroot', cookedId: 'roasted_marshroot', burntId: 'burnt_marshroot',
-    level: 5, xp: 35, stopBurnLevel: 20
+    level: 5, xp: 4.5, stopBurnLevel: 20
   }
 };
 
@@ -391,17 +391,17 @@ export interface BarDef {
 export const bars: readonly BarDef[] = [
   {
     id: 'bronze_bar', name: 'Bronze bar', skill: 'smithing',
-    level: 1, xp: 6.2, successChance: 1,
+    level: 1, xp: 1, successChance: 1,
     ingredients: [{ id: 'copper_ore', qty: 1 }, { id: 'tin_ore', qty: 1 }]
   },
   {
     id: 'iron_bar', name: 'Iron bar', skill: 'smithing',
-    level: 10, xp: 12.5, successChance: 0.5,
+    level: 10, xp: 1.5, successChance: 0.5,
     ingredients: [{ id: 'iron_ore', qty: 1 }]
   },
   {
     id: 'steel_bar', name: 'Steel bar', skill: 'smithing',
-    level: 20, xp: 17.5, successChance: 1,
+    level: 20, xp: 2, successChance: 1,
     ingredients: [{ id: 'iron_ore', qty: 1 }, { id: 'coal', qty: 2 }]
   },
   // Tier 4. Steel taken back into the fire with far more coal than sense
@@ -409,7 +409,7 @@ export const bars: readonly BarDef[] = [
   // on top of the level.
   {
     id: 'blackiron_bar', name: 'Blackiron bar', skill: 'smithing',
-    level: 30, xp: 30, successChance: 1,
+    level: 30, xp: 4, successChance: 1,
     ingredients: [{ id: 'steel_bar', qty: 1 }, { id: 'coal', qty: 3 }],
     quest: 'ironmongers_bargain'
   },
@@ -417,7 +417,7 @@ export const bars: readonly BarDef[] = [
   // so a bar of it is a trip to the interior and a trip to the Cut.
   {
     id: 'adamantine_bar', name: 'Adamantine bar', skill: 'smithing',
-    level: 40, xp: 45, successChance: 1,
+    level: 40, xp: 5.5, successChance: 1,
     ingredients: [{ id: 'adamantine_ore', qty: 1 }, { id: 'coal', qty: 4 }],
     quest: 'nine_names'
   },
@@ -426,7 +426,7 @@ export const bars: readonly BarDef[] = [
   // where it started rather than by inventing a rarer rock at the last moment.
   {
     id: 'tidefall_bar', name: 'Tidefall bar', skill: 'smithing',
-    level: 50, xp: 70, successChance: 1,
+    level: 50, xp: 9, successChance: 1,
     ingredients: [{ id: 'adamantine_bar', qty: 1 }, { id: 'coal', qty: 6 }],
     quest: 'watermark'
   },
@@ -436,12 +436,12 @@ export const bars: readonly BarDef[] = [
   // without having burnt something first.
   {
     id: 'molten_glass', name: 'Molten glass', skill: 'crafting',
-    level: 1, xp: 12, successChance: 1,
+    level: 1, xp: 1.5, successChance: 1,
     ingredients: [{ id: 'sand', qty: 1 }, { id: 'ash', qty: 1 }]
   },
   {
     id: 'glass_vial', name: 'Glass vial', skill: 'crafting',
-    level: 5, xp: 20, successChance: 1,
+    level: 5, xp: 2.5, successChance: 1,
     ingredients: [{ id: 'molten_glass', qty: 1 }]
   },
   // Crafting's outbound arrow into Magic. A leaf sealed in glass while the
@@ -449,7 +449,7 @@ export const bars: readonly BarDef[] = [
   // focus cannot be bought.
   {
     id: 'emberglass_focus', name: 'Emberglass focus', skill: 'crafting',
-    level: 15, xp: 90, successChance: 1,
+    level: 15, xp: 11, successChance: 1,
     ingredients: [{ id: 'molten_glass', qty: 2 }, { id: 'emberleaf', qty: 1 }]
   }
 ];
@@ -483,13 +483,13 @@ export interface FletchDef {
 export const fletchables: readonly FletchDef[] = [
   {
     id: 'arrow_shafts', name: 'Arrow shafts',
-    level: 1, xp: 5,
+    level: 1, xp: 1,
     inputs: [{ id: 'logs', qty: 1 }],
     outputId: 'arrow_shaft', outputQty: 8
   },
   {
     id: 'bronze_arrows', name: 'Bronze arrows',
-    level: 5, xp: 20,
+    level: 5, xp: 2.5,
     inputs: [
       { id: 'arrow_shaft', qty: 8 },
       { id: 'feather', qty: 8 },
@@ -499,7 +499,7 @@ export const fletchables: readonly FletchDef[] = [
   },
   {
     id: 'iron_arrows', name: 'Iron arrows',
-    level: 20, xp: 38,
+    level: 20, xp: 5,
     inputs: [
       { id: 'arrow_shaft', qty: 8 },
       { id: 'feather', qty: 8 },
@@ -542,7 +542,7 @@ export interface SmithDef {
  * daggers' worth of experience. Keeping it a single constant means new products
  * only ever need a bar count.
  */
-export const SMITH_XP_PER_BAR = 12.5;
+export const SMITH_XP_PER_BAR = 1.5;
 
 // Each tier occupies a nine-level band starting at its unlock level (1, 10,
 // 20), with the same shape inside every band: dagger first, platebody last.

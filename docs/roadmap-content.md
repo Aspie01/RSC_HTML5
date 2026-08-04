@@ -254,7 +254,7 @@ Six regions, unlocked by quest rather than level where possible.
 | **C** *[done]* | 0.5 | Full combat suite + Vitality. Quests 8–11. Wrackwood. | Combat system |
 | **D** *[done]* | 0.7 | Magic, Crafting, Foraging. Quests 12–16. | Spell system |
 | **E** | 0.9 | Drowned Interior. Quests 17–21. Tiers 5–6 equipment. | Boss framework |
-| **F** *[done]* | 1.0 | Capstone quests 22–24. Tier 6. Statistics screen. | — |
+| **F** *[done]* | 1.0 | Capstone quests 22–24. Tier 6. Statistics screen. Balance pass. | — |
 | **Post** | 1.x | Alchemy, Thieving, Agility, task system, Farming | — |
 
 Phase A is the build you already have a technical roadmap for. Everything after it is content on a proven engine.
