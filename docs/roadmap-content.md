@@ -204,7 +204,7 @@ The spine begins. Each of these recovers a fragment of what the collapsed order 
 |---|---|---|---|---|
 | 17 | **What the Tide Kept** [4] | Underwater/flooded areas | Q15 | Flooded ruins region |
 | 18 | **The Alchemist's Third Mistake** [3] | Saltwort, and steeping it | Q11, Q12, Foraging 30 | The saltwort draught |
-| 19 | **Nine Names** [4] | Boss pattern, prep | Q17, Combat 30 | Adamantine access |
+| 19 | **Nine Names** [4] | Boss phases, prep | Q17, Vitality 30 | Adamantine, tier 5 |
 | 20 | **The Last Warden** [5] | Multi-stage combat | Q14, Q19 | Warden's seal |
 | 21 | **Unmarked** [3] | Choice without consequence | Q20 | Nothing mechanical. Deliberate. |
 

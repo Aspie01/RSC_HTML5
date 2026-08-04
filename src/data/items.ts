@@ -481,6 +481,54 @@ export const items = {
   blackiron_platebody: item('blackiron_platebody', 'Blackiron platebody', { value: 960,
     slot: 'body', colour: '#3f4247', shape: 'plate',
     bonuses: { defence: 33 }
+  }),
+
+  // ------------------------------------------------------------------------
+  // Tier 5: adamantine
+  //
+  // The first tier whose ore is not in the quarry. It is under the interior,
+  // which means the whole tier is downstream of Q17 -- you cannot mine it
+  // without the stair, and you cannot smelt it without having killed the thing
+  // that was standing on it.
+  // ------------------------------------------------------------------------
+  adamantine_ore: item('adamantine_ore', 'Adamantine ore', { value: 120,
+    colour: '#4a6b62', shape: 'ore',
+    examine: 'Green where the light catches it. It has been underwater a long time.'
+  }),
+
+  adamantine_bar: item('adamantine_bar', 'Adamantine bar', { value: 620,
+    colour: '#4a6b62', shape: 'bar',
+    examine: 'It came out of the fire colder than it went in.'
+  }),
+
+  adamantine_dagger: item('adamantine_dagger', 'Adamantine dagger', { value: 460,
+    slot: 'weapon', speed: 4, colour: '#4a6b62', shape: 'blade',
+    bonuses: { attack: 19, strength: 18 }
+  }),
+
+  adamantine_scimitar: item('adamantine_scimitar', 'Adamantine scimitar', { value: 1050,
+    slot: 'weapon', speed: 4, colour: '#4a6b62', shape: 'blade',
+    bonuses: { attack: 32, strength: 30 }
+  }),
+
+  adamantine_kiteshield: item('adamantine_kiteshield', 'Adamantine kiteshield', { value: 1400,
+    slot: 'shield', colour: '#4a6b62', shape: 'shield',
+    bonuses: { defence: 39 }
+  }),
+
+  adamantine_med_helm: item('adamantine_med_helm', 'Adamantine med helm', { value: 790,
+    slot: 'head', colour: '#4a6b62', shape: 'helm',
+    bonuses: { defence: 17 }
+  }),
+
+  adamantine_platelegs: item('adamantine_platelegs', 'Adamantine platelegs', { value: 1580,
+    slot: 'legs', colour: '#4a6b62', shape: 'legs',
+    bonuses: { defence: 35 }
+  }),
+
+  adamantine_platebody: item('adamantine_platebody', 'Adamantine platebody', { value: 2100,
+    slot: 'body', colour: '#4a6b62', shape: 'plate',
+    bonuses: { defence: 47 }
   })
 } as const satisfies Record<string, ItemDef>;
 

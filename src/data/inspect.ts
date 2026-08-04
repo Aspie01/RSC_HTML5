@@ -14,7 +14,8 @@ export const INSPECT_TEXT: Readonly<Record<string, string>> = {
   thicket: 'Dead reed, standing upright. It died where it stood and never fell.',
   stone_box: 'A stone box, set in the pool. Placed, not dropped.',
   rubble: 'A fall of loose stone. The edges of it were squared by hand.',
-  descent: 'Steps going down under the water. They do not stop where the light does.'
+  descent: 'Steps going down under the water. They do not stop where the light does.',
+  tally: 'Nine scratches, cut deep. Eight are old and the ninth is not finished -- the stroke stops halfway, as though the hand it was in stopped first.'
 };
 
 /** True if this scenery kind can be clicked to look at. */

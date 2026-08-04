@@ -352,6 +352,87 @@ export const quests: readonly QuestDef[] = [
   // the player is carrying enough food to come back up, because the interior
   // is floodwater almost throughout and the only thing between a visitor and
   // drowning is what they brought.
+  // Quest 19. The first boss, and the quest exists to make it survivable
+  // rather than to make it hard: stage two sends the player to read the wall
+  // and stage three is Iselle explaining, in order, what the thing will do.
+  // Someone who reads both arrives knowing the fight. That is the teaching.
+  //
+  // The gate is Vitality 30 rather than a combat level, because a combat level
+  // is a formula and Vitality is the one skill every way of fighting trains.
+  {
+    id: 'nine_names',
+    name: 'Nine Names',
+    requires: {
+      quests: ['what_the_tide_kept'],
+      skills: { vitality: 30 }
+    },
+    blocked: [
+      { who: 'npc', text: 'Not yet. I will not send someone down to be the tenth because they were willing.' }
+    ],
+    reward: {
+      points: 4,
+      xp: { attack: 1200, strength: 1200, defence: 1200, vitality: 900, smithing: 600 },
+      unlock: 'The green ore under the interior will take a fire now. Adamantine, at Smithing 40.'
+    },
+    stages: [
+      {
+        journal: 'Iselle Marrow has been reading the ledger and has stopped sleeping.',
+        npc: 'iselle',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Nine names. That is what is at the back of the ledger, in a different hand, and eight of them have a line through.' },
+          { who: 'player', text: 'And the ninth?' },
+          { who: 'npc', text: 'The ninth has half a line. Somebody was crossing it out and did not get to the end of the stroke.' },
+          { who: 'npc', text: 'I would call that a coincidence if I had not also found the same nine cut into a wall down there. Same order. Same half-finished ninth.' },
+          { who: 'npc', text: 'Go and look at it. Do not do anything else -- look at it, come back, and tell me I am wrong.' }
+        ]
+      },
+      {
+        journal: 'Find the nine names cut into a wall in the drowned interior.',
+        npc: 'iselle',
+        goal: { type: 'inspect', x: 16, y: 44 },
+        waiting: [
+          { who: 'npc', text: 'East, along the floor. It is on the wall at the far end and you will not miss it.' }
+        ],
+        done: [
+          { who: 'player', text: 'Nine. Eight finished and one stopped partway, exactly as she said.' },
+          { who: 'player', text: 'Something has been standing here. The floor in front of the wall is worn smooth and it is worn in one spot.' }
+        ]
+      },
+      {
+        journal: 'Go back to Iselle Marrow and tell her what is down there.',
+        npc: 'iselle',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Then I am not wrong, and I would very much rather have been.' },
+          { who: 'npc', text: 'Whatever is finishing that list is still down there and it is still counting. It will come out of the wall when it has somebody to count.' },
+          { who: 'player', text: 'How do I fight it?' },
+          { who: 'npc', text: 'Slowly, then quickly. It starts under a great deal of armour and swings like it is carrying it -- you will barely mark it and it will barely mark you.' },
+          { who: 'npc', text: 'Past halfway it sheds that. Hits far harder. That is the part that kills people, and it is also the part where it stops being hard to hit.' },
+          { who: 'npc', text: 'At the end it is fast and it is made of nothing. Take everything you have got into that last stretch and it will be over before it is over for you.' },
+          { who: 'npc', text: 'Food. As much as you can carry, and eat it before you need it rather than after. That is the whole of my advice and it is better advice than it sounds.' }
+        ]
+      },
+      {
+        journal: 'Kill the Ninth, in the drowned interior.',
+        npc: 'iselle',
+        goal: { type: 'kill', npcId: 'the_ninth', count: 1 },
+        waiting: [
+          { who: 'npc', text: 'It is at the wall. Slowly, then quickly, and eat early.' }
+        ],
+        done: [
+          { who: 'npc', text: 'You are standing there dripping and you have not said anything, which I am choosing to read as good news.' },
+          { who: 'npc', text: 'Nine crossed out. Whoever was keeping that list has finished it, and they are not here to know.' },
+          { who: 'npc', text: 'The green rock down there -- it has been sat under that thing the whole time. Nobody has taken a bar off it in a hundred years because nobody got past the wall.' },
+          { who: 'npc', text: 'You did. Take it to a furnace with plenty of coal. It will go, now.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'I still read that page. Eight names, then yours would have been the tenth, and instead there is a line through the ninth. I do not know what to do with that either.' }
+    ]
+  },
+
   // Quest 18. Foraging's only quest, and the one that makes the third tier of
   // it worth having: saltwort is useless in the pack and the best healing item
   // in the game once it is in a vial.

@@ -146,6 +146,26 @@ export const npcs = {
     ]
   }),
 
+  // The Ninth. Its phases live in data/bosses.ts and override most of this --
+  // what is here is only what the first phase does not bother to change, and
+  // the health, which no phase touches.
+  //
+  // Not aggressive, and it never leaves its tile. You go to it. A boss that
+  // walks over and starts the fight is a boss you can lose to by accident,
+  // and the whole of Nine Names is about arriving prepared.
+  the_ninth: npc('the_ninth', 'The Ninth', {
+    level: 76, hitpoints: 90,
+    attack: 40, strength: 26, defence: 42,
+    attackBonus: 48, strengthBonus: 30, defenceBonus: 60,
+    speed: 6, aggressive: false, wanderRadius: 0, respawnTicks: 100,
+    colour: '#2e3a3f', accent: '#7fae9e', size: 1.5,
+    drops: [
+      { id: 'adamantine_ore', qty: [2, 5], weight: 100 },
+      { id: 'coins', qty: [300, 900], weight: 60 },
+      { id: 'saltwort', qty: [1, 3], weight: 40 }
+    ]
+  }),
+
   ivo: npc('ivo', 'Ivo Rennick', {
     talkable: true, attackable: false, wanderRadius: 0,
     colour: '#5f4a5a', accent: '#d0c4b0', size: 0.98

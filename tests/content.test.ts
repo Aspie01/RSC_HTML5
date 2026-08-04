@@ -286,16 +286,21 @@ test('every combination consumes and produces real items', () => {
   }
 });
 
-test('a quest-gated combination names a quest that exists', () => {
+test('every quest-gated recipe names a quest that exists', () => {
   // A typo here fails open in the worst direction: recipeKnown() cannot find
-  // the quest, so the method is unlearnable and the quest that teaches it
-  // rewards nothing.
-  for (const c of combinations) {
-    if (!c.quest) continue;
-    assert.ok(
-      quests.some((q) => q.id === c.quest),
-      `combination making ${c.output} is gated on unknown quest "${c.quest}"`
-    );
+  // the quest, so the method is permanently unlearnable and the quest that
+  // was supposed to teach it rewards nothing. Nothing else would notice.
+  const known = new Set(quests.map((q) => q.id));
+
+  const gated: ReadonlyArray<{ what: string; quest: string | undefined }> = [
+    ...combinations.map((c) => ({ what: `combination -> ${c.output}`, quest: c.quest })),
+    ...bars.map((b) => ({ what: `furnace -> ${b.id}`, quest: b.quest })),
+    ...smithables.map((s) => ({ what: `anvil -> ${s.id}`, quest: s.quest }))
+  ];
+
+  for (const g of gated) {
+    if (!g.quest) continue;
+    assert.ok(known.has(g.quest), `${g.what} is gated on unknown quest "${g.quest}"`);
   }
 });
 

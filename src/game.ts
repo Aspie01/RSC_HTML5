@@ -14,7 +14,7 @@ import type {
   EquipSlot, ItemStack, PlayerAction, Point, SkillId, StationKind, World
 } from './types.ts';
 import type { GroundItem } from './systems/ground.ts';
-import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE, SALLOWS_ENTRANCE, ROAD_ENTRANCE } from './world/map.ts';
+import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE, SALLOWS_ENTRANCE, ROAD_ENTRANCE, INTERIOR_FLOOR } from './world/map.ts';
 import { GroundItems } from './systems/ground.ts';
 import { WorldObjects } from './systems/objects.ts';
 import { Player } from './entities/player.ts';
@@ -48,7 +48,7 @@ import * as XP from './data/xp.ts';
 import * as pathfind from './world/pathfind.ts';
 import * as combat from './systems/combat.ts';
 import * as iso from './world/iso.ts';
-import { lerp, tileDist } from './core/util.ts';
+import { lerp, tileDist, withArticle, plural } from './core/util.ts';
 import { loop } from './core/loop.ts';
 import { rng } from './core/rng.ts';
 import { audio } from './audio/audio.ts';
@@ -908,6 +908,13 @@ export class Game implements World {
       this.openTheRoad();
     }
 
+    // The Ninth is called before the stage that asks you to kill it, not
+    // after -- a kill goal against something that does not exist yet is a
+    // quest that cannot be finished.
+    if (def.id === 'nine_names' && this.quests.stageOf(def.id) >= 4) {
+      this.summonTheNinth();
+    }
+
     // Handed over before the next stage is set, so a stage that supplies the
     // tool for the one after it cannot leave the player unable to continue.
     for (const item of stage.gives ?? []) this.giveQuestItem(item);
@@ -1021,6 +1028,10 @@ export class Game implements World {
     if (this.quests.stageOf('cartographers_error') >= 3) this.openTheSallows();
     if (this.quests.stageOf('sunken_road') >= 3) this.openTheRoad();
 
+    // Same reasoning: the Ninth is summoned partway through Nine Names, and
+    // the stage after that is killing it. It stays once it has been called.
+    if (this.quests.stageOf('nine_names') >= 4) this.summonTheNinth();
+
     const vigil = getQuest('vigil');
     if (vigil && this.quests.isComplete(vigil)) this.player.knowsSpells = true;
 
@@ -1059,6 +1070,20 @@ export class Game implements World {
   /** Cut back the thicket across the grove path. */
   private openTheGrove(): void {
     this.map.scenery[this.map.idx(GROVE_ENTRANCE.x, GROVE_ENTRANCE.y)] = null;
+  }
+
+  /**
+   * Put the Ninth on the interior floor.
+   *
+   * It is not in the map's spawn table because the interior is walkable from
+   * the moment Q17 opens the stair, and a level-76 boss standing in a room
+   * the player is sent to explore would kill them for going the wrong way.
+   * It appears when Nine Names says it does, and stays afterwards -- it
+   * respawns, and its ore is the tier-5 supply.
+   */
+  private summonTheNinth(): void {
+    if (this.npcs.some((n) => n.def.id === 'the_ninth')) return;
+    this.npcs.push(new Npc('the_ninth', INTERIOR_FLOOR.x, INTERIOR_FLOOR.y));
   }
 
   private freeTileBeside(x: number, y: number): Point | null {
@@ -1445,6 +1470,13 @@ export class Game implements World {
     if (!target.isAlive()) {
       if (target instanceof Npc) this.killNpc(target, mob);
       else target.dead = true;
+
+    } else if (target instanceof Npc) {
+      // A boss changing phase is a chat line and nothing else. The stat swap
+      // has already happened inside advancePhase; this only says so, because
+      // a fight that gets harder without saying why reads as a bug.
+      const entered = target.advancePhase();
+      if (entered) this.ui.message(entered.say, 'sys');
     }
   }
 
@@ -1454,7 +1486,7 @@ export class Game implements World {
     }
 
     if (killer instanceof Player) {
-      this.ui.message(`You defeat the ${npc.name}.`, 'good');
+      this.ui.message(`You defeat ${withArticle(npc.name)}.`, 'good');
       killer.clearAction();
 
       // Count it against any quest stage currently asking for this kind.
@@ -1465,7 +1497,7 @@ export class Game implements World {
         this.quests.countKill(def.id);
         const done = this.quests.killsFor(def.id);
         if (done <= stage.goal.count) {
-          this.ui.message(`${done}/${stage.goal.count} ${npc.name.toLowerCase()}s.`, 'sys');
+          this.ui.message(`${done}/${stage.goal.count} ${plural(npc.name, stage.goal.count)}.`, 'sys');
         }
         this.ui.dirty = true;
       }

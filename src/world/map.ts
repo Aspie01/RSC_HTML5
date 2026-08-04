@@ -43,7 +43,8 @@ export interface TerrainInfo {
 
 export type SceneryKind =
   | 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil' | 'fishing_spot'
-  | 'well' | 'rubble' | 'sand_bank' | 'thicket' | 'stone_box' | 'descent';
+  | 'well' | 'rubble' | 'sand_bank' | 'thicket' | 'stone_box' | 'descent'
+  | 'tally';
 
 export interface Scenery {
   readonly kind: SceneryKind;
@@ -294,11 +295,32 @@ const INTERIOR_DRY: ReadonlyArray<readonly [number, number]> = [
   // The stair, and a spit of standing ground around it.
   [8, 44], [8, 43], [7, 44], [9, 44], [8, 45],
   // Islands, so the region is crossed in hops rather than one long wade.
-  [4, 42], [5, 42], [4, 43],
+  [3, 43], [4, 42], [5, 42], [4, 43],
   [12, 42], [13, 42], [13, 43],
   [5, 46], [6, 46],
   [11, 46], [12, 46],
-  [15, 44], [15, 45]
+  // The eastern floor, where the Ninth stands. Deliberately a proper room
+  // rather than an island: a boss fought while bleeding a hitpoint a tick to
+  // the floor is not a fight, it is a timer, and the fight is meant to be the
+  // hard part.
+  [14, 43], [15, 43], [16, 43],
+  [14, 44], [15, 44], [16, 44],
+  [14, 45], [15, 45], [16, 45],
+  [14, 46], [15, 46], [16, 46]
+];
+
+/** Where the Ninth waits. Nothing walks to you down here. */
+export const INTERIOR_FLOOR = { x: 15, y: 44 } as const;
+
+/**
+ * Adamantine, on the islands rather than the floor.
+ *
+ * Tier 5's ore is here and nowhere else, which is what makes the interior a
+ * place worth returning to once the quest that opens it is behind you. It sits
+ * on the hops, not in the boss's room, so mining it is a wade and not a fight.
+ */
+const INTERIOR_ORE: ReadonlyArray<readonly [number, number]> = [
+  [3, 43], [4, 42], [13, 42], [5, 46], [12, 46]
 ];
 
 /** Where the stair back up stands. */
@@ -549,6 +571,12 @@ export function generateMap(): GameMap {
     }
   }
   map.setScenery(INTERIOR_STAIR.x, INTERIOR_STAIR.y, { kind: 'descent', blocks: false });
+  // The wall the Ninth stands in front of. Quest 19 sends you to read it.
+  map.setScenery(16, 44, { kind: 'tally', blocks: true });
+
+  for (const [ox, oy] of INTERIOR_ORE) {
+    map.setScenery(ox, oy, { kind: 'rock', blocks: true, resource: 'adamantine' });
+  }
 
   // The Sallows. Reached along the south road, then east through the reeds.
   map.fillRect(33, 40, 44, 46, Terrain.Dirt);

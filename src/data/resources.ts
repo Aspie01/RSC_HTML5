@@ -216,6 +216,23 @@ export const gatherables = {
     colour: '#2c2c31'
   },
 
+  // Tier 5 ore, and the only rock outside the quarry and the Cut. Slow, and
+  // it stays slow -- the walk to it is under water, so a fast respawn would
+  // turn the interior into a place you stand rather than a place you visit.
+  adamantine: {
+    id: 'adamantine', name: 'Adamantine rock', skill: 'mining',
+    level: 40, xp: 95, outputId: 'adamantine_ore',
+    low: 12, high: 78,
+    tool: 'pickaxe',
+    depleteChance: 1.0, respawnTicks: 90,
+    cue: 'mine',
+    success: 'You manage to mine some {item}.',
+    depleted: 'There is no ore left in this rock.',
+    full: 'Your inventory is too full to hold any more ore.',
+    noTool: 'You need a pickaxe to mine this rock.',
+    colour: '#4a6b62'
+  },
+
   // Fishing spots. The shoal rarely moves on, so unlike mining this is a place
   // to stand -- which is the whole reason the docks are worth walking to.
   sprat: {
@@ -396,6 +413,14 @@ export const bars: readonly BarDef[] = [
     ingredients: [{ id: 'steel_bar', qty: 1 }, { id: 'coal', qty: 3 }],
     quest: 'ironmongers_bargain'
   },
+  // Tier 5. Its own ore, which no other tier has -- and it takes coal on top,
+  // so a bar of it is a trip to the interior and a trip to the Cut.
+  {
+    id: 'adamantine_bar', name: 'Adamantine bar', skill: 'smithing',
+    level: 40, xp: 45, successChance: 1,
+    ingredients: [{ id: 'adamantine_ore', qty: 1 }, { id: 'coal', qty: 4 }],
+    quest: 'nine_names'
+  },
 
   // Glass. Sand off the shore and ash out of a dead fire, which is why the
   // quest that teaches this is gated on Firemaking: you cannot make glass
@@ -540,6 +565,7 @@ export const smithables: readonly SmithDef[] = [
   ...tier('iron', 10),
   ...tier('steel', 20),
   ...tier('blackiron', 30, 'ironmongers_bargain'),
+  ...tier('adamantine', 40, 'nine_names'),
   // Foraging's inbound arrow. Nothing can be cut from a hedge without one, so
   // the skill that produces reagents starts at a forge, and no skill in the
   // game stands entirely on its own.

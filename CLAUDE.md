@@ -127,10 +127,10 @@ Equipment tiers, and the levels they gate:
 | 2 | 10 | Iron |
 | 3 | 20 | Steel |
 | 4 | 30 | Blackiron |
-| 5 | 40 | *(unimplemented)* |
+| 5 | 40 | Adamantine *(quest-gated)* |
 | 6 | 50 | *(unimplemented, quest-gated)* |
 
-Blackiron is also **quest-gated**, and that distinction is worth keeping: a
+Blackiron and adamantine are also **quest-gated**, and that distinction is worth keeping: a
 level gate says "not yet", a quest gate says "nobody has shown you how". A
 recipe carrying a `quest` is hidden from the menus entirely rather than shown
 greyed-out, because a method you have never heard of should not be advertised.

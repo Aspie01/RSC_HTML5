@@ -570,8 +570,28 @@ export function descent(ctx: CanvasRenderingContext2D, x: number, y: number): vo
   }
 }
 
+/** Nine scratches on a wall, one of them unfinished. The quest is named here. */
+export function tally(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  ctx.fillStyle = '#2b3438';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 4, 12, 9, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 9; i++) {
+    // The ninth is pale and short, because whoever cut it did not finish.
+    ctx.strokeStyle = i === 8 ? 'rgba(215,235,240,0.9)' : 'rgba(150,180,190,0.55)';
+    const sx = x - 9 + i * 2.3;
+    ctx.beginPath();
+    ctx.moveTo(sx, y - 10);
+    ctx.lineTo(sx + 1.2, i === 8 ? y - 4 : y + 1);
+    ctx.stroke();
+  }
+}
+
 export const scenerySprites = {
-  bush, fence, furnace, anvil, well, rubble, thicket, stone_box: stoneBox, descent
+  bush, fence, furnace, anvil, well, rubble, thicket, stone_box: stoneBox, descent,
+  tally
 } as const;
 
 // --------------------------------------------------------------------------

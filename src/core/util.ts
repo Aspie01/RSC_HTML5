@@ -31,3 +31,23 @@ export function lerp(a: number, b: number, t: number): number {
 export function tileDist(ax: number, ay: number, bx: number, by: number): number {
   return Math.max(Math.abs(ax - bx), Math.abs(ay - by));
 }
+
+/**
+ * "the goblin", but "The Ninth" -- a name that already carries its article
+ * does not want a second one.
+ *
+ * Trivial, and it exists because the alternative is engine code checking for
+ * one specific NPC id, which is the thing rule 3 is about.
+ */
+export function withArticle(name: string): string {
+  return /^(The|A|An) /.test(name) ? name : `the ${name}`;
+}
+
+/**
+ * Plural for a kill tally. A proper name is already the thing it names, so
+ * one Ninth is not "1 the ninths".
+ */
+export function plural(name: string, n: number): string {
+  if (/^(The|A|An) /.test(name)) return name;
+  return n === 1 ? name.toLowerCase() : `${name.toLowerCase()}s`;
+}

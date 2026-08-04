@@ -8,6 +8,8 @@
 import type { CombatStats, MobAppearance, NpcDef, World } from '../types.ts';
 import { Mob } from './mob.ts';
 import { getNpc } from '../data/npcs.ts';
+import type { BossPhase } from '../data/bosses.ts';
+import { getBoss } from '../data/bosses.ts';
 import { randRange, tileDist } from '../core/util.ts';
 import * as pathfind from '../world/pathfind.ts';
 
@@ -26,6 +28,15 @@ export class Npc extends Mob {
   respawnTimer = 0;
   visible = true;
 
+  /**
+   * Index into this NPC's boss phases, or -1 when it is not a boss.
+   *
+   * It lives on the entity rather than in the save because a boss fight is
+   * not something you log out in the middle of -- leaving resets it, which
+   * is both simpler and the behaviour a player expects.
+   */
+  phase = -1;
+
   private wanderCooldown = randRange(4, 14);
 
   constructor(defId: string, x: number, y: number) {
@@ -41,6 +52,42 @@ export class Npc extends Mob {
     this.attackSpeed = def.speed;
     this.spawnX = x;
     this.spawnY = y;
+
+    if (getBoss(def.id)) {
+      this.phase = 0;
+      this.attackSpeed = this.activePhase()?.speed ?? def.speed;
+    }
+  }
+
+  /** The phase currently in force, or null for anything that is not a boss. */
+  activePhase(): BossPhase | null {
+    if (this.phase < 0) return null;
+    return getBoss(this.def.id)?.phases[this.phase] ?? null;
+  }
+
+  /**
+   * Move to the deepest phase this NPC's health has fallen into, and return
+   * it if that is a change. Callers announce the returned line.
+   *
+   * It skips forward rather than stepping, so a single large hit that crosses
+   * two thresholds lands in the right phase instead of leaving one queued up
+   * to trigger on the next scratch.
+   */
+  advancePhase(): BossPhase | null {
+    const boss = getBoss(this.def.id);
+    if (!boss || this.phase < 0) return null;
+
+    const frac = this.hp / this.maxHp;
+    let next = this.phase;
+    for (let i = this.phase + 1; i < boss.phases.length; i++) {
+      if (frac <= (boss.phases[i]?.at ?? 0)) next = i;
+    }
+    if (next === this.phase) return null;
+
+    this.phase = next;
+    const entered = boss.phases[next] ?? null;
+    if (entered?.speed !== undefined) this.attackSpeed = entered.speed;
+    return entered;
   }
 
   override get displayName(): string {
@@ -48,13 +95,16 @@ export class Npc extends Mob {
   }
 
   override combatStats(): CombatStats {
+    // A boss phase layers over the definition rather than replacing it, so a
+    // phase only has to name what it changes.
+    const p = this.activePhase();
     return {
-      attack: this.def.attack,
-      strength: this.def.strength,
-      defence: this.def.defence,
-      attackBonus: this.def.attackBonus,
-      strengthBonus: this.def.strengthBonus,
-      defenceBonus: this.def.defenceBonus,
+      attack: p?.attack ?? this.def.attack,
+      strength: p?.strength ?? this.def.strength,
+      defence: p?.defence ?? this.def.defence,
+      attackBonus: p?.attackBonus ?? this.def.attackBonus,
+      strengthBonus: p?.strengthBonus ?? this.def.strengthBonus,
+      defenceBonus: p?.defenceBonus ?? this.def.defenceBonus,
       styleAttack: 0,
       styleStrength: 0,
       styleDefence: 0
@@ -155,5 +205,12 @@ export class Npc extends Mob {
     this.y = this.prevY = this.spawnY;
     this.attackCooldown = 0;
     this.hitsplats.length = 0;
+
+    // A boss comes back at phase one. Respawning mid-phase would mean the
+    // second attempt is a different, easier fight than the first.
+    if (this.phase >= 0) {
+      this.phase = 0;
+      this.attackSpeed = this.activePhase()?.speed ?? this.def.speed;
+    }
   }
 }
