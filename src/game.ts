@@ -515,6 +515,21 @@ export class Game implements World {
     this.ui.message(
       def.success.replace('{item}', getItem(def.outputId)?.name.toLowerCase() ?? 'something')
     );
+
+    // The gem. Rolled after the output is in the pack, so a full inventory
+    // costs you the gem rather than the ore -- losing the thing you were
+    // working for would read as a bug.
+    if (def.bonus && rng.chance(def.bonus.chance)) {
+      const gem = getItem(def.bonus.id);
+      if (gem && p.inventory.add(def.bonus.id, 1)) {
+        audio.play('levelup');
+        // "You find: Drowned opal." rather than an article -- the same shape
+        // quest gifts use, and it dodges a/an entirely.
+        this.ui.message(`You find: ${gem.name}.`, 'levelup');
+        this.stats.bump('gems');
+      }
+    }
+
     this.ui.dirty = true;
 
     if (rng.chance(def.depleteChance)) {

@@ -59,6 +59,16 @@ export interface GatherDef {
   /** Shown when the required tool is missing. */
   readonly noTool: string;
 
+  /**
+   * An occasional second item on a success -- gems, in practice.
+   *
+   * This is the economy's scaling gold source. Coins from drops are fixed the
+   * day an NPC is written, so combat income cannot follow the player up the
+   * tiers; a gem whose chance rides on the rock being mined does, without
+   * needing a new system or a word of engine code per gem.
+   */
+  readonly bonus?: { readonly id: string; readonly chance: number };
+
   /** Tint, so an oak reads differently from a tree and copper from coal. */
   readonly colour: string;
   /** Size multiplier, for trees that should tower over their neighbours. */
@@ -174,6 +184,7 @@ export const gatherables = {
     depleted: 'There is no ore left in this rock.',
     full: 'Your inventory is too full to hold any more ore.',
     noTool: 'You need a pickaxe to mine this rock.',
+    bonus: { id: 'clouded_quartz', chance: 0.008 },
     colour: '#c06a3a'
   },
   tin: {
@@ -187,6 +198,7 @@ export const gatherables = {
     depleted: 'There is no ore left in this rock.',
     full: 'Your inventory is too full to hold any more ore.',
     noTool: 'You need a pickaxe to mine this rock.',
+    bonus: { id: 'clouded_quartz', chance: 0.008 },
     colour: '#b6b6c2'
   },
   iron: {
@@ -200,6 +212,7 @@ export const gatherables = {
     depleted: 'There is no ore left in this rock.',
     full: 'Your inventory is too full to hold any more ore.',
     noTool: 'You need a pickaxe to mine this rock.',
+    bonus: { id: 'clouded_quartz', chance: 0.014 },
     colour: '#8a5030'
   },
   coal: {
@@ -213,6 +226,7 @@ export const gatherables = {
     depleted: 'There is no ore left in this rock.',
     full: 'Your inventory is too full to hold any more ore.',
     noTool: 'You need a pickaxe to mine this rock.',
+    bonus: { id: 'river_garnet', chance: 0.012 },
     colour: '#2c2c31'
   },
 
@@ -230,6 +244,7 @@ export const gatherables = {
     depleted: 'There is no ore left in this rock.',
     full: 'Your inventory is too full to hold any more ore.',
     noTool: 'You need a pickaxe to mine this rock.',
+    bonus: { id: 'drowned_opal', chance: 0.010 },
     colour: '#4a6b62'
   },
 

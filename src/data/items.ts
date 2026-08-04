@@ -310,6 +310,33 @@ export const items = {
   }),
 
   // ------------------------------------------------------------------------
+  // Gems
+  //
+  // The economy's scaling gold source, and the only items in the game whose
+  // whole purpose is to be sold. They do nothing else on purpose: a gem that
+  // could be crafted into jewellery would need a jewellery tier, and the point
+  // of these is that mining should pay better the deeper you go without
+  // needing one.
+  //
+  // Priced so that one good gem is worth more than the load of ore it came
+  // with -- otherwise the interesting drop is the boring one.
+  // ------------------------------------------------------------------------
+  clouded_quartz: item('clouded_quartz', 'Clouded quartz', { value: 180,
+    colour: '#cfd6dc', shape: 'coin', tags: ['gem'],
+    examine: 'Milky, and it takes a little light in when you turn it.'
+  }),
+
+  river_garnet: item('river_garnet', 'River garnet', { value: 640,
+    colour: '#a83a4a', shape: 'coin', tags: ['gem'],
+    examine: 'Deep red. Somebody would pay well for this and you know it.'
+  }),
+
+  drowned_opal: item('drowned_opal', 'Drowned opal', { value: 2200,
+    colour: '#7fd6c4', shape: 'coin', tags: ['gem'],
+    examine: 'It has more colours in it than it has any right to, and none of them stay.'
+  }),
+
+  // ------------------------------------------------------------------------
   // Ores and bars
   // ------------------------------------------------------------------------
   copper_ore: item('copper_ore', 'Copper ore', { value: 9,

@@ -321,7 +321,7 @@ Explicitly out of scope for 1.0, listed so they don't creep in:
 
 ---
 
-## 9. Economy without other players
+## 9. Economy without other players *[built]*
 
 No player market means the whole RS economy model is inapplicable. What replaces it:
 
@@ -330,6 +330,17 @@ No player market means the whole RS economy model is inapplicable. What replaces
 - **Gold sources:** quest rewards, NPC buy prices for surplus goods, gems from mining.
 - **Deliberate deflation.** Since nobody's farming gold for real money, you can make gold scarce and meaningful. A 500-gold purchase should feel like a decision.
 - **No bank early.** Inventory pressure is a design tool. Introduce banking at Phase B, not Phase A.
+
+**As built.** Five shops: a general store that buys anything at 12% and four
+specialists that pay 22-50% for their own trade and refuse everything else,
+so selling is a decision about where to walk. Gems ride on the mining tiers
+as the scaling gold source. The sinks are the two skills that spend per
+action: an hour of Magic costs about 23,000 coins in reagents against a best
+gathering income of about 28,000, and Archery about 6,700 in iron arrows.
+
+Deferred from the list above: tool repair, smithing fuel and travel fees.
+Each is a system rather than a price, and the consumable sinks already give
+coins a permanent job. `tests/economy.test.ts` pins the relationships.
 
 ---
 

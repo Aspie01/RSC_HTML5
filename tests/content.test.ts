@@ -87,7 +87,9 @@ test('every shop line is a real item with a price', () => {
     for (const line of shop.stock) {
       exists(line.id, `shop ${shop.id}`);
       assert.ok(getItem(line.id)!.value > 0, `${line.id} is stocked but worthless`);
-      assert.ok(line.max > 0 && line.restockTicks > 0, `${line.id} restock`);
+      // max 0 is the buy-only line: the shop takes it and never sells it.
+      assert.ok(line.max >= 0, `${line.id} has negative stock`);
+      assert.ok(line.restockTicks > 0, `${line.id} restock`);
     }
   }
 });
