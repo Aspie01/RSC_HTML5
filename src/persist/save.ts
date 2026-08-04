@@ -44,6 +44,12 @@ export interface SaveData {
    * no version bump, since nothing in the simulation reads them.
    */
   stats?: unknown;
+  /**
+   * One-time hints already shown. Optional: absent means a save written
+   * before hints existed, which belongs to somebody who has already
+   * played and does not need teaching.
+   */
+  hints?: unknown;
   /** Spellbook state. Absent means Vigil is unfinished, which is the default. */
   knowsSpells?: unknown;
   spell?: unknown;

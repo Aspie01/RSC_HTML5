@@ -34,6 +34,7 @@ import { SKILL_LIST } from './systems/skills.ts';
 import { bindPointer } from './ui/pointer.ts';
 import { Quests } from './systems/quests.ts';
 import { Stats } from './systems/stats.ts';
+import { Hints, HINT_IDS } from './systems/hints.ts';
 import { Shops } from './systems/shop.ts';
 import type { TradeResult } from './systems/shop.ts';
 import { shopForNpc } from './data/shops.ts';
@@ -137,6 +138,7 @@ export class Game implements World {
   readonly quests = new Quests();
   readonly shops = new Shops();
   readonly stats = new Stats();
+  readonly hints = new Hints();
 
   private readonly renderer: Renderer;
   private readonly ui: UI;
@@ -160,6 +162,19 @@ export class Game implements World {
     this.player = new Player(24, 24);
     this.player.inventory.add('bronze_scimitar', 1);
     this.player.inventory.add('wooden_shield', 1);
+
+    // Worn, not carried. The intro tells a new player to click an enemy, and
+    // they do -- bare-handed, because the sword was in the pack and nothing
+    // said to equip it. Losing a fight to a chicken for a reason the game
+    // never mentioned is the worst possible first lesson.
+    //
+    // By id rather than by index: equipping vacates a slot without compacting
+    // the pack, so equipping index 0 twice equips the sword and then nothing.
+    for (const id of ['bronze_scimitar', 'wooden_shield']) {
+      const at = this.player.inventory.slots.findIndex((s) => s?.id === id);
+      if (at >= 0) this.player.inventory.equip(at);
+    }
+
     this.player.inventory.add('bronze_axe', 1);
     this.player.inventory.add('tinderbox', 1);
     this.player.inventory.add('bronze_pickaxe', 1);
@@ -189,16 +204,34 @@ export class Game implements World {
     }
   }
 
+  /**
+   * The opening. Three lines, and no more.
+   *
+   * This used to be six, covering movement, three enemy types, firemaking,
+   * cooking, mining, smelting and smithing -- all before the player had taken
+   * a step. Everything past the third line now waits in `hints`, and arrives
+   * when the player is holding the thing it is about.
+   *
+   * The control line is written after the fact rather than before: a touch
+   * player is told about tapping, and only once they have touched something.
+   */
   private greet(): void {
-    this.ui.message('Welcome to the game.', 'sys');
-    this.ui.message('Left-click the ground to walk, or an enemy to attack.', 'sys');
-    this.ui.message('Chickens are north-west, goblins south-west, guards south-east.', 'sys');
-    this.ui.message('Click a tree to chop it. Right-click logs to light a fire, ' +
-                    'then click the fire to cook.', 'sys');
-    this.ui.message('The quarry and smithy are due west: mine ore, smelt it at ' +
-                    'the furnace, then hammer bars at the anvil.', 'sys');
+    this.ui.message('Thalren Vale. The bay flooded within living memory and ' +
+                    'nobody has surveyed what is under it since.', 'sys');
+    this.ui.message('Click the ground to walk. Click a thing to use it, or ' +
+                    'right-click it to see what else you could do.', 'sys');
     this.ui.message('Maren Ashfall is sitting just east of here and looks like ' +
                     'she wants a word. Click her to talk.', 'sys');
+  }
+
+  /**
+   * A hint, if this is the first time it applies.
+   *
+   * Kept to one line each. The rule that earns its place: say it where the
+   * player is standing, not where they will be in half an hour.
+   */
+  private hint(id: string, text: string): void {
+    if (this.hints.due(id)) this.ui.message(text, 'sys');
   }
 
   // ----------------------------------------------------------------------
@@ -513,6 +546,17 @@ export class Game implements World {
     audio.play(def.cue);
     this.stats.bump(GATHER_STAT[def.skill] ?? 'gathered');
     this.announceXp(def.skill, def.xp);
+
+    // Said the moment the player is holding the thing, not half an hour
+    // earlier while they were still reading the welcome.
+    if (def.skill === 'woodcutting') {
+      this.hint('firemaking', 'Right-click your logs and choose Light to make a fire.');
+    } else if (def.skill === 'mining') {
+      this.hint('smelting',
+        'Ore is no use raw. There is a furnace at the smithy, west of the crossroads.');
+    } else if (def.skill === 'fishing') {
+      this.hint('cooking', 'Raw fish wants a fire. Click one to cook on it.');
+    }
     this.ui.message(
       def.success.replace('{item}', getItem(def.outputId)?.name.toLowerCase() ?? 'something')
     );
@@ -1488,6 +1532,7 @@ export class Game implements World {
     p.inventory.removeSlot(index, 1);
     this.objects.addFire(p.x, p.y, burnable.burnTicks);
     this.stats.bump('fires');
+    this.hint('cooking', 'Click the fire with raw food in your pack to cook it.');
     audio.play('fire');
     this.announceXp('firemaking', burnable.xp);
     this.ui.message('The fire catches and the logs begin to burn.', 'good');
@@ -2014,7 +2059,8 @@ export class Game implements World {
       knowsSpells: p.knowsSpells,
       spell: p.selectedSpell,
       shops: this.shops.snapshot(),
-      stats: this.stats.toJSON()
+      stats: this.stats.toJSON(),
+      hints: this.hints.snapshot()
     };
     return JSON.stringify(data);
   }
@@ -2073,6 +2119,12 @@ export class Game implements World {
       this.ui.refreshTabs();
       this.shops.restore(data.shops);
       this.stats.restore(data.stats as Record<string, number> | undefined);
+
+      // A save from before hints existed belongs to somebody who has already
+      // played, so silence the lot rather than teaching them to chop a tree
+      // at Woodcutting 30.
+      if (data.hints === undefined) this.hints.suppressAll(HINT_IDS);
+      else this.hints.restore(data.hints);
 
       if (data.slots) p.inventory.slots = this.migrateSlots(data.slots);
       if (data.equipment) p.inventory.equipment = data.equipment as typeof p.inventory.equipment;
