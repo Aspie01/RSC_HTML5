@@ -531,6 +531,53 @@ export const items = {
     bonuses: { defence: 47 }
   }),
 
+  // ------------------------------------------------------------------------
+  // Tier 6: tidefall steel
+  //
+  // The last metal, and the only one with no ore of its own -- it is adamantine
+  // taken back into the fire with more coal than any sane smith would spend,
+  // which is the same trick blackiron plays one tier down. That is deliberate:
+  // the ladder ends where it started rather than by inventing a rarer rock.
+  //
+  // Smithing 50 across the board. It is the only content in the game at the
+  // level cap, and it arrives after the quest that checks you are no longer a
+  // specialist, so reaching it means the whole game rather than one skill.
+  // ------------------------------------------------------------------------
+  tidefall_bar: item('tidefall_bar', 'Tidefall bar', { value: 1400,
+    colour: '#6d7f8c', shape: 'bar',
+    examine: 'Pale as the inside of a shell, and it does not warm to the hand.'
+  }),
+
+  tidefall_dagger: item('tidefall_dagger', 'Tidefall dagger', { value: 1050,
+    slot: 'weapon', speed: 4, colour: '#6d7f8c', shape: 'blade',
+    bonuses: { attack: 27, strength: 25 }
+  }),
+
+  tidefall_scimitar: item('tidefall_scimitar', 'Tidefall scimitar', { value: 2400,
+    slot: 'weapon', speed: 4, colour: '#6d7f8c', shape: 'blade',
+    bonuses: { attack: 44, strength: 41 }
+  }),
+
+  tidefall_kiteshield: item('tidefall_kiteshield', 'Tidefall kiteshield', { value: 3200,
+    slot: 'shield', colour: '#6d7f8c', shape: 'shield',
+    bonuses: { defence: 53 }
+  }),
+
+  tidefall_med_helm: item('tidefall_med_helm', 'Tidefall med helm', { value: 1800,
+    slot: 'head', colour: '#6d7f8c', shape: 'helm',
+    bonuses: { defence: 23 }
+  }),
+
+  tidefall_platelegs: item('tidefall_platelegs', 'Tidefall platelegs', { value: 3600,
+    slot: 'legs', colour: '#6d7f8c', shape: 'legs',
+    bonuses: { defence: 47 }
+  }),
+
+  tidefall_platebody: item('tidefall_platebody', 'Tidefall platebody', { value: 4800,
+    slot: 'body', colour: '#6d7f8c', shape: 'plate',
+    bonuses: { defence: 63 }
+  }),
+
   // The first thing that goes in the cape slot, which is most of why it is
   // worth having: it is not a better version of something, it is a slot that
   // was empty until now. Small bonuses across every style, deliberately, so it

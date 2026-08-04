@@ -338,6 +338,37 @@ test('anything a quest sends you to look at is clickable', () => {
   }
 });
 
+test('the ending waits for every other quest', () => {
+  // The Long Answer lists its prerequisites rather than counting them, so
+  // that adding a quest later is a deliberate decision about whether the
+  // ending waits for it. This is what stops that list rotting: a new quest
+  // that nobody added here would let the player finish the game with content
+  // still in front of them, and nothing else would notice.
+  const ending = getQuest('the_long_answer');
+  assert.ok(ending);
+
+  const required = new Set(ending.requires?.quests ?? []);
+  const missing = quests
+    .filter((q) => q.id !== ending.id && q.id !== 'wayfarer')
+    .map((q) => q.id)
+    .filter((id) => !required.has(id));
+
+  assert.deepEqual(missing, [], 'quests exist that the ending does not wait for');
+});
+
+test('nothing is gated behind the ending except the victory lap', () => {
+  // Wayfarer is allowed to come after The Long Answer -- it is the lap of
+  // honour. Anything ELSE requiring the ending would be content placed after
+  // the credits, which is content most players will never see.
+  for (const q of quests) {
+    if (q.id === 'wayfarer') continue;
+    assert.ok(
+      !(q.requires?.quests ?? []).includes('the_long_answer'),
+      `${q.id} is gated behind the ending`
+    );
+  }
+});
+
 test('exactly one quest pays out nothing, and it is meant to', () => {
   // Unmarked is the deliberate exception to "every quest unlocks something".
   // It is pinned here so that adding a reward to it is a failing test rather

@@ -421,6 +421,15 @@ export const bars: readonly BarDef[] = [
     ingredients: [{ id: 'adamantine_ore', qty: 1 }, { id: 'coal', qty: 4 }],
     quest: 'nine_names'
   },
+  // Tier 6, and the end of the ladder. No ore of its own -- it is the
+  // blackiron trick one tier up, and that is deliberate: the ladder finishes
+  // where it started rather than by inventing a rarer rock at the last moment.
+  {
+    id: 'tidefall_bar', name: 'Tidefall bar', skill: 'smithing',
+    level: 50, xp: 70, successChance: 1,
+    ingredients: [{ id: 'adamantine_bar', qty: 1 }, { id: 'coal', qty: 6 }],
+    quest: 'watermark'
+  },
 
   // Glass. Sand off the shore and ash out of a dead fire, which is why the
   // quest that teaches this is gated on Firemaking: you cannot make glass
@@ -566,6 +575,7 @@ export const smithables: readonly SmithDef[] = [
   ...tier('steel', 20),
   ...tier('blackiron', 30, 'ironmongers_bargain'),
   ...tier('adamantine', 40, 'nine_names'),
+  ...tier('tidefall', 50, 'watermark'),
   // Foraging's inbound arrow. Nothing can be cut from a hedge without one, so
   // the skill that produces reagents starts at a forge, and no skill in the
   // game stands entirely on its own.

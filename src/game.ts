@@ -965,6 +965,14 @@ export class Game implements World {
       if (this.player.skills.level(skill as SkillId) < (level ?? 0)) return false;
     }
 
+    if (req.anySkills) {
+      const { count, level } = req.anySkills;
+      const at = SKILL_LIST.filter((s) => this.player.skills.level(s.id) >= level).length;
+      if (at < count) return false;
+    }
+
+    if (req.points !== undefined && this.quests.points() < req.points) return false;
+
     return true;
   }
 
