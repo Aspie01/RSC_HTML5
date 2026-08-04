@@ -146,6 +146,48 @@ export const npcs = {
     ]
   }),
 
+  // The Ninth. Its phases live in data/bosses.ts and override most of this --
+  // what is here is only what the first phase does not bother to change, and
+  // the health, which no phase touches.
+  //
+  // Not aggressive, and it never leaves its tile. You go to it. A boss that
+  // walks over and starts the fight is a boss you can lose to by accident,
+  // and the whole of Nine Names is about arriving prepared.
+  the_ninth: npc('the_ninth', 'The Ninth', {
+    level: 76, hitpoints: 90,
+    attack: 40, strength: 26, defence: 42,
+    attackBonus: 48, strengthBonus: 30, defenceBonus: 60,
+    speed: 6, aggressive: false, wanderRadius: 0, respawnTicks: 100,
+    colour: '#2e3a3f', accent: '#7fae9e', size: 1.5,
+    drops: [
+      { id: 'adamantine_ore', qty: [2, 5], weight: 100 },
+      { id: 'coins', qty: [300, 900], weight: 60 },
+      { id: 'saltwort', qty: [1, 3], weight: 40 }
+    ]
+  }),
+
+  // The Last Warden. Four phases, which is the only thing that makes this a
+  // harder fight than the Ninth rather than a longer one -- it is not much
+  // stronger at any single moment, it just has one more moment than you have
+  // planned for.
+  the_last_warden: npc('the_last_warden', 'The Last Warden', {
+    level: 94, hitpoints: 120,
+    attack: 52, strength: 34, defence: 50,
+    attackBonus: 62, strengthBonus: 40, defenceBonus: 70,
+    speed: 5, aggressive: false, wanderRadius: 0, respawnTicks: 120,
+    colour: '#3a3f52', accent: '#c9b87a', size: 1.55,
+    drops: [
+      { id: 'adamantine_ore', qty: [4, 9], weight: 100 },
+      { id: 'coins', qty: [600, 1800], weight: 70 },
+      { id: 'adamantine_bar', qty: [1, 2], weight: 30 }
+    ]
+  }),
+
+  ivo: npc('ivo', 'Ivo Rennick', {
+    talkable: true, attackable: false, wanderRadius: 0,
+    colour: '#5f4a5a', accent: '#d0c4b0', size: 0.98
+  }),
+
   alder: npc('alder', 'Alder Finch', {
     talkable: true, attackable: false, wanderRadius: 0,
     colour: '#4f4a3a', accent: '#cfc4a4', size: 1.0

@@ -43,7 +43,8 @@ export interface TerrainInfo {
 
 export type SceneryKind =
   | 'tree' | 'rock' | 'bush' | 'fence' | 'furnace' | 'anvil' | 'fishing_spot'
-  | 'well' | 'rubble' | 'sand_bank' | 'thicket' | 'stone_box' | 'descent';
+  | 'well' | 'rubble' | 'sand_bank' | 'thicket' | 'stone_box' | 'descent'
+  | 'tally' | 'marker';
 
 export interface Scenery {
   readonly kind: SceneryKind;
@@ -279,6 +280,78 @@ export const ROAD_ENTRANCE = { x: 45, y: 43 } as const;
 export const ROAD_DESCENT = { x: 47, y: 44 } as const;
 
 /**
+ * The Drowned Interior: what is at the bottom of the stair.
+ *
+ * Physically it is a walled block in the south-west, because the map is one
+ * flat grid with no levels -- the descent at the pier head is a seam that puts
+ * you here, and the stair at (8,44) puts you back. Nothing connects the two
+ * areas on the grid, so a player can only ever arrive by the passage.
+ *
+ * It is mostly floodwater. The Sunken Road charged a hitpoint a tick to cross
+ * four tiles; this is the same price over a whole region, which is what makes
+ * it the last place in the game rather than the next one.
+ */
+const INTERIOR_DRY: ReadonlyArray<readonly [number, number]> = [
+  // The stair, and a spit of standing ground around it.
+  [8, 44], [8, 43], [7, 44], [9, 44], [8, 45],
+  // Islands, so the region is crossed in hops rather than one long wade.
+  [5, 42], [5, 43], [6, 43],
+  [11, 42], [12, 42], [13, 42], [13, 43],
+  [5, 46], [6, 46],
+  [11, 46], [12, 46],
+  // The vault, west of the fall. Dry, and sealed off until Quest 20 clears
+  // the stone -- being dry behind a wall costs nothing and means the fight
+  // in it is a fight rather than a drowning.
+  [2, 41], [3, 41], [2, 42], [3, 42], [2, 43], [3, 43],
+  [2, 44], [3, 44], [2, 45], [3, 45], [2, 46], [3, 46],
+  [2, 47], [3, 47],
+  // The eastern floor, where the Ninth stands. Deliberately a proper room
+  // rather than an island: a boss fought while bleeding a hitpoint a tick to
+  // the floor is not a fight, it is a timer, and the fight is meant to be the
+  // hard part.
+  [14, 43], [15, 43], [16, 43],
+  [14, 44], [15, 44], [16, 44],
+  [14, 45], [15, 45], [16, 45],
+  [14, 46], [15, 46], [16, 46]
+];
+
+/** Where the Ninth waits. Nothing walks to you down here. */
+export const INTERIOR_FLOOR = { x: 15, y: 44 } as const;
+
+/**
+ * The fall of stone sealing the vault at the west end, and the floor behind it.
+ *
+ * Same shape as the Cut: a quest clears one tile and a region opens. The
+ * difference is that this one is inspected first -- The Last Warden sends the
+ * player to look at the fall before anybody decides to move it.
+ */
+export const VAULT_SEAL = { x: 4, y: 44 } as const;
+export const VAULT_FLOOR = { x: 2, y: 44 } as const;
+
+/**
+ * The unmarked stone, at the waterline south of the pier.
+ *
+ * It is placed from the start rather than by a quest, because it has always
+ * been there and nobody has ever known what to cut on it. Unmarked is the only
+ * quest that changes nothing about the world, and that includes this.
+ */
+export const UNMARKED_STONE = { x: 44, y: 30 } as const;
+
+/**
+ * Adamantine, on the islands rather than the floor.
+ *
+ * Tier 5's ore is here and nowhere else, which is what makes the interior a
+ * place worth returning to once the quest that opens it is behind you. It sits
+ * on the hops, not in the boss's room, so mining it is a wade and not a fight.
+ */
+const INTERIOR_ORE: ReadonlyArray<readonly [number, number]> = [
+  [5, 42], [11, 42], [13, 42], [5, 46], [12, 46]
+];
+
+/** Where the stair back up stands. */
+export const INTERIOR_STAIR = { x: 8, y: 44 } as const;
+
+/**
  * Fishing spots, all placed so that a pier or shore tile sits beside them.
  * Shallows hug the sand; the deep water is out at the pier head, which is what
  * makes walking to the end of it worth doing at Fishing 10.
@@ -315,7 +388,9 @@ const QUEST_GIVERS: ReadonlyArray<{ npcId: string; x: number; y: number }> = [
   // South-east, on the road out towards the guards -- where the fighting is.
   { npcId: 'hesk', x: 30, y: 31 },
   // On the south road, in sight of the reeds he cannot account for.
-  { npcId: 'alder', x: 30, y: 38 }
+  { npcId: 'alder', x: 30, y: 38 },
+  // Just inside the fen mouth, where the saltwort is.
+  { npcId: 'ivo', x: 34, y: 44 }
 ];
 
 function spawnCluster(
@@ -506,6 +581,39 @@ export function generateMap(): GameMap {
   // goblins in the Cut already taught.
   spawnCluster(map, 'boar', 24, 42, 28, 44, 3, rng);
 
+  // The Drowned Interior. Flooded throughout except for the islands, and
+  // walled on every side -- the only way in or out is the stair, which is the
+  // point: a player cannot wander in early and a player cannot wander out
+  // when they are three hitpoints from the surface.
+  map.fillRect(2, 41, 16, 47, Terrain.Floodwater);
+  for (const [dx, dy] of INTERIOR_DRY) map.setTerrain(dx, dy, Terrain.Stone);
+
+  for (let y = 40; y <= 47; y++) {
+    for (let x = 1; x <= 17; x++) {
+      const edge = x === 1 || x === 17 || y === 40;
+      if (edge && map.inBounds(x, y)) map.setScenery(x, y, { kind: 'rock', blocks: true });
+      else if (y >= 41 && x >= 2 && x <= 16) map.scenery[map.idx(x, y)] = null;
+    }
+  }
+  map.setScenery(INTERIOR_STAIR.x, INTERIOR_STAIR.y, { kind: 'descent', blocks: false });
+  // The wall the Ninth stands in front of. Quest 19 sends you to read it.
+  map.setScenery(16, 44, { kind: 'tally', blocks: true });
+
+  // The unmarked stone, at the waterline south of the pier, facing the bay the
+  // other eight seals went into. Quest 21 sends the player to look at it and
+  // then does not do anything about it.
+  map.setScenery(UNMARKED_STONE.x, UNMARKED_STONE.y, { kind: 'marker', blocks: true });
+
+  // The fall that seals the vault: a solid wall from the north edge to the
+  // south, so the only way west is through the one tile a quest can clear.
+  for (let y = 41; y <= 47; y++) {
+    map.setScenery(VAULT_SEAL.x, y, { kind: 'rubble', blocks: true });
+  }
+
+  for (const [ox, oy] of INTERIOR_ORE) {
+    map.setScenery(ox, oy, { kind: 'rock', blocks: true, resource: 'adamantine' });
+  }
+
   // The Sallows. Reached along the south road, then east through the reeds.
   map.fillRect(33, 40, 44, 46, Terrain.Dirt);
   for (const [px, py] of SALLOW_POOLS) map.setTerrain(px, py, Terrain.Water);
@@ -533,6 +641,12 @@ export function generateMap(): GameMap {
   // Somebody put the ledger pages where nothing rots. The box does not block:
   // the pool under it already does, and it has to stay clickable from the bank.
   map.setScenery(36, 43, { kind: 'stone_box', blocks: false });
+
+  // Saltwort, deeper in and only here. It is what quest 18 is about and what
+  // makes the Drowned Interior survivable, so it is worth the walk.
+  for (const [sx, sy] of [[39, 45], [43, 42], [35, 46], [41, 43]] as const) {
+    map.setScenery(sx, sy, { kind: 'bush', blocks: false, resource: 'saltwort' });
+  }
 
   // Marshroot likes the wet. A reason to come back that is not the quest.
   for (const [bx, by] of [[34, 41], [38, 43], [42, 41], [37, 46]] as const) {

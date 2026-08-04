@@ -83,6 +83,8 @@ export interface ItemDef {
   readonly bonuses: Bonuses;
   /** Hitpoints restored when eaten. 0 means not edible. */
   readonly heals: number;
+  /** Verb used when consuming it, so a draught is drunk rather than eaten. */
+  readonly eatVerb: string;
   /**
    * What this item *is*, for engine code that must not name it.
    *

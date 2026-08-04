@@ -12,22 +12,31 @@ import type { Game } from '../game.ts';
 import type { AttackStyleId, ItemDef, EquipSlot } from '../types.ts';
 import { INVENTORY_CAPACITY, EQUIP_SLOTS } from '../systems/inventory.ts';
 import { SKILL_LIST } from '../systems/skills.ts';
+import { STAT_ROWS, formatPlaytime } from '../systems/stats.ts';
 import { STYLES, previewMaxHit } from '../systems/combat.ts';
 import { getItem } from '../data/items.ts';
 import { burnables, fletchablesFrom } from '../data/resources.ts';
-import { quests, TOTAL_QUEST_POINTS } from '../data/quests.ts';
+import { quests, getQuest, TOTAL_QUEST_POINTS } from '../data/quests.ts';
 import { spells, spellsUpTo } from '../data/spells.ts';
 import { combinable } from '../data/combinations.ts';
 import * as sprites from '../render/sprites.ts';
 import * as XP from '../data/xp.ts';
 
-export type TabId = 'inventory' | 'equipment' | 'skills' | 'combat' | 'quests';
+export type TabId = 'inventory' | 'equipment' | 'skills' | 'combat' | 'quests' | 'stats';
 export type ChatClass = '' | 'sys' | 'good' | 'bad' | 'levelup';
 
 interface TabDef {
   readonly id: TabId;
   readonly label: string;
   readonly title: string;
+  /**
+   * Quest that reveals this tab. Absent means always shown.
+   *
+   * Hidden rather than greyed out, for the same reason a quest-gated recipe is
+   * hidden: a panel you cannot open is a promise the interface has no business
+   * making.
+   */
+  readonly quest?: string;
 }
 
 const TABS: readonly TabDef[] = [
@@ -35,7 +44,8 @@ const TABS: readonly TabDef[] = [
   { id: 'equipment', label: 'Equip', title: 'Worn Equipment' },
   { id: 'skills', label: 'Skills', title: 'Skills' },
   { id: 'combat', label: 'Combat', title: 'Combat Options' },
-  { id: 'quests', label: 'Quests', title: 'Quest Journal' }
+  { id: 'quests', label: 'Quests', title: 'Quest Journal' },
+  { id: 'stats', label: 'Stats', title: 'Wayfarer', quest: 'wayfarer' }
 ];
 
 interface MenuOption {
@@ -106,15 +116,37 @@ export class UI {
   // --------------------------------------------------------------------
   // Tabs
   // --------------------------------------------------------------------
+  /**
+   * Build the tab strip. Called again whenever a quest completes, because one
+   * of the tabs does not exist until Wayfarer is finished.
+   */
   private buildTabs(): void {
-    for (const tab of TABS) {
+    this.dom.tabs.replaceChildren();
+
+    for (const tab of this.visibleTabs()) {
       const btn = document.createElement('button');
       btn.className = 'tab-btn';
       btn.dataset['tab'] = tab.id;
       btn.textContent = tab.label;
       btn.addEventListener('click', () => this.setTab(tab.id));
+      btn.classList.toggle('active', tab.id === this.activeTab);
       this.dom.tabs.appendChild(btn);
     }
+  }
+
+  /** The tabs whose gating quest, if any, is behind the player. */
+  private visibleTabs(): readonly TabDef[] {
+    return TABS.filter((t) => {
+      if (!t.quest) return true;
+      const def = getQuest(t.quest);
+      return def ? this.game.quests.isComplete(def) : false;
+    });
+  }
+
+  /** Re-read which tabs should exist. Called when a quest completes. */
+  refreshTabs(): void {
+    this.buildTabs();
+    this.dirty = true;
   }
 
   setTab(id: TabId): void {
@@ -224,6 +256,7 @@ export class UI {
       case 'skills': this.renderSkills(panel); break;
       case 'combat': this.renderCombat(panel); break;
       case 'quests': this.renderQuests(panel); break;
+      case 'stats': this.renderStats(panel); break;
     }
   }
 
@@ -428,6 +461,74 @@ export class UI {
   // --------------------------------------------------------------------
   // Quests
   // --------------------------------------------------------------------
+  /**
+   * The statistics screen, unlocked by Wayfarer.
+   *
+   * Read-only and derived: every number here is either a counter the tick loop
+   * bumped or something computed from live state. Nothing on this panel is
+   * stored twice, which is why it cannot disagree with the game.
+   */
+  private renderStats(panel: HTMLElement): void {
+    const { stats, quests: journal, player } = this.game;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'stats-panel';
+
+    const totalLevel = SKILL_LIST.reduce((sum, s) => sum + player.skills.level(s.id), 0);
+    const totalXp = SKILL_LIST.reduce((sum, s) => sum + player.skills.experience(s.id), 0);
+
+    const summary: ReadonlyArray<readonly [string, string]> = [
+      ['Total level', `${totalLevel} / ${SKILL_LIST.length * XP.MAX_LEVEL}`],
+      ['Total experience', Math.floor(totalXp).toLocaleString()],
+      ['Quest points', `${journal.points()} / ${TOTAL_QUEST_POINTS}`],
+      ['Quests complete', `${journal.completedCount()} / ${quests.length}`],
+      ['Time played', formatPlaytime(stats.ticks)]
+    ];
+
+    const head = document.createElement('div');
+    head.className = 'stats-group';
+    for (const [label, value] of summary) head.appendChild(this.statRow(label, value));
+    wrap.appendChild(head);
+
+    // Grouped in the order STAT_ROWS declares, so adding a counter is a row in
+    // that table and nothing in this file.
+    let current = '';
+    let group: HTMLDivElement | null = null;
+    for (const row of STAT_ROWS) {
+      if (row.group !== current) {
+        current = row.group;
+        const heading = document.createElement('div');
+        heading.className = 'stats-heading';
+        heading.textContent = current;
+        wrap.appendChild(heading);
+
+        group = document.createElement('div');
+        group.className = 'stats-group';
+        wrap.appendChild(group);
+      }
+      group?.appendChild(this.statRow(row.label, stats.get(row.key).toLocaleString()));
+    }
+
+    panel.appendChild(wrap);
+    panel.appendChild(this.footer('Counting since this character was made.'));
+  }
+
+  private statRow(label: string, value: string): HTMLElement {
+    const row = document.createElement('div');
+    row.className = 'stats-row';
+
+    const name = document.createElement('span');
+    name.className = 'stats-label';
+    name.textContent = label;
+
+    const val = document.createElement('span');
+    val.className = 'stats-value';
+    val.textContent = value;
+
+    row.append(name, val);
+    return row;
+  }
+
   private renderQuests(panel: HTMLElement): void {
     const journal = this.game.quests;
 

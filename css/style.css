@@ -842,3 +842,50 @@ html, body {
 
 /* The first half of a pending "Use". */
 .inv-slot.selected { border-color: var(--gold); background: #3a2f1c; }
+
+/* ------------------------------------------------------------------ */
+/* Statistics panel (Wayfarer)                                         */
+/* ------------------------------------------------------------------ */
+.stats-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stats-heading {
+  margin-top: 8px;
+  padding: 2px 2px 3px;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9a8b6d;
+  border-bottom: 1px solid #352d21;
+}
+
+.stats-group {
+  display: flex;
+  flex-direction: column;
+  background: #1c1710;
+  border: 1px solid #352d21;
+  border-radius: 3px;
+  padding: 4px 2px;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 7px;
+  font-size: 12px;
+}
+
+.stats-label { color: #c9bb9a; }
+
+/* Tabular figures, so a column of numbers lines up rather than wobbling. */
+.stats-value {
+  color: #e8ddc4;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+}

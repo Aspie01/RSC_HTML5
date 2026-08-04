@@ -16,12 +16,14 @@ import { quests, getQuest } from '../src/data/quests.ts';
 import { shops } from '../src/data/shops.ts';
 import { combinations, combinationFor } from '../src/data/combinations.ts';
 import { inspectable } from '../src/data/inspect.ts';
+import { transitions } from '../src/data/transitions.ts';
 import {
   gatherables, bars, recipes, burnables, smithables, fletchables
 } from '../src/data/resources.ts';
 import * as XP from '../src/data/xp.ts';
 import { SKILL_LIST } from '../src/systems/skills.ts';
-import { generateMap } from '../src/world/map.ts';
+import { generateMap, INTERIOR_STAIR, VAULT_SEAL, VAULT_FLOOR } from '../src/world/map.ts';
+import { find } from '../src/world/pathfind.ts';
 
 /** One generated world, shared by the tests that need to look at it. */
 const map = generateMap();
@@ -85,7 +87,9 @@ test('every shop line is a real item with a price', () => {
     for (const line of shop.stock) {
       exists(line.id, `shop ${shop.id}`);
       assert.ok(getItem(line.id)!.value > 0, `${line.id} is stocked but worthless`);
-      assert.ok(line.max > 0 && line.restockTicks > 0, `${line.id} restock`);
+      // max 0 is the buy-only line: the shop takes it and never sells it.
+      assert.ok(line.max >= 0, `${line.id} has negative stock`);
+      assert.ok(line.restockTicks > 0, `${line.id} restock`);
     }
   }
 });
@@ -284,6 +288,24 @@ test('every combination consumes and produces real items', () => {
   }
 });
 
+test('every quest-gated recipe names a quest that exists', () => {
+  // A typo here fails open in the worst direction: recipeKnown() cannot find
+  // the quest, so the method is permanently unlearnable and the quest that
+  // was supposed to teach it rewards nothing. Nothing else would notice.
+  const known = new Set(quests.map((q) => q.id));
+
+  const gated: ReadonlyArray<{ what: string; quest: string | undefined }> = [
+    ...combinations.map((c) => ({ what: `combination -> ${c.output}`, quest: c.quest })),
+    ...bars.map((b) => ({ what: `furnace -> ${b.id}`, quest: b.quest })),
+    ...smithables.map((s) => ({ what: `anvil -> ${s.id}`, quest: s.quest }))
+  ];
+
+  for (const g of gated) {
+    if (!g.quest) continue;
+    assert.ok(known.has(g.quest), `${g.what} is gated on unknown quest "${g.quest}"`);
+  }
+});
+
 test('a combination is found whichever way round it is used', () => {
   for (const c of combinations) {
     const [a, b] = c.inputs;
@@ -306,6 +328,195 @@ test('anything a quest sends you to look at is clickable', () => {
         inspectable(scenery.kind),
         `${q.id} inspects a "${scenery.kind}", which cannot be clicked to inspect`
       );
+      // Clicking is done from an adjacent tile, so a thing with nowhere to
+      // stand beside it is as unreachable as one that is not inspectable.
+      assert.ok(
+        ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).some(
+          ([dx, dy]) => map.isWalkable(stage.goal.x + dx, stage.goal.y + dy)
+        ),
+        `${q.id} inspects (${stage.goal.x},${stage.goal.y}), which has nowhere to stand beside it`
+      );
     }
+  }
+});
+
+test('the ending waits for every other quest', () => {
+  // The Long Answer lists its prerequisites rather than counting them, so
+  // that adding a quest later is a deliberate decision about whether the
+  // ending waits for it. This is what stops that list rotting: a new quest
+  // that nobody added here would let the player finish the game with content
+  // still in front of them, and nothing else would notice.
+  const ending = getQuest('the_long_answer');
+  assert.ok(ending);
+
+  const required = new Set(ending.requires?.quests ?? []);
+  const missing = quests
+    .filter((q) => q.id !== ending.id && q.id !== 'wayfarer')
+    .map((q) => q.id)
+    .filter((id) => !required.has(id));
+
+  assert.deepEqual(missing, [], 'quests exist that the ending does not wait for');
+});
+
+test('the victory lap cannot be taken before the ending', () => {
+  // Wayfarer gates on quest points rather than on The Long Answer, which is
+  // only correct as long as the points cannot be reached without it. Retuning
+  // any quest's points could quietly break that and let a player collect the
+  // lap of honour with the ending still in front of them.
+  const wayfarer = getQuest('wayfarer');
+  const ending = getQuest('the_long_answer');
+  assert.ok(wayfarer && ending);
+
+  const gate = wayfarer.requires?.points;
+  assert.ok(gate !== undefined, 'Wayfarer no longer gates on points');
+
+  const everythingElse = quests
+    .filter((q) => q.id !== 'wayfarer')
+    .reduce((sum, q) => sum + q.reward.points, 0);
+  assert.ok(everythingElse >= gate, 'Wayfarer cannot be reached at all');
+
+  const withoutEnding = everythingElse - ending.reward.points;
+  assert.ok(
+    withoutEnding < gate,
+    `Wayfarer opens at ${withoutEnding} points without finishing the ending`
+  );
+});
+
+test('nothing is gated behind the ending except the victory lap', () => {
+  // Wayfarer is allowed to come after The Long Answer -- it is the lap of
+  // honour. Anything ELSE requiring the ending would be content placed after
+  // the credits, which is content most players will never see.
+  for (const q of quests) {
+    if (q.id === 'wayfarer') continue;
+    assert.ok(
+      !(q.requires?.quests ?? []).includes('the_long_answer'),
+      `${q.id} is gated behind the ending`
+    );
+  }
+});
+
+test('exactly one quest pays out nothing, and it is meant to', () => {
+  // Unmarked is the deliberate exception to "every quest unlocks something".
+  // It is pinned here so that adding a reward to it is a failing test rather
+  // than a tidy-up, and so that a SECOND rewardless quest cannot appear by
+  // accident and quietly turn the exception into a pattern.
+  const rewardless = quests.filter((q) => (q.reward.items?.length ?? 0) === 0 &&
+    Object.keys(q.reward.xp ?? {}).length <= 1);
+
+  assert.deepEqual(
+    rewardless.map((q) => q.id), ['unmarked'],
+    'the set of quests that pay out almost nothing has changed'
+  );
+
+  const unmarked = getQuest('unmarked');
+  assert.ok(unmarked);
+  assert.equal(unmarked.reward.items, undefined, 'Unmarked has been given an item to hand over');
+  assert.ok(unmarked.reward.points > 0, 'Unmarked must still be worth quest points');
+  assert.ok(unmarked.reward.unlock.length > 0, 'Unmarked must still say what it did not do');
+});
+
+// --------------------------------------------------------------------------
+// Passages
+// --------------------------------------------------------------------------
+
+test('every passage lands somewhere walkable, and has a way back', () => {
+  for (const t of transitions) {
+    assert.ok(
+      map.isWalkable(t.to.x, t.to.y),
+      `passage to (${t.to.x},${t.to.y}) lands on something unwalkable`
+    );
+
+    // A one-way door is how a player ends up somewhere they cannot leave.
+    const back = transitions.find(
+      (o) => o.from.x === t.to.x && o.from.y === t.to.y
+    );
+    assert.ok(back, `passage to (${t.to.x},${t.to.y}) has no way back`);
+    assert.equal(back!.to.x, t.from.x, 'the return trip does not come back here');
+    assert.equal(back!.to.y, t.from.y, 'the return trip does not come back here');
+  }
+});
+
+test('a passage is anchored to scenery that can be clicked', () => {
+  for (const t of transitions) {
+    const scenery = map.sceneryAt(t.from.x, t.from.y);
+    assert.ok(scenery, `passage at (${t.from.x},${t.from.y}) has nothing to click`);
+    assert.ok(
+      inspectable(scenery.kind),
+      `passage sits on a "${scenery.kind}", which cannot be clicked to inspect`
+    );
+  }
+});
+
+test('the vault is sealed until one tile of it is cleared', () => {
+  // Same shape as the Cut: a quest removes one piece of scenery and a region
+  // opens. Worth a test because the seal is a hand-placed run of tiles and a
+  // one-tile gap anywhere in it would open the vault to anyone who wandered
+  // west -- silently, since nothing else would notice.
+  const start = { x: INTERIOR_STAIR.x, y: INTERIOR_STAIR.y };
+
+  assert.equal(
+    find(map, start.x, start.y, VAULT_FLOOR.x, VAULT_FLOOR.y).length, 0,
+    'the vault can be walked into before the quest opens it'
+  );
+
+  // The seal itself must be inspectable, since a quest stage sends the player
+  // to look at it, and something must be standable beside it to do that from.
+  const seal = map.sceneryAt(VAULT_SEAL.x, VAULT_SEAL.y);
+  assert.ok(seal?.blocks, 'the seal does not block');
+  assert.ok(inspectable(seal.kind), `the seal is a "${seal.kind}", which cannot be inspected`);
+  assert.ok(
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].some(
+      ([dx, dy]) => map.isWalkable(VAULT_SEAL.x + dx, VAULT_SEAL.y + dy)
+    ),
+    'there is nowhere to stand to inspect the seal'
+  );
+
+  // Clearing that one tile is enough, and the floor behind it is dry -- the
+  // fight happens there, and a hazard floor would make it a timer instead.
+  const opened = generateMap();
+  opened.scenery[opened.idx(VAULT_SEAL.x, VAULT_SEAL.y)] = null;
+  assert.ok(
+    find(opened, start.x, start.y, VAULT_FLOOR.x, VAULT_FLOOR.y).length > 0,
+    'clearing the seal does not open a way in'
+  );
+  assert.equal(
+    opened.terrainInfo(VAULT_FLOOR.x, VAULT_FLOOR.y).hazard, undefined,
+    'the vault floor bleeds health, so the fight in it is a timer'
+  );
+});
+
+test('the adamantine under the interior can be reached and worked from dry land', () => {
+  // The islands moved when the vault was carved out of the west end. Every
+  // rock needs somewhere dry to stand beside it and a route there from the
+  // stair, or tier 5's ore is decorative.
+  for (let y = 41; y <= 47; y++) {
+    for (let x = 2; x <= 16; x++) {
+      if (map.sceneryAt(x, y)?.resource !== 'adamantine') continue;
+
+      const dry = ([ax, ay]: readonly [number, number]): boolean =>
+        map.isWalkable(ax, ay) && map.terrainInfo(ax, ay).hazard === undefined;
+
+      const stands = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const)
+        .map(([dx, dy]) => [x + dx, y + dy] as const)
+        .filter(dry);
+
+      assert.ok(stands.length > 0, `adamantine at (${x},${y}) can only be mined from the water`);
+      assert.ok(
+        stands.some(([ax, ay]) => find(map, INTERIOR_STAIR.x, INTERIOR_STAIR.y, ax, ay).length > 0),
+        `adamantine at (${x},${y}) cannot be reached from the stair`
+      );
+    }
+  }
+});
+
+test('the far side of a gated passage is not reachable on foot', () => {
+  // The whole point of a seam is that the two ends are not connected on the
+  // grid. If they were, the gate would be decorative.
+  for (const t of transitions) {
+    if (!t.quest) continue;
+    assert.equal(
+      find(map, t.from.x, t.from.y, t.to.x, t.to.y).length, 0,
+      `(${t.from.x},${t.from.y}) can walk to its own destination, so the gate does nothing`
+    );
   }
 });

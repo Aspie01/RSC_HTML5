@@ -91,6 +91,19 @@ export interface QuestDef {
   readonly requires?: {
     readonly quests?: readonly string[];
     readonly skills?: Partial<Record<SkillId, number>>;
+    /**
+     * "Any N skills at level L", for a gate that wants breadth without
+     * dictating which breadth.
+     *
+     * Naming eight specific skills would be the same requirement written as a
+     * playstyle: an archer and a smith reach the late game by different roads
+     * and a capstone should not decide which of them was correct. Counting
+     * instead asks for the one thing the gate is actually about, which is that
+     * the player has stopped being a specialist.
+     */
+    readonly anySkills?: { readonly count: number; readonly level: number };
+    /** Quest points needed. For the gate that means "you have done it all". */
+    readonly points?: number;
   };
   readonly stages: readonly QuestStage[];
   readonly reward: QuestReward;
@@ -108,7 +121,7 @@ export const quests: readonly QuestDef[] = [
     name: 'Cold Hearth',
     reward: {
       points: 1,
-      xp: { firemaking: 60, cooking: 60 },
+      xp: { firemaking: 20, cooking: 20 },
       unlock: 'Maren keeps her fire lit. You can cook at the crossroads whenever you like.'
     },
     stages: [
@@ -157,7 +170,7 @@ export const quests: readonly QuestDef[] = [
     name: 'Green Timber',
     reward: {
       points: 1,
-      xp: { woodcutting: 120 },
+      xp: { woodcutting: 30 },
       items: [{ id: 'woodsmans_axe', qty: 1 }],
       unlock: "Tobin's felling axe is yours. It bites harder than bronze."
     },
@@ -204,7 +217,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { woodcutting: 500, firemaking: 150 },
+      xp: { woodcutting: 130, firemaking: 40 },
       unlock: 'The grove is open. Ironbark takes an age to come back -- work them in turn.'
     },
     stages: [
@@ -310,7 +323,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { archery: 300, crafting: 150 },
+      xp: { archery: 300, crafting: 40 },
       items: [{ id: 'shortbow', qty: 1 }],
       unlock: 'A bow of your own, and the knowledge to keep it fed.'
     },
@@ -344,6 +357,610 @@ export const quests: readonly QuestDef[] = [
     ]
   },
 
+  // Quest 17. Phase E opens. The stair has been standing at the end of the
+  // causeway since The Sunken Road ended with somebody deciding not to go down
+  // it; this is the quest where they go down it.
+  //
+  // The gate is a preparation, not a level. Maren will not open the way until
+  // the player is carrying enough food to come back up, because the interior
+  // is floodwater almost throughout and the only thing between a visitor and
+  // drowning is what they brought.
+  // Quest 24. The lap of honour, and the only quest gated on quest points
+  // rather than on anything in particular -- there is nothing left to require.
+  //
+  // 60 points is reachable only after The Long Answer, so this is genuinely
+  // last without having to say so. It is also the only quest whose reward is
+  // openly cosmetic: the cloak takes the same slot as the Warden's seal and is
+  // strictly worse, so wearing it is a decision to give up real bonuses in
+  // order to look like somebody who finished.
+  {
+    id: 'wayfarer',
+    name: 'Wayfarer',
+    requires: { points: 60 },
+    blocked: [
+      { who: 'npc', text: 'You are not done. I keep a list and you are not on the end of it yet.' }
+    ],
+    reward: {
+      points: 2,
+      xp: { woodcutting: 260, mining: 260, fishing: 260, foraging: 260 },
+      items: [{ id: 'wayfarers_cloak', qty: 1 }],
+      unlock: 'A cloak, and a page that has been keeping count of you the whole time.'
+    },
+    stages: [
+      {
+        journal: 'Alder Finch has been keeping a list.',
+        npc: 'alder',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Do not take this the wrong way, but I have been writing down what you do.' },
+          { who: 'player', text: 'Why?' },
+          { who: 'npc', text: 'Because I am a surveyor and it is the only thing I know how to do about anything. Somebody walks past me often enough, I start counting.' },
+          { who: 'npc', text: 'Trees. Rocks. Fish. How far you have walked, which is a genuinely absurd number and I have checked it twice.' },
+          { who: 'npc', text: 'Anyway. There is a cloak. It is not enchanted, it does not do anything, it is a good cloak and it is yours.' },
+          { who: 'npc', text: 'And you can have the page. I have run out of room on it and I would rather you kept your own count from here.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Still going up, that number. I do look, you know. I am not going to stop looking just because I gave you the page.' }
+    ]
+  },
+
+  // Quest 23. The capstone, and Maren's, because she has been the throughline
+  // since Cold Hearth and the last conversation belongs to the first person
+  // the player ever spoke to.
+  //
+  // It teaches nothing and asks for nothing, which for the last quest in the
+  // game is the correct shape: everything it uses -- the well, the wall, the
+  // ledger -- the player already knows, and its whole job is to say what they
+  // were. The two inspect stages are a tour of the two places the flood thread
+  // opened and closed at.
+  //
+  // The gate is every other quest. Listed rather than counted, so a new quest
+  // added later is a compile-time decision about whether the ending waits for
+  // it; a test asserts the list is complete, so it cannot silently rot.
+  {
+    id: 'the_long_answer',
+    name: 'The Long Answer',
+    requires: {
+      quests: [
+        'cold_hearth', 'green_timber', 'bent_nail', 'low_tide', 'a_weight_off',
+        'salt_in_the_well', 'deepcut', 'glass_and_ash', 'quiet_grove',
+        'first_blood', 'debt_of_feathers', 'cartographers_error', 'vigil',
+        'what_the_warden_wrote', 'sunken_road', 'ironmongers_bargain',
+        'what_the_tide_kept', 'alchemists_third_mistake', 'nine_names',
+        'the_last_warden', 'unmarked', 'watermark'
+      ]
+    },
+    blocked: [
+      { who: 'npc', text: 'Not yet. There are still things out there you have not done and I am not asking this until there are not.' }
+    ],
+    reward: {
+      points: 6,
+      xp: {
+        attack: 2500, strength: 2500, defence: 2500, vitality: 2500,
+        archery: 2500, magic: 2500, woodcutting: 620, mining: 620,
+        fishing: 620, foraging: 620, firemaking: 620, cooking: 620,
+        smithing: 620, crafting: 620
+      },
+      unlock: 'There is no more road. That is not the same as there being nothing left.'
+    },
+    stages: [
+      {
+        journal: 'Maren Ashfall has a question she has been saving.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Sit down. No, actually, do not sit down, this is not that sort of conversation and I will lose my nerve.' },
+          { who: 'npc', text: 'The very last thing in the ledger is not an entry. It is a question, in the ninth hand, and it does not have an answer under it.' },
+          { who: 'player', text: 'What does it ask?' },
+          { who: 'npc', text: '"How far did it come?"' },
+          { who: 'npc', text: 'Four words. And I have been reading that page for a month thinking it was about the water, and about a fortnight ago I stopped thinking that.' },
+          { who: 'npc', text: 'Go and look in the well. Then go and look at the wall. Then come back and tell me, because I want the long answer and you are the only person who has one.' }
+        ]
+      },
+      {
+        journal: 'Look into the village well again.',
+        npc: 'maren',
+        goal: { type: 'inspect', x: 21, y: 27 },
+        waiting: [
+          { who: 'npc', text: 'The well first. Where you started, the day I asked you why it had turned.' }
+        ],
+        done: [
+          { who: 'player', text: 'Still salt. The level has not moved a finger since the first time I looked down it.' },
+          { who: 'player', text: 'The bay is thirty tiles east and four hundred feet down from here and this water is the same water. It has been the same water the entire time.' }
+        ]
+      },
+      {
+        journal: 'Look at the nine names again.',
+        npc: 'maren',
+        goal: { type: 'inspect', x: 16, y: 44 },
+        waiting: [
+          { who: 'npc', text: 'And the wall. I know what I am asking. Go and look at it.' }
+        ],
+        done: [
+          { who: 'player', text: 'Nine scratches. Eight old.' },
+          { who: 'player', text: 'The ninth is finished. The stroke goes all the way across now and the cut is old, as old as the other eight, with the same salt in it.' },
+          { who: 'player', text: 'It was half-done every time I stood here and it has been finished for a hundred years.' }
+        ]
+      },
+      {
+        journal: 'Go back to Maren Ashfall and give her the long answer.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Say it.' },
+          { who: 'player', text: 'The water did not come from the bay.' },
+          { who: 'npc', text: 'No.' },
+          { who: 'player', text: 'It came up. Everything down there is under the same water and it is all one thing, and the bay is where it got out, not where it came from.' },
+          { who: 'npc', text: 'And how far did it come.' },
+          { who: 'player', text: 'It has not stopped coming. That is the answer. It is not a flood, it is a level, and it is exactly as high as it has decided to be.' },
+          { who: 'npc', text: 'Right.' },
+          { who: 'npc', text: 'That is what I got to as well, about a fortnight ago, and I have not said it out loud until now because saying it out loud makes it a thing two people know.' },
+          { who: 'player', text: 'What do we do?' },
+          { who: 'npc', text: 'Nothing. There is nothing to do. It is not coming for us, it is not angry, it does not know we are here -- it is a level, and a level does not want anything.' },
+          { who: 'npc', text: 'We fish it and we drink round it and we go down into it when we have to, and in eighty years somebody else asks the question and somebody else writes it in a book with no answer under it.' },
+          { who: 'npc', text: 'I am going to put your name in the ledger. Not crossed out. There has not been an entry in it that was not crossed out since before either of us was born and I would like the next one to just be a name.' },
+          { who: 'npc', text: 'Go on. There is a whole valley out there and none of it needs you any more, which is the best thing I can think of to wish on anybody.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'The fire is lit and the kettle is on and there is nothing whatsoever that I need. Stay a bit, if you like.' }
+    ]
+  },
+
+  // Quest 22. Garrow's, because blackiron was his and the ladder should end
+  // in the same forge it started in.
+  //
+  // The gate is the quest: any eight skills at 40. Everything before this
+  // could be finished by a specialist who was very good at one thing and
+  // adequate at the rest, and Watermark is where that stops being enough.
+  // What it asks for is one item from each of the chains the game has taught,
+  // which is a shopping list a specialist simply cannot fill.
+  {
+    id: 'watermark',
+    name: 'Watermark',
+    requires: {
+      quests: ['the_last_warden'],
+      anySkills: { count: 8, level: 40 }
+    },
+    blocked: [
+      { who: 'npc', text: 'No. You are very good at one or two things and I need somebody who is good at eight of them.' },
+      { who: 'npc', text: 'Come back when that is true. I will know, and so will you.' }
+    ],
+    reward: {
+      points: 4,
+      xp: { smithing: 760, mining: 380, crafting: 260 },
+      items: [{ id: 'adamantine_bar', qty: 3 }],
+      unlock: 'Tidefall steel. Adamantine and a great deal of coal, at Smithing 50.'
+    },
+    stages: [
+      {
+        journal: 'Garrow Blackfen has been looking at the flood line on his own wall.',
+        npc: 'garrow',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'See that? Line on the stone, chest height. That is where the water stopped. Watermark.' },
+          { who: 'npc', text: 'Every wall in this valley has one. You stop noticing them. And there is a second meaning to that word which is the one I actually want.' },
+          { who: 'npc', text: 'Hold good paper to the light and there is a mark in it that proves who made it. Cannot be forged and cannot be added afterwards. It is either through the whole sheet or it is not there.' },
+          { who: 'player', text: 'And you want to hold me up to the light.' },
+          { who: 'npc', text: 'I want to see whether there is anything through the whole sheet, yes. Because what I am about to teach you does not work otherwise, and I would rather find that out now than at the furnace.' },
+          { who: 'npc', text: 'Bring me one of each of these. Not the best you can buy -- the best you can make.' }
+        ]
+      },
+      {
+        journal: 'Bring Garrow one thing from each trade: ironbark logs, a cooked bream, a glass vial, a saltwort draught, and an iron arrow.',
+        npc: 'garrow',
+        goal: {
+          type: 'give',
+          items: [
+            { id: 'ironbark_logs', qty: 1 },
+            { id: 'cooked_bream', qty: 1 },
+            { id: 'glass_vial', qty: 1 },
+            { id: 'saltwort_draught', qty: 1 },
+            { id: 'iron_arrow', qty: 1 }
+          ]
+        },
+        waiting: [
+          { who: 'npc', text: 'Ironbark off the grove. A bream out of the deep water, cooked. A vial. A draught. And an arrow you fletched, not one you bought.' },
+          { who: 'npc', text: 'Five trades and not one of them mine. That is the point of the list.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Hm.' },
+          { who: 'npc', text: 'The vial is thin at the shoulder. Somebody taught you properly and you listened, which is rarer than the glass.' },
+          { who: 'npc', text: 'Right. Through the whole sheet. Now the part that is mine.' },
+          { who: 'npc', text: 'Adamantine takes a second firing. Everybody knows that and everybody stops there, because the amount of coal it wants is obscene and the first four attempts come out as slag.' },
+          { who: 'npc', text: 'Bring me two bars of it and I will spend the coal so you can watch. After that you are on your own and you will waste a great deal of it.' }
+        ]
+      },
+      {
+        journal: 'Bring Garrow Blackfen 2 adamantine bars.',
+        npc: 'garrow',
+        goal: { type: 'give', items: [{ id: 'adamantine_bar', qty: 2 }] },
+        waiting: [
+          { who: 'npc', text: 'Two bars. From the green rock under the interior -- there is nowhere else it comes from and we both know it.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Watch the colour, not the clock. It goes past red and past white and then it goes pale, like the inside of a shell, and that is the moment.' },
+          { who: 'npc', text: 'Miss it and you have a lump of slag and six coal you are not getting back.' },
+          { who: 'npc', text: 'There. Tidefall steel. Named for the line on the wall, because the man who worked out how to make it did it in the eleven years after the water and never told anybody who was not in that ledger.' },
+          { who: 'npc', text: 'Take these three bars back. Two are yours and the third is because I have been rude to you since the day we met and it has stopped being funny.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Pale as a shell. You will get there. Everybody wastes the first four and I am not going to pretend I did not waste six.' }
+    ]
+  },
+
+  // Quest 21. The one quest that unlocks nothing, and the only place in this
+  // file that knowingly breaks "every quest unlocks something".
+  //
+  // That rule exists because a quest which pays out only experience is a
+  // chore. This one is a chore on purpose and it is placed where a chore
+  // cannot be mistaken for an oversight: immediately after the biggest payout
+  // in the game, and immediately before the capstone. A player who has just
+  // been handed the Warden's seal and is then given nothing at all learns
+  // that this world does not owe them an unlock -- which is the only way the
+  // capstone's payout can land as a gift rather than as a scheduled reward.
+  //
+  // It is also the "choice without consequence": Iselle asks what should be
+  // cut on the stone, the player answers, and nothing anywhere records it.
+  // No branch, no flag, no item. The engine does not know a choice was made,
+  // which is exactly the experience being aimed at.
+  //
+  // Do not "fix" this by adding a reward. If a later change makes it look
+  // like an omission, the fix is a comment, not an item.
+  {
+    id: 'unmarked',
+    name: 'Unmarked',
+    requires: { quests: ['the_last_warden'] },
+    blocked: [
+      { who: 'npc', text: 'Later. There is something I want to ask you and it is not the sort of thing you ask somebody in the middle of a job.' }
+    ],
+    reward: {
+      points: 3,
+      xp: { vitality: 500 },
+      // Every other quest names what it opened. This one names what it did
+      // not, and the line is the reward.
+      unlock: 'Nothing opens. The stone is still blank and you are still the only one who went and looked at it.'
+    },
+    stages: [
+      {
+        journal: 'Iselle Marrow wants to ask you something, and is not asking it.',
+        npc: 'iselle',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Eight of them have stones. Did you know that? Down at the waterline, south of the pier, in a row, and every one has a name on it.' },
+          { who: 'npc', text: 'The ninth has a stone too. Dressed, squared, set as deep as the others. Somebody cut the face smooth and ready and then put nothing on it.' },
+          { who: 'player', text: 'Because they did not know the name.' },
+          { who: 'npc', text: 'They knew the name. It is in the ledger, in the ninth line, with half a stroke through it. They knew it and they did not cut it.' },
+          { who: 'npc', text: 'Go and look at it. I am not sending you to do anything, I want to be very clear about that. Go and look at it and come back.' }
+        ]
+      },
+      {
+        journal: 'Look at the unmarked stone, at the waterline south of the pier.',
+        npc: 'iselle',
+        goal: { type: 'inspect', x: 44, y: 30 },
+        waiting: [
+          { who: 'npc', text: 'South along the shore until the sand runs out. It is the last one in the row and it is the only one facing the water.' }
+        ],
+        done: [
+          { who: 'player', text: 'The other eight face the road. This one has been turned round to face the bay.' },
+          { who: 'player', text: 'Somebody stood here with a chisel and a name and went home with both.' }
+        ]
+      },
+      {
+        journal: 'Go back to Iselle Marrow.',
+        npc: 'iselle',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'So. What would you put on it.' },
+          { who: 'player', text: '...' },
+          { who: 'npc', text: 'No, I mean it. You are the only person alive who has been in the room with the last of them. Nobody has a better claim to that stone than you do and I will cut whatever you say.' },
+          { who: 'player', text: 'I know.' },
+          { who: 'npc', text: 'Yes.' },
+          { who: 'npc', text: 'I have had eleven days and the ledger and every name in it, and I keep arriving at the same place you just did, which is that anything I put there would be for me.' },
+          { who: 'npc', text: 'It stays blank, then. Not because we failed to decide -- because we decided. That is a different thing and I would like somebody else to know it.' },
+          { who: 'npc', text: 'Thank you for going to look. That is all that was. There is nothing at the end of this and I did not want to pretend otherwise.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'It is still blank. I still go down there. Neither of those is going to change and I have stopped expecting them to.' }
+    ]
+  },
+
+  // Quest 20. Maren's, because the Warden thread has been hers since What the
+  // Warden Wrote and handing the end of it to somebody else would be a cheat.
+  //
+  // Five points, and the most of any quest so far. It earns them by being the
+  // one that closes an arc rather than opening one: everything it uses -- the
+  // ledger, the stair, the fall, the phases -- was taught somewhere else.
+  {
+    id: 'the_last_warden',
+    name: 'The Last Warden',
+    // Vitality 35 on top of the two quests, one step above Nine Names.
+    //
+    // Not for flavour. Death here drops the whole pack on a vault floor under
+    // a flooded region, and measured against the tick loop a Vitality 30
+    // character still in blackiron wins this one time in twelve. A player who
+    // took the previous quest's reward and smithed it is fine at 30; one who
+    // did not is walking into a coin-flip that costs them everything they
+    // carried. Five levels turns that into a fight instead of a trap.
+    requires: {
+      quests: ['what_the_warden_wrote', 'nine_names'],
+      skills: { vitality: 35 }
+    },
+    blocked: [
+      { who: 'npc', text: 'Not before the ledger and not before that thing at the wall. I will not hear it out of order.' },
+      { who: 'npc', text: 'And not while you can still be put down by a boar. I have buried enough of this story.' }
+    ],
+    reward: {
+      points: 5,
+      xp: { attack: 2000, strength: 2000, defence: 2000, vitality: 1400 },
+      items: [{ id: 'wardens_seal', qty: 1 }],
+      unlock: "The Warden's seal. There is one, and you are wearing it."
+    },
+    stages: [
+      {
+        journal: 'Maren Ashfall has read the ledger through to the end.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'I have finished it. The ledger. All of it, including the part I have been not reading for a fortnight.' },
+          { who: 'npc', text: 'The Wardens did not fail during the flood. They were still working eleven years after it, from underneath. There is a vault and the entries stop mid-page.' },
+          { who: 'player', text: 'Stop, or end?' },
+          { who: 'npc', text: 'Stop. There is half a word. And the last name signing off on it is the ninth one -- the one with half a line through it.' },
+          { who: 'npc', text: 'West end of the interior, past the deep part. The ledger says a door. Go and see what there is instead, because I promise you there is not a door.' }
+        ]
+      },
+      {
+        journal: 'Find the vault at the west end of the drowned interior.',
+        npc: 'maren',
+        goal: { type: 'inspect', x: 4, y: 44 },
+        waiting: [
+          { who: 'npc', text: 'West. Keep west past the last of the standing ground and you will come up against it.' }
+        ],
+        done: [
+          { who: 'player', text: 'Not a door. A fall of stone, floor to ceiling, and the edges of it were squared by hand before they were broken.' },
+          { who: 'player', text: 'This did not collapse. Somebody brought it down, and they did it from this side.' }
+        ]
+      },
+      {
+        journal: 'Tell Maren Ashfall what is at the west end.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'From this side. Say that again to yourself and then tell me who was left on the other one.' },
+          { who: 'player', text: 'They sealed someone in.' },
+          { who: 'npc', text: 'They sealed the last of themselves in, and then eight of them went out and got crossed off a list one at a time, and the ninth never came back to open it.' },
+          { who: 'npc', text: 'Eleven years, and then the flood, and then a hundred more. Whatever is behind that stone has been waiting the entire time and it does not know any of that.' },
+          { who: 'player', text: 'I can move the stone.' },
+          { who: 'npc', text: 'I know you can. I am asking you to understand what you are opening, because I do not think it will be grateful and I do not think it will be reasonable.' },
+          { who: 'npc', text: 'It will not fight like the last one. That thing shed its armour as it went -- this one will put armour ON when it stops enjoying itself. Do not spend everything early because the middle is worse than the start.' }
+        ]
+      },
+      {
+        journal: 'Clear the fall at the west end and end what is behind it.',
+        npc: 'maren',
+        goal: { type: 'kill', npcId: 'the_last_warden', count: 1 },
+        waiting: [
+          { who: 'npc', text: 'The stone will move now that you know what is under it. Slow in the middle. Eat before you need to.' }
+        ],
+        done: [
+          { who: 'npc', text: 'You are not going to tell me what it said, are you.' },
+          { who: 'player', text: 'No.' },
+          { who: 'npc', text: 'Good. I would only write it down.' },
+          { who: 'npc', text: 'That is the last of them, then. Not the last one alive -- the last one at all, the office and everyone in it, finished in a room nobody could find.' },
+          { who: 'npc', text: 'It was carrying its seal. They all were, apparently; it is how they knew each other. Eight of those are at the bottom of the bay and this is the ninth.' },
+          { who: 'npc', text: 'Wear it. Not because it means anything -- it does not, there is nothing left for it to mean. Wear it because somebody should be carrying one, and there is nobody else.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'You still have it on. I notice. I am not going to say anything about it and I have now said something about it twice.' }
+    ]
+  },
+
+  // Quest 19. The first boss, and the quest exists to make it survivable
+  // rather than to make it hard: stage two sends the player to read the wall
+  // and stage three is Iselle explaining, in order, what the thing will do.
+  // Someone who reads both arrives knowing the fight. That is the teaching.
+  //
+  // The gate is Vitality 30 rather than a combat level, because a combat level
+  // is a formula and Vitality is the one skill every way of fighting trains.
+  {
+    id: 'nine_names',
+    name: 'Nine Names',
+    requires: {
+      quests: ['what_the_tide_kept'],
+      skills: { vitality: 30 }
+    },
+    blocked: [
+      { who: 'npc', text: 'Not yet. I will not send someone down to be the tenth because they were willing.' }
+    ],
+    reward: {
+      points: 4,
+      xp: { attack: 1200, strength: 1200, defence: 1200, vitality: 900, smithing: 150 },
+      unlock: 'The green ore under the interior will take a fire now. Adamantine, at Smithing 40.'
+    },
+    stages: [
+      {
+        journal: 'Iselle Marrow has been reading the ledger and has stopped sleeping.',
+        npc: 'iselle',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Nine names. That is what is at the back of the ledger, in a different hand, and eight of them have a line through.' },
+          { who: 'player', text: 'And the ninth?' },
+          { who: 'npc', text: 'The ninth has half a line. Somebody was crossing it out and did not get to the end of the stroke.' },
+          { who: 'npc', text: 'I would call that a coincidence if I had not also found the same nine cut into a wall down there. Same order. Same half-finished ninth.' },
+          { who: 'npc', text: 'Go and look at it. Do not do anything else -- look at it, come back, and tell me I am wrong.' }
+        ]
+      },
+      {
+        journal: 'Find the nine names cut into a wall in the drowned interior.',
+        npc: 'iselle',
+        goal: { type: 'inspect', x: 16, y: 44 },
+        waiting: [
+          { who: 'npc', text: 'East, along the floor. It is on the wall at the far end and you will not miss it.' }
+        ],
+        done: [
+          { who: 'player', text: 'Nine. Eight finished and one stopped partway, exactly as she said.' },
+          { who: 'player', text: 'Something has been standing here. The floor in front of the wall is worn smooth and it is worn in one spot.' }
+        ]
+      },
+      {
+        journal: 'Go back to Iselle Marrow and tell her what is down there.',
+        npc: 'iselle',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Then I am not wrong, and I would very much rather have been.' },
+          { who: 'npc', text: 'Whatever is finishing that list is still down there and it is still counting. It will come out of the wall when it has somebody to count.' },
+          { who: 'player', text: 'How do I fight it?' },
+          { who: 'npc', text: 'Slowly, then quickly. It starts under a great deal of armour and swings like it is carrying it -- you will barely mark it and it will barely mark you.' },
+          { who: 'npc', text: 'Past halfway it sheds that. Hits far harder. That is the part that kills people, and it is also the part where it stops being hard to hit.' },
+          { who: 'npc', text: 'At the end it is fast and it is made of nothing. Take everything you have got into that last stretch and it will be over before it is over for you.' },
+          { who: 'npc', text: 'Food. As much as you can carry, and eat it before you need it rather than after. That is the whole of my advice and it is better advice than it sounds.' }
+        ]
+      },
+      {
+        journal: 'Kill the Ninth, in the drowned interior.',
+        npc: 'iselle',
+        goal: { type: 'kill', npcId: 'the_ninth', count: 1 },
+        waiting: [
+          { who: 'npc', text: 'It is at the wall. Slowly, then quickly, and eat early.' }
+        ],
+        done: [
+          { who: 'npc', text: 'You are standing there dripping and you have not said anything, which I am choosing to read as good news.' },
+          { who: 'npc', text: 'Nine crossed out. Whoever was keeping that list has finished it, and they are not here to know.' },
+          { who: 'npc', text: 'The green rock down there -- it has been sat under that thing the whole time. Nobody has taken a bar off it in a hundred years because nobody got past the wall.' },
+          { who: 'npc', text: 'You did. Take it to a furnace with plenty of coal. It will go, now.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'I still read that page. Eight names, then yours would have been the tenth, and instead there is a line through the ninth. I do not know what to do with that either.' }
+    ]
+  },
+
+  // Quest 18. Foraging's only quest, and the one that makes the third tier of
+  // it worth having: saltwort is useless in the pack and the best healing item
+  // in the game once it is in a vial.
+  //
+  // It wants both halves of two earlier quests -- the fen that Cartographer's
+  // Error opened, and the vials Glass and Ash taught -- which is the point.
+  // A Foraging 30 gate alone would have been a wall; this is a convergence.
+  {
+    id: 'alchemists_third_mistake',
+    name: "The Alchemist's Third Mistake",
+    requires: {
+      quests: ['glass_and_ash', 'cartographers_error'],
+      skills: { foraging: 30 }
+    },
+    blocked: [
+      { who: 'npc', text: 'No. Whatever it is, no. Come back when you can tell saltwort from the mud it sits in, and when you know what a vial costs to make.' }
+    ],
+    reward: {
+      points: 3,
+      xp: { foraging: 220, crafting: 90 },
+      items: [{ id: 'saltwort_draught', qty: 4 }],
+      unlock: 'Saltwort steeps in a vial now. It is the warmest thing you can carry into cold water.'
+    },
+    stages: [
+      {
+        journal: 'Ivo Rennick is standing in the fen arguing with a plant.',
+        npc: 'ivo',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'Do not say alchemy. I heard you thinking it. Everyone arrives thinking it.' },
+          { who: 'player', text: 'I had not said anything.' },
+          { who: 'npc', text: 'My first mistake was believing there was such a thing. My second was spending nine years on it. Both survivable. Both, in their way, quite pleasant.' },
+          { who: 'npc', text: 'The third was this: I worked out that there is no alchemy, only plants that do what they do, and I kept the notes anyway.' },
+          { who: 'npc', text: 'Because they were right. That is the joke. Nine years of nonsense with one true page in it, and I cannot get at it alone -- my knees are finished and the good stems are out where the water is.' }
+        ]
+      },
+      {
+        journal: 'Bring Ivo Rennick 6 glass vials.',
+        npc: 'ivo',
+        goal: { type: 'give', items: [{ id: 'glass_vial', qty: 6 }] },
+        waiting: [
+          { who: 'npc', text: 'Vials. Six. Sand from the shore, a furnace, and whoever taught you the trick -- I am not going to teach it to you a second time.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Good glass. Thin at the shoulder, which is what you want -- a thick vial cooks the thing inside it.' },
+          { who: 'npc', text: 'Now the stems. Out where I said, and cut them low, at the root. Halfway up is the part that does nothing, and that is the part everyone brings me.' },
+          { who: 'npc', text: 'Five. Do not bring me six to be generous. I will only find a use for it and be up all night.' }
+        ]
+      },
+      {
+        journal: 'Cut 5 saltwort in the Sallows and bring them to Ivo Rennick.',
+        npc: 'ivo',
+        goal: { type: 'give', items: [{ id: 'saltwort', qty: 5 }] },
+        waiting: [
+          { who: 'npc', text: 'Saltwort. Pale, ugly, growing where nothing sensible would. A sickle, and cut low -- I did say.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Ah. Yes. Those are the ones.' },
+          { who: 'npc', text: 'Watch, because I am doing this once. Whole stem, into the vial, and then you leave it alone. That is the entire method. There is no word said over it and nothing turns gold.' },
+          { who: 'player', text: 'That is all of it?' },
+          { who: 'npc', text: 'That is all of it. Nine years, and the true page says "put the plant in the jar".' },
+          { who: 'npc', text: 'Take these four. Drink one when the cold has got into you rather than before -- it is not courage, it is a floor under you, and a floor is only any use once you are falling.' }
+        ]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'Still steeping? Good. Do not thank me, thank the plant. It was doing this long before either of us turned up to be clever about it.' }
+    ]
+  },
+
+  {
+    id: 'what_the_tide_kept',
+    name: 'What the Tide Kept',
+    requires: { quests: ['sunken_road'] },
+    blocked: [
+      { who: 'npc', text: 'The road first. I am not discussing the stair with somebody who has not stood on it.' }
+    ],
+    reward: {
+      points: 4,
+      xp: { vitality: 700, magic: 400, foraging: 80 },
+      unlock: 'The stair will carry you now. Down is a place, and it is under all of this.'
+    },
+    stages: [
+      {
+        journal: 'Maren Ashfall has decided somebody is going down the stair.',
+        npc: 'maren',
+        goal: { type: 'talk' },
+        done: [
+          { who: 'npc', text: 'I have been awake about this for eleven days and I have stopped pretending that is going to change.' },
+          { who: 'npc', text: 'Somebody goes down, or the count runs out. Those are the two things that happen, and only one of them has anybody in it.' },
+          { who: 'player', text: 'I will go.' },
+          { who: 'npc', text: 'I know. I have known since you came back up and said you were not going today, because that is not a thing you say about somewhere you are never going.' },
+          { who: 'npc', text: 'So listen. It is water down there, nearly all of it, and cold the way the road was cold. You do not fight cold, you outlast it.' },
+          { who: 'npc', text: 'Bring me ten cooked bream. Not for me -- I want to see ten, in your hands, before I let you at that stair. Anything less and you are going down to stay.' }
+        ]
+      },
+      {
+        journal: 'Bring Maren Ashfall 10 cooked bream, so she knows you can come back up.',
+        npc: 'maren',
+        goal: { type: 'give', items: [{ id: 'cooked_bream', qty: 10 }] },
+        waiting: [
+          { who: 'npc', text: 'Ten. Deep water off the pier head, and cook them -- I am counting cooked ones and you know it.' }
+        ],
+        done: [
+          { who: 'npc', text: 'Ten. Right.' },
+          { who: 'npc', text: 'Keep them. That was never a delivery, it was a demonstration, and you have just proved it to yourself rather than to me.' },
+          { who: 'npc', text: 'Go down. Come back up. In that order and with no more than a day between them, and if you find nothing at all I will be delighted.' }
+        ],
+        gives: [{ id: 'cooked_bream', qty: 10 }]
+      }
+    ],
+    afterwards: [
+      { who: 'npc', text: 'You have been down. You keep going down. I do not ask any more and you do not offer, which suits us both.' }
+    ]
+  },
+
   // Quest 16. The one quest in this phase with nothing to do with the Wardens,
   // and it is better for it -- after four quests of the water going somewhere,
   // a man who wants to teach you a trade is a change of air.
@@ -361,7 +978,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { smithing: 800 },
+      xp: { smithing: 200 },
       items: [{ id: 'blackiron_bar', qty: 2 }],
       unlock: 'Blackiron. Steel, and then a great deal more coal than sense suggests.'
     },
@@ -499,7 +1116,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 3,
-      xp: { magic: 250, foraging: 250 },
+      xp: { magic: 250, foraging: 60 },
       // Handed straight back. The stage takes it because Maren has to read the
       // last page herself, and she gives it back in the same breath -- "keep
       // the book" is the line, so the player must actually keep the book.
@@ -581,7 +1198,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 3,
-      xp: { magic: 400, crafting: 300 },
+      xp: { magic: 400, crafting: 80 },
       items: [{ id: 'emberglass_focus', qty: 1 }],
       unlock: 'The book is copied out. Three spells, and a focus that will hold them.'
     },
@@ -663,7 +1280,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 3,
-      xp: { foraging: 300, crafting: 200 },
+      xp: { foraging: 80, crafting: 50 },
       items: [{ id: 'sallows_chart', qty: 1 }],
       unlock: 'The reeds are cut back. The Sallows are open, and they are lower than they were.'
     },
@@ -733,7 +1350,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { crafting: 250, firemaking: 100 },
+      xp: { crafting: 60, firemaking: 30 },
       items: [{ id: 'coins', qty: 80 }],
       unlock: 'Sand and ash make glass, and glass makes anything that has to hold something.'
     },
@@ -794,7 +1411,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { mining: 400, smithing: 150 },
+      xp: { mining: 100, smithing: 40 },
       unlock: 'The way into the Cut is open. Coal, and whatever else is down there.'
     },
     stages: [
@@ -872,7 +1489,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { fishing: 80 },
+      xp: { fishing: 20 },
       items: [{ id: 'coins', qty: 40 }],
       unlock: 'Nobody upriver is answering. Maren thinks that is the interesting part.'
     },
@@ -991,7 +1608,7 @@ export const quests: readonly QuestDef[] = [
     name: 'Low Tide',
     reward: {
       points: 1,
-      xp: { fishing: 60, cooking: 40 },
+      xp: { fishing: 20, cooking: 10 },
       unlock: 'The pier is yours to fish. The shallows will keep you fed.'
     },
     stages: [
@@ -1038,7 +1655,7 @@ export const quests: readonly QuestDef[] = [
     ],
     reward: {
       points: 2,
-      xp: { mining: 100, smithing: 150 },
+      xp: { mining: 30, smithing: 40 },
       items: [{ id: 'smiths_hammer', qty: 1 }],
       unlock: "Garrow's hammer works the anvil faster than your own."
     },

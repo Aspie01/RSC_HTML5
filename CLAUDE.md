@@ -113,6 +113,23 @@ Three rules that are cheap now and expensive later:
 Storage is asynchronous, so the save is read *before* `Game` is constructed and
 handed in. Do not move that read into the constructor.
 
+### XP awards are scaled to the curve, not to RuneScape
+
+The curve below is about 2.3x shallower than RuneScape's. XP *awards* were
+originally copied from RuneScape anyway, and the two were never reconciled --
+every gathering skill reached 50 in half an hour and the whole skilling
+content of the game was about two hours against a 40-60 hour target.
+
+Awards are now scaled to this curve: a tree is 3 xp, not 25. Combat was left
+alone, because 4 xp per damage against this curve already gives ~2.4 hours to
+Attack 40, which is the pace everything else was brought to.
+
+`tests/pacing.test.ts` models hours-to-level from the real data and fails if a
+skill drifts outside its band, if the gathering skills spread more than 2x, or
+if a whole run leaves the 40-60 hour target. Adding a resource means checking
+that test still passes -- it is the only thing in the suite that can see the
+design pillar.
+
 ### Level cap and gates
 
 Cap 50, curve `xp(L) = floor( sum(n=1..L-1) floor(n + 300 * 2^(n/9)) / 4 )` --
@@ -127,10 +144,10 @@ Equipment tiers, and the levels they gate:
 | 2 | 10 | Iron |
 | 3 | 20 | Steel |
 | 4 | 30 | Blackiron |
-| 5 | 40 | *(unimplemented)* |
+| 5 | 40 | Adamantine *(quest-gated)* |
 | 6 | 50 | *(unimplemented, quest-gated)* |
 
-Blackiron is also **quest-gated**, and that distinction is worth keeping: a
+Blackiron and adamantine are also **quest-gated**, and that distinction is worth keeping: a
 level gate says "not yet", a quest gate says "nobody has shown you how". A
 recipe carrying a `quest` is hidden from the menus entirely rather than shown
 greyed-out, because a method you have never heard of should not be advertised.

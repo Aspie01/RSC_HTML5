@@ -14,7 +14,7 @@ import type {
   EquipSlot, ItemStack, PlayerAction, Point, SkillId, StationKind, World
 } from './types.ts';
 import type { GroundItem } from './systems/ground.ts';
-import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE, SALLOWS_ENTRANCE, ROAD_ENTRANCE } from './world/map.ts';
+import { GameMap, generateMap, CUT_ENTRANCE, GROVE_ENTRANCE, SALLOWS_ENTRANCE, ROAD_ENTRANCE, INTERIOR_FLOOR, VAULT_SEAL, VAULT_FLOOR } from './world/map.ts';
 import { GroundItems } from './systems/ground.ts';
 import { WorldObjects } from './systems/objects.ts';
 import { Player } from './entities/player.ts';
@@ -32,6 +32,7 @@ import type { BarDef, SmithDef, FletchDef } from './data/resources.ts';
 import { rollGather, rollBurn } from './systems/skilling.ts';
 import { SKILL_LIST } from './systems/skills.ts';
 import { Quests } from './systems/quests.ts';
+import { Stats } from './systems/stats.ts';
 import { Shops } from './systems/shop.ts';
 import type { TradeResult } from './systems/shop.ts';
 import { shopForNpc } from './data/shops.ts';
@@ -39,6 +40,8 @@ import type { ShopDef } from './data/shops.ts';
 import { getQuest, questsForNpc, quests } from './data/quests.ts';
 import { combinationFor } from './data/combinations.ts';
 import { INSPECT_TEXT, inspectable } from './data/inspect.ts';
+import { transitionAt } from './data/transitions.ts';
+import type { TransitionDef } from './data/transitions.ts';
 import type { QuestDef, QuestItem, QuestStage } from './data/quests.ts';
 import { Dialogue } from './ui/dialogue.ts';
 import { INVENTORY_CAPACITY } from './systems/inventory.ts';
@@ -46,7 +49,7 @@ import * as XP from './data/xp.ts';
 import * as pathfind from './world/pathfind.ts';
 import * as combat from './systems/combat.ts';
 import * as iso from './world/iso.ts';
-import { lerp, tileDist } from './core/util.ts';
+import { lerp, tileDist, withArticle, plural } from './core/util.ts';
 import { loop } from './core/loop.ts';
 import { rng } from './core/rng.ts';
 import { audio } from './audio/audio.ts';
@@ -107,6 +110,20 @@ const RENAMED_SKILLS: Readonly<Record<string, SkillId>> = {
 const V2_TOOLS: readonly string[] = ['bronze_pickaxe', 'hammer'];
 
 /** Ticks between bars at a furnace, and between items at an anvil. */
+/**
+ * Which counter each gathering skill bumps.
+ *
+ * A map rather than a switch, because there is one gather resolver for all
+ * four skills and a switch there would be the thing rule 3 forbids: engine
+ * code that has to be edited when a skill is added.
+ */
+const GATHER_STAT: Partial<Record<SkillId, string>> = {
+  woodcutting: 'felled',
+  mining: 'mined',
+  fishing: 'caught',
+  foraging: 'foraged'
+};
+
 const SMELT_TICKS = 3;
 const SMITH_TICKS = 3;
 
@@ -118,6 +135,7 @@ export class Game implements World {
   readonly npcs: Npc[] = [];
   readonly quests = new Quests();
   readonly shops = new Shops();
+  readonly stats = new Stats();
 
   private readonly renderer: Renderer;
   private readonly ui: UI;
@@ -231,12 +249,20 @@ export class Game implements World {
       return;
     }
 
+    this.stats.ticks++;
+
     // 1. Intent
     this.resolvePlayerAction();
     for (const npc of this.npcs) npc.think(this);
 
     // 2. Movement
+    // Counted as tiles, not as ticks-in-which-you-moved: running covers two
+    // tiles in one tick, so the naive version under-reports by half exactly
+    // when the player is doing the most walking.
+    const wasAt = { x: this.player.x, y: this.player.y };
     this.player.stepMovement(this);
+    const moved = tileDist(wasAt.x, wasAt.y, this.player.x, this.player.y);
+    if (moved > 0) this.stats.bump('steps', moved);
     this.unstickPlayer();
     this.applyHazard();
     for (const npc of this.npcs) {
@@ -327,8 +353,16 @@ export class Game implements World {
     } else if (action.type === 'smith') {
       this.resolveSmith(action.x, action.y, action.productId);
 
-    } else {
+    } else if (action.type === 'talk') {
       this.resolveTalk(action.target);
+
+    } else {
+      // Exhaustiveness. This used to be a bare `else` that assumed anything
+      // unmatched was a talk and read `.target` off it, which meant a new
+      // action variant with no branch here failed as a crash inside
+      // resolveTalk rather than as a compile error. Now it does not compile.
+      const unreachable: never = action;
+      void unreachable;
     }
   }
 
@@ -476,10 +510,26 @@ export class Game implements World {
 
     p.inventory.add(def.outputId, 1);
     audio.play(def.cue);
+    this.stats.bump(GATHER_STAT[def.skill] ?? 'gathered');
     this.announceXp(def.skill, def.xp);
     this.ui.message(
       def.success.replace('{item}', getItem(def.outputId)?.name.toLowerCase() ?? 'something')
     );
+
+    // The gem. Rolled after the output is in the pack, so a full inventory
+    // costs you the gem rather than the ore -- losing the thing you were
+    // working for would read as a bug.
+    if (def.bonus && rng.chance(def.bonus.chance)) {
+      const gem = getItem(def.bonus.id);
+      if (gem && p.inventory.add(def.bonus.id, 1)) {
+        audio.play('levelup');
+        // "You find: Drowned opal." rather than an article -- the same shape
+        // quest gifts use, and it dodges a/an entirely.
+        this.ui.message(`You find: ${gem.name}.`, 'levelup');
+        this.stats.bump('gems');
+      }
+    }
+
     this.ui.dirty = true;
 
     if (rng.chance(def.depleteChance)) {
@@ -527,9 +577,11 @@ export class Game implements World {
 
     if (rollBurn(level, recipe.stopBurnLevel)) {
       p.inventory.add(recipe.burntId, 1);
+      this.stats.bump('burnt');
       this.ui.message('You accidentally burn the food.', 'bad');
     } else {
       p.inventory.add(recipe.cookedId, 1);
+      this.stats.bump('cooked');
       audio.play('cook');
       this.announceXp('cooking', recipe.xp);
       this.ui.message(`You cook the ${getItem(recipe.rawId)?.name.toLowerCase() ?? 'food'}.`);
@@ -567,7 +619,49 @@ export class Game implements World {
       return;
     }
 
+    // A passage is checked after quests, so a stage that fires at the top of a
+    // stair still gets to speak before the stair takes the player away.
+    const passage = transitionAt(tx, ty);
+    if (passage) { this.usePassage(passage); return; }
+
     this.ui.message(INSPECT_TEXT[scenery.kind] ?? 'You see nothing unusual.');
+  }
+
+  /**
+   * Take a passage to somewhere else on the grid.
+   *
+   * The map has no levels, so "down" is a seam rather than a floor. Everything
+   * mid-flight is dropped for the same reason an imported save clears it: a
+   * path, a target or a queued action all refer to a place the player is no
+   * longer standing in.
+   */
+  private usePassage(passage: TransitionDef): void {
+    const p = this.player;
+
+    if (passage.quest) {
+      const q = getQuest(passage.quest);
+      if (!q || !this.quests.isComplete(q)) {
+        this.ui.message(passage.refused ?? 'You cannot go that way yet.');
+        return;
+      }
+    }
+
+    p.clearPath();
+    p.clearAction();
+    p.target = null;
+    for (const npc of this.npcs) {
+      if (npc.target === p) npc.target = null;
+    }
+
+    p.x = p.prevX = passage.to.x;
+    p.y = p.prevY = passage.to.y;
+
+    // The warning belongs to the wade, and the player has just left it.
+    this.hazardWarned = false;
+
+    audio.play('fire');
+    this.ui.message(passage.message, 'sys');
+    this.ui.dirty = true;
   }
 
   /** Walk to a furnace or anvil, then hand over to its interface. */
@@ -635,6 +729,7 @@ export class Game implements World {
       );
     } else {
       p.inventory.add(bar.id, 1);
+      this.stats.bump('smelted');
       audio.play('smelt');
       this.announceXp(bar.skill, bar.xp);
       this.ui.message(`You retrieve a ${bar.name.toLowerCase()} from the furnace.`);
@@ -685,6 +780,7 @@ export class Game implements World {
 
     this.consume(def.barId, def.bars);
     p.inventory.add(def.id, 1);
+    this.stats.bump('smithed');
     audio.play('smith');
     this.announceXp('smithing', SMITH_XP_PER_BAR * def.bars);
     this.ui.message(`You hammer the metal into a ${product.name.toLowerCase()}.`);
@@ -864,6 +960,20 @@ export class Game implements World {
       this.openTheRoad();
     }
 
+    // The Ninth is called before the stage that asks you to kill it, not
+    // after -- a kill goal against something that does not exist yet is a
+    // quest that cannot be finished.
+    if (def.id === 'nine_names' && this.quests.stageOf(def.id) >= 4) {
+      this.summonTheNinth();
+    }
+
+    // The fall moves when Maren says it may, which is the stage before the
+    // kill -- the same reason as the Ninth. A kill goal against something
+    // still behind a wall is a quest that cannot be finished.
+    if (def.id === 'the_last_warden' && this.quests.stageOf(def.id) >= 4) {
+      this.openTheVault();
+    }
+
     // Handed over before the next stage is set, so a stage that supplies the
     // tool for the one after it cannot leave the player unable to continue.
     for (const item of stage.gives ?? []) this.giveQuestItem(item);
@@ -907,6 +1017,14 @@ export class Game implements World {
       if (this.player.skills.level(skill as SkillId) < (level ?? 0)) return false;
     }
 
+    if (req.anySkills) {
+      const { count, level } = req.anySkills;
+      const at = SKILL_LIST.filter((s) => this.player.skills.level(s.id) >= level).length;
+      if (at < count) return false;
+    }
+
+    if (req.points !== undefined && this.quests.points() < req.points) return false;
+
     return true;
   }
 
@@ -921,6 +1039,11 @@ export class Game implements World {
     // Vigil is the only source of the book; there is no other way to learn one.
     if (def.id === 'vigil') this.learnSpells();
 
+
+    // Wayfarer reveals a tab that did not exist a moment ago, so the strip is
+    // rebuilt on any completion rather than only that one -- a tab appearing
+    // is a property of the quest data, not of one hardcoded id.
+    this.ui.refreshTabs();
 
     this.ui.message(`Quest complete: ${def.name}!`, 'levelup');
     this.ui.message(
@@ -977,6 +1100,11 @@ export class Game implements World {
     if (this.quests.stageOf('cartographers_error') >= 3) this.openTheSallows();
     if (this.quests.stageOf('sunken_road') >= 3) this.openTheRoad();
 
+    // Same reasoning: the Ninth is summoned partway through Nine Names, and
+    // the stage after that is killing it. It stays once it has been called.
+    if (this.quests.stageOf('nine_names') >= 4) this.summonTheNinth();
+    if (this.quests.stageOf('the_last_warden') >= 4) this.openTheVault();
+
     const vigil = getQuest('vigil');
     if (vigil && this.quests.isComplete(vigil)) this.player.knowsSpells = true;
 
@@ -1015,6 +1143,35 @@ export class Game implements World {
   /** Cut back the thicket across the grove path. */
   private openTheGrove(): void {
     this.map.scenery[this.map.idx(GROVE_ENTRANCE.x, GROVE_ENTRANCE.y)] = null;
+  }
+
+  /**
+   * Put the Ninth on the interior floor.
+   *
+   * It is not in the map's spawn table because the interior is walkable from
+   * the moment Q17 opens the stair, and a level-76 boss standing in a room
+   * the player is sent to explore would kill them for going the wrong way.
+   * It appears when Nine Names says it does, and stays afterwards -- it
+   * respawns, and its ore is the tier-5 supply.
+   */
+  private summonTheNinth(): void {
+    if (this.npcs.some((n) => n.def.id === 'the_ninth')) return;
+    this.npcs.push(new Npc('the_ninth', INTERIOR_FLOOR.x, INTERIOR_FLOOR.y));
+  }
+
+  /**
+   * Move the fall at the west end, and put what was behind it behind it.
+   *
+   * One tile of the wall comes out, which is enough to walk through and not
+   * enough to make the vault feel opened. The Warden is placed at the same
+   * moment rather than earlier: the room is dry and reachable the instant the
+   * stone moves, and an empty vault would answer the quest's question before
+   * the quest does.
+   */
+  private openTheVault(): void {
+    this.map.scenery[this.map.idx(VAULT_SEAL.x, VAULT_SEAL.y)] = null;
+    if (this.npcs.some((n) => n.def.id === 'the_last_warden')) return;
+    this.npcs.push(new Npc('the_last_warden', VAULT_FLOOR.x, VAULT_FLOOR.y));
   }
 
   private freeTileBeside(x: number, y: number): Point | null {
@@ -1119,6 +1276,10 @@ export class Game implements World {
 
     const recipe = combinationFor(a.id, b.id);
     if (!recipe) return false;
+
+    // Untaught methods stay silent rather than refusing: a message here would
+    // confirm the two items go together, which is the whole of the secret.
+    if (!this.recipeKnown(recipe)) return false;
 
     if (recipe.skill && recipe.level) {
       if (p.skills.level(recipe.skill) < recipe.level) {
@@ -1325,6 +1486,7 @@ export class Game implements World {
     p.clearPath();
     p.inventory.removeSlot(index, 1);
     this.objects.addFire(p.x, p.y, burnable.burnTicks);
+    this.stats.bump('fires');
     audio.play('fire');
     this.announceXp('firemaking', burnable.xp);
     this.ui.message('The fire catches and the logs begin to burn.', 'good');
@@ -1373,6 +1535,10 @@ export class Game implements World {
     target.addHitsplat(result.damage);
     target.damage(result.damage);
 
+    if (result.damage > 0) {
+      this.stats.bump(mob instanceof Player ? 'damageDealt' : 'damageTaken', result.damage);
+    }
+
     // Two cues, because who is being hit is the thing a player needs to hear
     // without looking. A miss is a zero-damage hit and stays silent.
     if (result.damage > 0) audio.play(target instanceof Player ? 'hurt' : 'hit');
@@ -1397,16 +1563,24 @@ export class Game implements World {
     if (!target.isAlive()) {
       if (target instanceof Npc) this.killNpc(target, mob);
       else target.dead = true;
+
+    } else if (target instanceof Npc) {
+      // A boss changing phase is a chat line and nothing else. The stat swap
+      // has already happened inside advancePhase; this only says so, because
+      // a fight that gets harder without saying why reads as a bug.
+      const entered = target.advancePhase();
+      if (entered) this.ui.message(entered.say, 'sys');
     }
   }
 
   private killNpc(npc: Npc, killer: Player | Npc): void {
+    if (killer instanceof Player) this.stats.bump('slain');
     for (const drop of rollDrops(npc.def)) {
       this.ground.drop(drop.id, drop.qty, npc.x, npc.y);
     }
 
     if (killer instanceof Player) {
-      this.ui.message(`You defeat the ${npc.name}.`, 'good');
+      this.ui.message(`You defeat ${withArticle(npc.name)}.`, 'good');
       killer.clearAction();
 
       // Count it against any quest stage currently asking for this kind.
@@ -1417,7 +1591,7 @@ export class Game implements World {
         this.quests.countKill(def.id);
         const done = this.quests.killsFor(def.id);
         if (done <= stage.goal.count) {
-          this.ui.message(`${done}/${stage.goal.count} ${npc.name.toLowerCase()}s.`, 'sys');
+          this.ui.message(`${done}/${stage.goal.count} ${plural(npc.name, stage.goal.count)}.`, 'sys');
         }
         this.ui.dirty = true;
       }
@@ -1434,6 +1608,7 @@ export class Game implements World {
 
   private handlePlayerDeath(): void {
     const p = this.player;
+    this.stats.bump('deaths');
     audio.play('die');
     audio.play('die');
     this.ui.message('Oh dear, you are dead!', 'bad');
@@ -1534,7 +1709,7 @@ export class Game implements World {
     this.player.inventory.removeSlot(index, 1);
     this.player.heal(def.heals);
     audio.play('eat');
-    this.ui.message(`You eat the ${def.name}. It heals some health.`);
+    this.ui.message(`You ${def.eatVerb} the ${def.name.toLowerCase()}. It heals some health.`);
     this.ui.dirty = true;
   }
 
@@ -1849,7 +2024,8 @@ export class Game implements World {
       rng: rng.snapshot(),
       knowsSpells: p.knowsSpells,
       spell: p.selectedSpell,
-      shops: this.shops.snapshot()
+      shops: this.shops.snapshot(),
+      stats: this.stats.toJSON()
     };
     return JSON.stringify(data);
   }
@@ -1904,7 +2080,10 @@ export class Game implements World {
       if (data.knowsSpells === true) p.knowsSpells = true;
       if (typeof data.spell === 'string') p.selectedSpell = data.spell;
       this.restoreQuestUnlocks();
+      // A loaded character may already have earned the statistics tab.
+      this.ui.refreshTabs();
       this.shops.restore(data.shops);
+      this.stats.restore(data.stats as Record<string, number> | undefined);
 
       if (data.slots) p.inventory.slots = this.migrateSlots(data.slots);
       if (data.equipment) p.inventory.equipment = data.equipment as typeof p.inventory.equipment;

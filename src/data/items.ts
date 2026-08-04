@@ -16,6 +16,8 @@ interface ItemOpts {
   combatSkill?: import('../types.ts').SkillId;
   ammoTag?: string;
   heals?: number;
+  /** Verb used when consuming it -- data, because a draught is not eaten. */
+  eatVerb?: string;
   tags?: readonly string[];
   value?: number;
   range?: number;
@@ -40,6 +42,7 @@ function item(id: string, name: string, opts: ItemOpts = {}): ItemDef {
     ...(opts.combatSkill ? { combatSkill: opts.combatSkill } : {}),
     ...(opts.ammoTag ? { ammoTag: opts.ammoTag } : {}),
     heals: opts.heals ?? 0,
+    eatVerb: opts.eatVerb ?? 'eat',
     tags: opts.tags ?? [],
     value: opts.value ?? 0
   };
@@ -263,6 +266,13 @@ export const items = {
     examine: 'Warm to hold, and it has not been anywhere near a fire.'
   }),
 
+  // The third Foraging tier. Worthless on its own -- it is only ever an
+  // input, which is what stops the tier being a place to grind for coins.
+  saltwort: item('saltwort', 'Saltwort', { value: 40,
+    colour: '#b8c9b0', shape: 'feather', tags: ['reagent'],
+    examine: 'It grows where nothing grows. That should have been the clue.'
+  }),
+
   // ------------------------------------------------------------------------
   // Crafting: glass
   // ------------------------------------------------------------------------
@@ -286,9 +296,44 @@ export const items = {
     examine: 'Empty, stoppered, and worth more than the sand it came from.'
   }),
 
+  // Twice the best fish, and the only healing that is not food. That is the
+  // reward for a Foraging 30 the game otherwise gives no reason to reach, and
+  // it is what makes the Drowned Interior stayable rather than survivable.
+  saltwort_draught: item('saltwort_draught', 'Saltwort draught', { value: 95,
+    colour: '#9fd8c4', shape: 'vial', heals: 14, eatVerb: 'drink',
+    examine: 'Bitter, and it puts the cold back where it came from.'
+  }),
+
   smiths_hammer: item('smiths_hammer', "Smith's hammer", {
     colour: '#b0782f', shape: 'hammer',
     examine: 'Heavier than it looks, and better balanced than it has any right to be.'
+  }),
+
+  // ------------------------------------------------------------------------
+  // Gems
+  //
+  // The economy's scaling gold source, and the only items in the game whose
+  // whole purpose is to be sold. They do nothing else on purpose: a gem that
+  // could be crafted into jewellery would need a jewellery tier, and the point
+  // of these is that mining should pay better the deeper you go without
+  // needing one.
+  //
+  // Priced so that one good gem is worth more than the load of ore it came
+  // with -- otherwise the interesting drop is the boring one.
+  // ------------------------------------------------------------------------
+  clouded_quartz: item('clouded_quartz', 'Clouded quartz', { value: 180,
+    colour: '#cfd6dc', shape: 'coin', tags: ['gem'],
+    examine: 'Milky, and it takes a little light in when you turn it.'
+  }),
+
+  river_garnet: item('river_garnet', 'River garnet', { value: 640,
+    colour: '#a83a4a', shape: 'coin', tags: ['gem'],
+    examine: 'Deep red. Somebody would pay well for this and you know it.'
+  }),
+
+  drowned_opal: item('drowned_opal', 'Drowned opal', { value: 2200,
+    colour: '#7fd6c4', shape: 'coin', tags: ['gem'],
+    examine: 'It has more colours in it than it has any right to, and none of them stay.'
   }),
 
   // ------------------------------------------------------------------------
@@ -463,6 +508,123 @@ export const items = {
   blackiron_platebody: item('blackiron_platebody', 'Blackiron platebody', { value: 960,
     slot: 'body', colour: '#3f4247', shape: 'plate',
     bonuses: { defence: 33 }
+  }),
+
+  // ------------------------------------------------------------------------
+  // Tier 5: adamantine
+  //
+  // The first tier whose ore is not in the quarry. It is under the interior,
+  // which means the whole tier is downstream of Q17 -- you cannot mine it
+  // without the stair, and you cannot smelt it without having killed the thing
+  // that was standing on it.
+  // ------------------------------------------------------------------------
+  adamantine_ore: item('adamantine_ore', 'Adamantine ore', { value: 120,
+    colour: '#4a6b62', shape: 'ore',
+    examine: 'Green where the light catches it. It has been underwater a long time.'
+  }),
+
+  adamantine_bar: item('adamantine_bar', 'Adamantine bar', { value: 620,
+    colour: '#4a6b62', shape: 'bar',
+    examine: 'It came out of the fire colder than it went in.'
+  }),
+
+  adamantine_dagger: item('adamantine_dagger', 'Adamantine dagger', { value: 460,
+    slot: 'weapon', speed: 4, colour: '#4a6b62', shape: 'blade',
+    bonuses: { attack: 19, strength: 18 }
+  }),
+
+  adamantine_scimitar: item('adamantine_scimitar', 'Adamantine scimitar', { value: 1050,
+    slot: 'weapon', speed: 4, colour: '#4a6b62', shape: 'blade',
+    bonuses: { attack: 32, strength: 30 }
+  }),
+
+  adamantine_kiteshield: item('adamantine_kiteshield', 'Adamantine kiteshield', { value: 1400,
+    slot: 'shield', colour: '#4a6b62', shape: 'shield',
+    bonuses: { defence: 39 }
+  }),
+
+  adamantine_med_helm: item('adamantine_med_helm', 'Adamantine med helm', { value: 790,
+    slot: 'head', colour: '#4a6b62', shape: 'helm',
+    bonuses: { defence: 17 }
+  }),
+
+  adamantine_platelegs: item('adamantine_platelegs', 'Adamantine platelegs', { value: 1580,
+    slot: 'legs', colour: '#4a6b62', shape: 'legs',
+    bonuses: { defence: 35 }
+  }),
+
+  adamantine_platebody: item('adamantine_platebody', 'Adamantine platebody', { value: 2100,
+    slot: 'body', colour: '#4a6b62', shape: 'plate',
+    bonuses: { defence: 47 }
+  }),
+
+  // ------------------------------------------------------------------------
+  // Tier 6: tidefall steel
+  //
+  // The last metal, and the only one with no ore of its own -- it is adamantine
+  // taken back into the fire with more coal than any sane smith would spend,
+  // which is the same trick blackiron plays one tier down. That is deliberate:
+  // the ladder ends where it started rather than by inventing a rarer rock.
+  //
+  // Smithing 50 across the board. It is the only content in the game at the
+  // level cap, and it arrives after the quest that checks you are no longer a
+  // specialist, so reaching it means the whole game rather than one skill.
+  // ------------------------------------------------------------------------
+  tidefall_bar: item('tidefall_bar', 'Tidefall bar', { value: 1400,
+    colour: '#6d7f8c', shape: 'bar',
+    examine: 'Pale as the inside of a shell, and it does not warm to the hand.'
+  }),
+
+  tidefall_dagger: item('tidefall_dagger', 'Tidefall dagger', { value: 1050,
+    slot: 'weapon', speed: 4, colour: '#6d7f8c', shape: 'blade',
+    bonuses: { attack: 27, strength: 25 }
+  }),
+
+  tidefall_scimitar: item('tidefall_scimitar', 'Tidefall scimitar', { value: 2400,
+    slot: 'weapon', speed: 4, colour: '#6d7f8c', shape: 'blade',
+    bonuses: { attack: 44, strength: 41 }
+  }),
+
+  tidefall_kiteshield: item('tidefall_kiteshield', 'Tidefall kiteshield', { value: 3200,
+    slot: 'shield', colour: '#6d7f8c', shape: 'shield',
+    bonuses: { defence: 53 }
+  }),
+
+  tidefall_med_helm: item('tidefall_med_helm', 'Tidefall med helm', { value: 1800,
+    slot: 'head', colour: '#6d7f8c', shape: 'helm',
+    bonuses: { defence: 23 }
+  }),
+
+  tidefall_platelegs: item('tidefall_platelegs', 'Tidefall platelegs', { value: 3600,
+    slot: 'legs', colour: '#6d7f8c', shape: 'legs',
+    bonuses: { defence: 47 }
+  }),
+
+  tidefall_platebody: item('tidefall_platebody', 'Tidefall platebody', { value: 4800,
+    slot: 'body', colour: '#6d7f8c', shape: 'plate',
+    bonuses: { defence: 63 }
+  }),
+
+  // The first thing that goes in the cape slot, which is most of why it is
+  // worth having: it is not a better version of something, it is a slot that
+  // was empty until now. Small bonuses across every style, deliberately, so it
+  // is worn by an archer and a mage as readily as by a swordsman.
+  //
+  // Valueless. No shop takes it and no shop should -- it is the last thing a
+  // dead institution issued and there is exactly one.
+  // Cosmetic, and it competes with the seal for the same slot on purpose.
+  // Wearing it is a decision to give up real bonuses to look like somebody who
+  // finished, which is the only kind of trophy worth having in a game with
+  // nobody else in it to show it to.
+  wayfarers_cloak: item('wayfarers_cloak', "Wayfarer's cloak", {
+    slot: 'cape', colour: '#5c4a6e', shape: 'blob',
+    examine: 'Heavy, warm, and it has been everywhere you have.'
+  }),
+
+  wardens_seal: item('wardens_seal', "Warden's seal", {
+    slot: 'cape', colour: '#7a6a3f', shape: 'blob',
+    bonuses: { attack: 6, strength: 5, defence: 9, ranged: 6, magic: 6 },
+    examine: 'Warden of the Reach. There is no Reach and there are no Wardens, and here it is.'
   })
 } as const satisfies Record<string, ItemDef>;
 

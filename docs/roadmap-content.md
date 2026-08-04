@@ -203,10 +203,10 @@ The spine begins. Each of these recovers a fragment of what the collapsed order 
 | # | Quest | Teaches | Gate | Reward unlock |
 |---|---|---|---|---|
 | 17 | **What the Tide Kept** [4] | Underwater/flooded areas | Q15 | Flooded ruins region |
-| 18 | **The Alchemist's Third Mistake** [3] | Alchemy intro *(if shipped)* | Q11, Foraging 30 | Potions |
-| 19 | **Nine Names** [4] | Boss pattern, prep | Q17, Combat 30 | Adamantine access |
-| 20 | **The Last Warden** [5] | Multi-stage combat | Q14, Q19 | Warden's seal |
-| 21 | **Unmarked** [3] | Choice without consequence | Q20 | Nothing mechanical. Deliberate. |
+| 18 | **The Alchemist's Third Mistake** [3] | Saltwort, and steeping it | Q11, Q12, Foraging 30 | The saltwort draught |
+| 19 | **Nine Names** [4] | Boss phases, prep | Q17, Vitality 30 | Adamantine, tier 5 |
+| 20 | **The Last Warden** [5] | Four-phase combat | Q14, Q19, Vitality 35 | Warden's seal (cape slot) |
+| 21 | **Unmarked** [3] | Choice without consequence | Q20 | Nothing mechanical. Deliberate, and pinned by a test. |
 
 *"Unmarked" is the one quest that gives no unlock. It exists so the player learns that not everything in this world pays out — which makes it land when the capstone does.*
 
@@ -214,11 +214,11 @@ The spine begins. Each of these recovers a fragment of what the collapsed order 
 
 | # | Quest | Teaches | Gate | Reward unlock |
 |---|---|---|---|---|
-| 22 | **Watermark** [4] | Endurance, all-skill check | Q20, 8 skills at 40 | Tidefall Steel |
-| 23 | **The Long Answer** [6] | Everything | Q22, all quests | Ending, mastery cap |
-| 24 | **Wayfarer** [2] | — | 60 QP | Cosmetic cloak, statistics screen |
+| 22 | **Watermark** [4] | All-skill check | Q20, any 8 skills at 40 | Tidefall steel (tier 6) |
+| 23 | **The Long Answer** [6] | Everything | Q22, all quests | The ending. No mastery cap -- 50 stands |
+| 24 | **Wayfarer** [2] | — | 60 quest points | Cosmetic cloak, statistics screen |
 
-**Total quest points: 58.** Cape/cloak at the full total.
+**Total quest points: 63**, as built. Wayfarer gates at 60, which is unreachable without finishing the ending -- a test pins that.
 
 ### 5.3 Quest volume reality check
 
@@ -254,7 +254,7 @@ Six regions, unlocked by quest rather than level where possible.
 | **C** *[done]* | 0.5 | Full combat suite + Vitality. Quests 8–11. Wrackwood. | Combat system |
 | **D** *[done]* | 0.7 | Magic, Crafting, Foraging. Quests 12–16. | Spell system |
 | **E** | 0.9 | Drowned Interior. Quests 17–21. Tiers 5–6 equipment. | Boss framework |
-| **F** | 1.0 | Capstone quests 22–24. Balance pass. Mastery cap. | — |
+| **F** *[done]* | 1.0 | Capstone quests 22–24. Tier 6. Statistics screen. Balance pass. | — |
 | **Post** | 1.x | Alchemy, Thieving, Agility, task system, Farming | — |
 
 Phase A is the build you already have a technical roadmap for. Everything after it is content on a proven engine.
@@ -321,7 +321,7 @@ Explicitly out of scope for 1.0, listed so they don't creep in:
 
 ---
 
-## 9. Economy without other players
+## 9. Economy without other players *[built]*
 
 No player market means the whole RS economy model is inapplicable. What replaces it:
 
@@ -330,6 +330,17 @@ No player market means the whole RS economy model is inapplicable. What replaces
 - **Gold sources:** quest rewards, NPC buy prices for surplus goods, gems from mining.
 - **Deliberate deflation.** Since nobody's farming gold for real money, you can make gold scarce and meaningful. A 500-gold purchase should feel like a decision.
 - **No bank early.** Inventory pressure is a design tool. Introduce banking at Phase B, not Phase A.
+
+**As built.** Five shops: a general store that buys anything at 12% and four
+specialists that pay 22-50% for their own trade and refuse everything else,
+so selling is a decision about where to walk. Gems ride on the mining tiers
+as the scaling gold source. The sinks are the two skills that spend per
+action: an hour of Magic costs about 23,000 coins in reagents against a best
+gathering income of about 28,000, and Archery about 6,700 in iron arrows.
+
+Deferred from the list above: tool repair, smithing fuel and travel fees.
+Each is a system rather than a price, and the consumable sinks already give
+coins a permanent job. `tests/economy.test.ts` pins the relationships.
 
 ---
 
