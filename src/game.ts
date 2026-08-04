@@ -31,6 +31,7 @@ import {
 import type { BarDef, SmithDef, FletchDef } from './data/resources.ts';
 import { rollGather, rollBurn } from './systems/skilling.ts';
 import { SKILL_LIST } from './systems/skills.ts';
+import { bindPointer } from './ui/pointer.ts';
 import { Quests } from './systems/quests.ts';
 import { Stats } from './systems/stats.ts';
 import { Shops } from './systems/shop.ts';
@@ -1727,30 +1728,18 @@ export class Game implements World {
   // Input
   // ----------------------------------------------------------------------
   private bindInput(canvas: HTMLCanvasElement): void {
-    canvas.addEventListener('mousemove', (e) => {
-      const r = canvas.getBoundingClientRect();
-      const x = e.clientX - r.left;
-      const y = e.clientY - r.top;
-
-      this.renderer.hoverTile = this.renderer.screenToWorldTile(x, y);
-      this.renderer.hoverMob = this.pickMob(x, y, loop.alpha);
-      canvas.style.cursor = this.renderer.hoverMob ? 'pointer' : 'default';
-    });
-
-    canvas.addEventListener('mouseleave', () => {
-      this.renderer.hoverTile = null;
-      this.renderer.hoverMob = null;
-    });
-
-    canvas.addEventListener('click', (e) => {
-      const r = canvas.getBoundingClientRect();
-      this.handleClick(e.clientX - r.left, e.clientY - r.top);
-    });
-
-    canvas.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      const r = canvas.getBoundingClientRect();
-      this.handleRightClick(e.clientX - r.left, e.clientY - r.top, e.clientX, e.clientY);
+    bindPointer(canvas, {
+      tap: (x, y) => this.handleClick(x, y),
+      menu: (x, y, clientX, clientY) => this.handleRightClick(x, y, clientX, clientY),
+      hover: (x, y) => {
+        this.renderer.hoverTile = this.renderer.screenToWorldTile(x, y);
+        this.renderer.hoverMob = this.pickMob(x, y, loop.alpha);
+        canvas.style.cursor = this.renderer.hoverMob ? 'pointer' : 'default';
+      },
+      leave: () => {
+        this.renderer.hoverTile = null;
+        this.renderer.hoverMob = null;
+      }
     });
 
     window.addEventListener('keydown', (e) => {

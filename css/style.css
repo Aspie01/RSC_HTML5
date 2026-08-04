@@ -27,6 +27,25 @@ html, body {
   font-size: 13px;
   user-select: none;
   -webkit-user-select: none;
+  /* iOS raises a selection callout on long press, which is exactly the
+     gesture the game uses for its context menu. Without this the player gets
+     Safari's magnifier and copy bubble instead of the game's own menu. */
+  -webkit-touch-callout: none;
+  /* Kill the tap flash on Android; the game draws its own click marker. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The game handles every gesture itself. Without this, a double tap zooms the
+   page and a drag pans it -- both of which move the world out from under a
+   player who was only trying to walk. */
+.inv-slot,
+#tabs,
+#panel {
+  touch-action: manipulation;
+}
+
+#game {
+  touch-action: none;
 }
 
 #app {
@@ -245,9 +264,12 @@ html, body {
 }
 
 /* Tabs ------------------------------------------------------------- */
+/* Fits as many tabs as the sidebar has room for, rather than a fixed five.
+   Wayfarer adds a sixth partway through the game, and a hardcoded count left
+   it wrapped onto a row of its own. */
 #tabs {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(34px, 1fr));
   gap: 3px;
 }
 
@@ -888,4 +910,63 @@ html, body {
   color: #e8ddc4;
   font-weight: bold;
   font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ */
+/* Narrow screens                                                      */
+/*                                                                     */
+/* The desktop layout is world beside a fixed 244px sidebar. On a phone */
+/* in portrait that leaves about 130px of world, which is a sliver you  */
+/* cannot play in. Stack instead: world on top, panel underneath.       */
+/*                                                                     */
+/* Keyed to width rather than a touch query on purpose -- a narrow      */
+/* desktop window has the same problem, and a tablet in landscape does  */
+/* not, however it is being pointed at.                                 */
+/* ------------------------------------------------------------------ */
+@media (max-width: 700px) {
+  #app {
+    flex-direction: column;
+  }
+
+  #stage {
+    /* Enough world to see what you are walking into, and no more --
+       the panel below needs room for 30 inventory slots. */
+    flex: 0 0 46vh;
+    min-height: 0;
+  }
+
+  #sidebar {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    border-left: none;
+    border-top: 2px solid var(--border);
+  }
+
+  /* The minimap and the orbs share a row rather than stacking, which buys
+     back about 140px of vertical space for the panel. */
+  #minimap-wrap {
+    justify-content: flex-start;
+  }
+
+  #sidebar > #minimap-wrap {
+    display: none;
+  }
+
+  #chat {
+    height: 92px;
+  }
+
+  /* Apple's minimum comfortable touch target is 44px; the desktop grid puts
+     slots at 40 and a fingertip is not a cursor. */
+  .inv-slot {
+    min-height: 44px;
+  }
+}
+
+/* Very short viewports -- a phone in landscape, or the itch embed on a
+   laptop with browser chrome eating the height. */
+@media (max-height: 480px) {
+  #minimap { width: 104px; height: 104px; }
+  #chat { height: 76px; }
 }
